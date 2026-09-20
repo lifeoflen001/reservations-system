@@ -1023,6 +1023,9 @@ body.modal-open { overflow: hidden; }
 
 /* Keep the primary topbar controls compact and easy to reach. */
 .topbar { gap: 10px; padding-left: 10px; }
+.email-change-pending { border: 1px solid var(--warning-border); border-radius: var(--radius-sm); background: var(--warning-bg); margin-top: 18px; padding: 14px; }
+.email-change-pending strong { color: var(--text-primary); }
+.email-change-pending p { margin: 5px 0 0; color: var(--text-secondary); font-size: 12px; line-height: 1.45; }
 .global-search { width: min(320px, 30vw); flex: 0 1 320px; }
 @media (max-width: 1200px) and (min-width: 601px) {
     .topbar { gap: 8px; padding-inline: 10px 16px; }

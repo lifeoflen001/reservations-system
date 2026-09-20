@@ -113,6 +113,8 @@ Route::middleware(['auth', EnsureActiveUser::class, EnsureInstallationComplete::
     Route::get('/staff/profile/avatar', [ProfileController::class, 'avatar'])->name('profile.avatar');
     Route::put('/staff/profile/avatar', [ProfileController::class, 'updateAvatar'])->name('profile.avatar.update');
     Route::put('/staff/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::post('/staff/profile/email/request', [ProfileController::class, 'requestEmailChange'])->name('profile.email.request');
+    Route::post('/staff/profile/email/verify', [ProfileController::class, 'verifyEmailChange'])->name('profile.email.verify');
     Route::put('/staff/profile/preferences', [ProfileController::class, 'updatePreferences'])->name('profile.preferences.update');
     Route::post('/staff/profile/two-factor/enable', [ProfileController::class, 'enableTwoFactor'])->name('profile.two-factor.enable');
     Route::post('/staff/profile/two-factor/confirm', [ProfileController::class, 'confirmTwoFactor'])->name('profile.two-factor.confirm');

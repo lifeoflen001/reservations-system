@@ -7,16 +7,22 @@ use App\Http\Requests\Staff\ChangePasswordRequest;
 use App\Http\Requests\Staff\ConfirmTwoFactorRequest;
 use App\Http\Requests\Staff\DisableTwoFactorRequest;
 use App\Http\Requests\Staff\EnableTwoFactorRequest;
+use App\Http\Requests\Staff\RequestEmailChangeRequest;
 use App\Http\Requests\Staff\UpdateAvatarRequest;
 use App\Http\Requests\Staff\UpdateProfilePreferencesRequest;
 use App\Http\Requests\Staff\UpdateProfileRequest;
+use App\Http\Requests\Staff\VerifyEmailChangeRequest;
+use App\Models\EmailChangeVerification;
 use App\Models\Language;
 use App\Models\LoginHistory;
+use App\Models\User;
 use App\Models\UserNotificationPreference;
 use App\Models\UserPreference;
+use App\Services\HotelEmailService;
 use App\Services\LoginHistoryService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
@@ -42,7 +48,108 @@ class ProfileController extends Controller
             'recoveryCodes' => $request->session()->get('profile.recovery_codes'),
             'loginHistories' => $request->user()->loginHistories()->latest('login_at')->limit(25)->get(),
             'currentSessionId' => $request->session()->getId(),
+            'pendingEmailChange' => EmailChangeVerification::query()
+                ->where('user_id', $request->user()->id)
+                ->where('expires_at', '>', now())
+                ->first(),
         ]);
+    }
+
+    public function requestEmailChange(RequestEmailChangeRequest $request, HotelEmailService $emails): RedirectResponse
+    {
+        $user = $request->user();
+        $email = $request->validated('email');
+        $pending = EmailChangeVerification::query()->where('user_id', $user->id)->first();
+
+        if (strcasecmp($email, (string) $user->email) === 0) {
+            return back()->withErrors(['email' => 'Enter a different email address.'])->with('section', 'profile');
+        }
+
+        if ($pending?->email === $email && $pending->last_sent_at?->gt(now()->subSeconds(60))) {
+            return back()->withErrors(['email' => 'Please wait a minute before requesting another verification code.'])->with('section', 'profile');
+        }
+
+        $code = (string) random_int(100000, 999999);
+        $pending = EmailChangeVerification::query()->updateOrCreate(
+            ['user_id' => $user->id],
+            [
+                'email' => $email,
+                'code_hash' => Hash::make($code),
+                'attempts' => 0,
+                'expires_at' => now()->addMinutes(10),
+                'last_sent_at' => now(),
+            ],
+        );
+
+        $delivery = $emails->queue('email_change_verification', $email, [
+            'user_name' => $user->display_name,
+            'verification_code' => $code,
+            'expires_in' => '10 minutes',
+        ]);
+
+        if (! $delivery) {
+            $pending->delete();
+
+            return back()->withErrors(['email' => 'Email delivery is not configured. Ask an administrator to configure email, then try again.'])->with('section', 'profile');
+        }
+
+        return back()->with('success', 'A verification code was sent to '.$email.'. It expires in 10 minutes.')->with('section', 'profile');
+    }
+
+    public function verifyEmailChange(VerifyEmailChangeRequest $request): RedirectResponse
+    {
+        $user = $request->user();
+        $code = $request->validated('code');
+        $result = DB::transaction(function () use ($user, $code): string {
+            $pending = EmailChangeVerification::query()
+                ->where('user_id', $user->id)
+                ->lockForUpdate()
+                ->first();
+
+            if (! $pending || $pending->expires_at->isPast()) {
+                $pending?->delete();
+
+                return 'expired';
+            }
+
+            if ($pending->attempts >= 5) {
+                return 'locked';
+            }
+
+            if (! Hash::check($code, $pending->code_hash)) {
+                $pending->increment('attempts');
+
+                return 'invalid';
+            }
+
+            $emailInUse = User::query()
+                ->where('email', $pending->email)
+                ->whereKeyNot($user->id)
+                ->exists();
+
+            if ($emailInUse) {
+                $pending->delete();
+
+                return 'unavailable';
+            }
+
+            $user->update([
+                'email' => $pending->email,
+                'email_verified_at' => now(),
+                'updated_by' => $user->id,
+            ]);
+            $pending->delete();
+
+            return 'verified';
+        });
+
+        return match ($result) {
+            'verified' => back()->with('success', 'Your email address has been updated and verified.')->with('section', 'profile'),
+            'invalid' => back()->withErrors(['code' => 'That verification code is incorrect.'])->with('section', 'profile'),
+            'locked' => back()->withErrors(['code' => 'Too many incorrect attempts. Request a new verification code.'])->with('section', 'profile'),
+            'unavailable' => back()->withErrors(['code' => 'That email address is no longer available. Request a new address.'])->with('section', 'profile'),
+            default => back()->withErrors(['code' => 'That verification code has expired. Request a new code.'])->with('section', 'profile'),
+        };
     }
 
     public function update(UpdateProfileRequest $request): RedirectResponse
