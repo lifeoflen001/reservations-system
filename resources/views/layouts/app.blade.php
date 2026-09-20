@@ -15,10 +15,14 @@
     <script>const configuredTheme = @json(app(\App\Services\SystemSettingsService::class)->get('theme', 'system')); const profileTheme = @json($profileTheme); const storedTheme = localStorage.getItem('hotel-theme'); const initialTheme = profileTheme && profileTheme !== 'system' ? profileTheme : (storedTheme || configuredTheme); document.documentElement.dataset.theme = initialTheme === 'system' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : initialTheme;</script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="app-body @if(request()->routeIs('room-planning.*')) planning-app-body @endif" data-app-shell data-property-timezone="{{ app(\App\Services\PropertySettingsService::class)->timezone() }}">
+<body class="app-body @if(request()->routeIs('room-planning.*')) planning-app-body @endif" data-app-shell data-property-timezone="{{ app(\App\Services\PropertySettingsService::class)->timezone() }}" data-network-health-url="{{ url('/api/health') }}">
     <x-sidebar />
     <div class="app-shell">
         <x-topbar />
+        <div class="connection-status" data-connection-status hidden role="status" aria-live="polite">
+            <span class="connection-status__indicator" data-connection-indicator aria-hidden="true"></span>
+            <span data-connection-message></span>
+        </div>
         <main class="app-main" tabindex="-1">
             @if (session('success'))<x-feedback.toast type="success" :message="session('success')" />@endif
             @if (session('error'))<x-feedback.toast type="danger" :message="session('error')" />@endif

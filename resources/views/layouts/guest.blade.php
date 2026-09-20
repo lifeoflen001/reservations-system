@@ -14,7 +14,11 @@
     <script>const configuredTheme = @json(app(\App\Services\SystemSettingsService::class)->get('theme', 'system')); document.documentElement.dataset.theme = localStorage.getItem('hotel-theme') || (configuredTheme === 'system' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : configuredTheme);</script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="guest-body">
+<body class="guest-body" data-network-health-url="{{ url('/api/health') }}">
+    <div class="connection-status" data-connection-status hidden role="status" aria-live="polite">
+        <span class="connection-status__indicator" data-connection-indicator aria-hidden="true"></span>
+        <span data-connection-message></span>
+    </div>
     @yield('content')
 </body>
 </html>

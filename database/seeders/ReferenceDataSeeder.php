@@ -56,6 +56,7 @@ class ReferenceDataSeeder extends Seeder
             ['payment_receipt', 'Payment receipt', 'Payment received for {{ reservation_code }}', 'We received {{ paid_amount }} for reservation {{ reservation_code }}. Balance: {{ balance }}.', ['in_app', 'email']],
             ['invoice', 'Invoice', 'Invoice for {{ reservation_code }}', 'Your invoice for reservation {{ reservation_code }} at {{ property_name }} is ready.', ['email']],
             ['post_stay_thank_you', 'Post-stay thank you', 'Thank you for staying with {{ property_name }}', 'Thank you for staying with us, {{ guest_name }}. We hope to welcome you again.', ['email']],
+            ['email_change_verification', 'Email change verification', 'Verify your HotelDesk email change', 'Hello {{ user_name }}, your HotelDesk email verification code is {{ verification_code }}. It expires in {{ expires_in }}. If you did not request this change, you can safely ignore this message.', ['email']],
         ] as [$key, $name, $subject, $body, $channels]) {
             EmailTemplate::updateOrCreate(['key' => $key], compact('name', 'subject', 'body', 'channels') + ['is_enabled' => true]);
         }

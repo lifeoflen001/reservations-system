@@ -1,6 +1,110 @@
 const root = document.documentElement;
 const body = document.body;
 
+const initConnectionMonitor = () => {
+    const status = document.querySelector('[data-connection-status]');
+    const message = status?.querySelector('[data-connection-message]');
+    const healthUrl = body.dataset.networkHealthUrl;
+    if (!status || !message || !healthUrl) return;
+
+    let probeController = null;
+    let hideTimer = null;
+    let lastState = navigator.onLine === false ? 'offline' : 'unknown';
+    let initialProbeComplete = false;
+
+    const hideStatus = () => {
+        window.clearTimeout(hideTimer);
+        status.hidden = true;
+    };
+
+    const showStatus = (state, text, autoHide = false) => {
+        window.clearTimeout(hideTimer);
+        status.className = `connection-status connection-status--${state}`;
+        message.textContent = text;
+        status.hidden = false;
+        lastState = state;
+        if (autoHide) hideTimer = window.setTimeout(hideStatus, 6000);
+    };
+
+    const connectionInfo = () => navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    const qualityFor = (latency) => {
+        const info = connectionInfo();
+        const type = info?.effectiveType;
+        const rtt = Number(info?.rtt) || 0;
+        if (latency >= 1800 || rtt >= 1200 || type === 'slow-2g' || type === '2g') return 'slow';
+        if (latency >= 700 || rtt >= 600 || type === '3g') return 'fair';
+        return 'good';
+    };
+
+    const showQuality = (quality, announceOnline = false) => {
+        const hadProblem = ['offline', 'unstable', 'fair', 'slow'].includes(lastState);
+        if (quality === 'good') {
+            if (announceOnline || (initialProbeComplete && hadProblem)) showStatus('online', announceOnline ? 'Back online. Connection is good.' : 'Connection restored. You are back online.', true);
+            else { lastState = 'good'; hideStatus(); }
+            return;
+        }
+        if (quality === 'slow') {
+            showStatus('slow', announceOnline ? 'Back online, but your connection is slow. Pages and saves may take longer.' : 'Your connection is slow. Pages and saves may take longer.');
+            return;
+        }
+        showStatus('fair', announceOnline ? 'Back online. Connection quality is fair.' : 'Connection quality is fair. Pages may take longer to load.', true);
+    };
+
+    const probe = async ({ announceOnline = false } = {}) => {
+        if (navigator.onLine === false) {
+            showStatus('offline', 'You are offline. Changes cannot be saved until your connection returns.');
+            initialProbeComplete = true;
+            return;
+        }
+
+        probeController?.abort();
+        const controller = new AbortController();
+        probeController = controller;
+        const timeout = window.setTimeout(() => controller.abort(), 8000);
+        const startedAt = performance.now();
+        const url = new URL(healthUrl, window.location.href);
+        url.searchParams.set('connection_probe', String(Date.now()));
+
+        try {
+            const response = await fetch(url, {
+                cache: 'no-store',
+                credentials: 'same-origin',
+                headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                signal: controller.signal,
+            });
+            const payload = await response.json();
+            if (!response.ok || payload?.status !== 'ok') throw new Error('HotelDesk health check reported a degraded service.');
+            showQuality(qualityFor(performance.now() - startedAt), announceOnline);
+        } catch (error) {
+            if (error.name === 'AbortError') return;
+            if (navigator.onLine === false) showStatus('offline', 'You are offline. Changes cannot be saved until your connection returns.');
+            else showStatus('unstable', 'Network connected, but HotelDesk is having trouble reaching the server. We will keep retrying.');
+        } finally {
+            window.clearTimeout(timeout);
+            initialProbeComplete = true;
+        }
+    };
+
+    window.hotelDeskConnection = {
+        check: probe,
+        notifyFailure: (text = 'Network request failed. Check your connection and try again.') => showStatus('unstable', text),
+    };
+
+    window.addEventListener('offline', () => showStatus('offline', 'You are offline. Changes cannot be saved until your connection returns.'));
+    window.addEventListener('online', () => {
+        showStatus('online', 'Back online. Checking your connection…');
+        window.setTimeout(() => probe({ announceOnline: true }), 250);
+    });
+
+    const network = connectionInfo();
+    network?.addEventListener('change', () => probe());
+    window.setInterval(() => {
+        if (document.visibilityState === 'visible') probe();
+    }, 60000);
+
+    probe();
+};
+
 const setTheme = (theme) => {
     root.dataset.theme = theme;
     localStorage.setItem('hotel-theme', theme);
@@ -129,6 +233,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setTheme(root.dataset.theme || 'light');
     bindContextTooltips();
     bindPageLoading();
+    initConnectionMonitor();
     window.addEventListener('scroll', positionContextTooltip, true);
     window.addEventListener('resize', positionContextTooltip);
 
@@ -442,6 +547,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const cropStage = cropModal?.querySelector('.avatar-cropper__stage');
         const canvas = cropModal?.querySelector('[data-avatar-canvas]');
         const zoomInput = cropModal?.querySelector('[data-avatar-zoom]');
+        const cropApply = cropModal?.querySelector('[data-avatar-crop-apply]');
+        const avatarForm = avatarEditor.closest('form');
         const cropImage = canvas?.getContext('2d');
         const profileHeroAvatar = document.querySelector('.detail-hero > .avatar');
         let image = null;
@@ -449,6 +556,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let offsetX = 0;
         let offsetY = 0;
         let dragStart = null;
+        let objectUrl = null;
 
         const syncProfileHero = () => {
             if (!profileHeroAvatar || !preview) return;
@@ -466,22 +574,32 @@ document.addEventListener('DOMContentLoaded', () => {
             cropImage.clearRect(0, 0, canvas.width, canvas.height);
             cropImage.drawImage(image, (canvas.width - width) / 2 + offsetX, (canvas.height - height) / 2 + offsetY, width, height);
         };
-        const showCropError = () => { if (status) status.textContent = 'That image could not be read. Choose another photo.'; };
+        const releaseObjectUrl = () => {
+            if (objectUrl) URL.revokeObjectURL(objectUrl);
+            objectUrl = null;
+        };
+        const showCropError = (message = 'That image could not be read. Choose another photo.') => {
+            releaseObjectUrl();
+            image = null;
+            if (status) status.textContent = message;
+        };
         const openCrop = (file) => {
             if (!file || !file.type.startsWith('image/') || file.size > 5 * 1024 * 1024 || !cropModal) {
                 if (status) status.textContent = 'Choose a JPG, PNG or WebP image up to 5 MB.';
                 return;
             }
-            const objectUrl = URL.createObjectURL(file);
+            releaseObjectUrl();
+            objectUrl = URL.createObjectURL(file);
             image = new Image();
+            image.decoding = 'async';
             image.onload = () => {
                 zoom = 1;
                 offsetX = 0;
                 offsetY = 0;
                 if (zoomInput) zoomInput.value = '1';
-                cropModal.hidden = false;
+                openModal(cropModal, avatarEditor.querySelector('[data-avatar-select]'));
                 drawCrop();
-                URL.revokeObjectURL(objectUrl);
+                if (status) status.textContent = 'Drag to position the photo, then choose Use this photo.';
             };
             image.onerror = showCropError;
             image.src = objectUrl;
@@ -502,15 +620,21 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         cropStage?.addEventListener('pointerup', () => { dragStart = null; });
         cropStage?.addEventListener('pointercancel', () => { dragStart = null; });
-        cropModal?.querySelector('[data-avatar-crop-cancel]')?.addEventListener('click', () => { cropModal.hidden = true; image = null; });
-        cropModal?.querySelector('[data-avatar-crop-apply]')?.addEventListener('click', () => {
-            if (!image || !canvas || !avatarInput || typeof canvas.toBlob !== 'function') return;
-            canvas.toBlob((blob) => {
-                if (!blob) return;
-                const croppedFile = new File([blob], 'profile-picture.jpg', { type: 'image/jpeg' });
+        cropModal?.querySelector('[data-avatar-crop-cancel]')?.addEventListener('click', () => { closeModal(cropModal, { force: true }); image = null; releaseObjectUrl(); });
+        cropApply?.addEventListener('click', async () => {
+            if (!image || !canvas || !avatarInput || typeof canvas.toDataURL !== 'function') return;
+            cropApply.disabled = true;
+            if (status) status.textContent = 'Preparing cropped photo…';
+            try {
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+                const encoded = dataUrl.split(',')[1];
+                const bytes = Uint8Array.from(atob(encoded), (character) => character.charCodeAt(0));
+                const blob = new Blob([bytes], { type: 'image/jpeg' });
+                const croppedFile = new File([blob], 'profile-picture.jpg', { type: 'image/jpeg', lastModified: Date.now() });
                 const transfer = new DataTransfer();
                 transfer.items.add(croppedFile);
                 avatarInput.files = transfer.files;
+                if (!avatarInput.files.length) throw new Error('The browser rejected the cropped file.');
                 if (removeInput) removeInput.value = '0';
                 if (preview) {
                     preview.classList.add('avatar--image');
@@ -526,9 +650,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     syncProfileHero();
                 }
                 if (status) status.textContent = 'Cropped photo ready. Save picture to apply it.';
-                cropModal.hidden = true;
+                closeModal(cropModal, { force: true });
                 image = null;
-            }, 'image/jpeg', 0.9);
+                releaseObjectUrl();
+            } catch (error) {
+                showCropError('The crop could not be prepared. Choose the photo again or upload the original image.');
+                console.error('HotelDesk profile picture crop failed.', error);
+            } finally {
+                cropApply.disabled = false;
+            }
         });
         avatarEditor.querySelector('[data-avatar-remove]')?.addEventListener('click', () => {
             if (avatarInput) avatarInput.value = '';
@@ -543,6 +673,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 syncProfileHero();
             }
             if (status) status.textContent = 'Picture will be removed when you save.';
+        });
+        avatarForm?.addEventListener('submit', () => {
+            const saveButton = avatarForm.querySelector('button[type="submit"]');
+            if (saveButton) {
+                saveButton.disabled = true;
+                saveButton.setAttribute('aria-busy', 'true');
+                saveButton.querySelector('.ui-button__label')?.replaceChildren(document.createTextNode('Saving…'));
+            }
+            if (status) status.textContent = 'Uploading profile picture…';
         });
     }
 
