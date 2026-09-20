@@ -65,6 +65,29 @@ class ProfileSettingsTest extends TestCase
         $this->assertSame(['financial'], $admin->notificationPreferences()->firstOrFail()->categories);
     }
 
+    public function test_user_can_change_username_from_profile_and_duplicate_usernames_are_rejected(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+        $admin = User::firstOrFail();
+
+        $this->actingAs($admin)->put(route('profile.update'), [
+            'first_name' => 'HotelDesk',
+            'last_name' => 'Administrator',
+            'username' => 'hotel-admin',
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertSame('hotel-admin', $admin->fresh()->username);
+        User::factory()->create(['username' => 'admin']);
+
+        $this->actingAs($admin)->put(route('profile.update'), [
+            'first_name' => 'HotelDesk',
+            'last_name' => 'Administrator',
+            'username' => 'admin',
+        ])->assertRedirect()->assertSessionHasErrors('username');
+
+        $this->assertSame('hotel-admin', $admin->fresh()->username);
+    }
+
     public function test_email_change_requires_a_queued_code_before_updating_the_email(): void
     {
         $this->seed(DatabaseSeeder::class);
