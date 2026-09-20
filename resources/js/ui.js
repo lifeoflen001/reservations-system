@@ -1,6 +1,110 @@
 const root = document.documentElement;
 const body = document.body;
 
+const initConnectionMonitor = () => {
+    const status = document.querySelector('[data-connection-status]');
+    const message = status?.querySelector('[data-connection-message]');
+    const healthUrl = body.dataset.networkHealthUrl;
+    if (!status || !message || !healthUrl) return;
+
+    let probeController = null;
+    let hideTimer = null;
+    let lastState = navigator.onLine === false ? 'offline' : 'unknown';
+    let initialProbeComplete = false;
+
+    const hideStatus = () => {
+        window.clearTimeout(hideTimer);
+        status.hidden = true;
+    };
+
+    const showStatus = (state, text, autoHide = false) => {
+        window.clearTimeout(hideTimer);
+        status.className = `connection-status connection-status--${state}`;
+        message.textContent = text;
+        status.hidden = false;
+        lastState = state;
+        if (autoHide) hideTimer = window.setTimeout(hideStatus, 6000);
+    };
+
+    const connectionInfo = () => navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    const qualityFor = (latency) => {
+        const info = connectionInfo();
+        const type = info?.effectiveType;
+        const rtt = Number(info?.rtt) || 0;
+        if (latency >= 1800 || rtt >= 1200 || type === 'slow-2g' || type === '2g') return 'slow';
+        if (latency >= 700 || rtt >= 600 || type === '3g') return 'fair';
+        return 'good';
+    };
+
+    const showQuality = (quality, announceOnline = false) => {
+        const hadProblem = ['offline', 'unstable', 'fair', 'slow'].includes(lastState);
+        if (quality === 'good') {
+            if (announceOnline || (initialProbeComplete && hadProblem)) showStatus('online', announceOnline ? 'Back online. Connection is good.' : 'Connection restored. You are back online.', true);
+            else { lastState = 'good'; hideStatus(); }
+            return;
+        }
+        if (quality === 'slow') {
+            showStatus('slow', announceOnline ? 'Back online, but your connection is slow. Pages and saves may take longer.' : 'Your connection is slow. Pages and saves may take longer.');
+            return;
+        }
+        showStatus('fair', announceOnline ? 'Back online. Connection quality is fair.' : 'Connection quality is fair. Pages may take longer to load.', true);
+    };
+
+    const probe = async ({ announceOnline = false } = {}) => {
+        if (navigator.onLine === false) {
+            showStatus('offline', 'You are offline. Changes cannot be saved until your connection returns.');
+            initialProbeComplete = true;
+            return;
+        }
+
+        probeController?.abort();
+        const controller = new AbortController();
+        probeController = controller;
+        const timeout = window.setTimeout(() => controller.abort(), 8000);
+        const startedAt = performance.now();
+        const url = new URL(healthUrl, window.location.href);
+        url.searchParams.set('connection_probe', String(Date.now()));
+
+        try {
+            const response = await fetch(url, {
+                cache: 'no-store',
+                credentials: 'same-origin',
+                headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                signal: controller.signal,
+            });
+            const payload = await response.json();
+            if (!response.ok || payload?.status !== 'ok') throw new Error('HotelDesk health check reported a degraded service.');
+            showQuality(qualityFor(performance.now() - startedAt), announceOnline);
+        } catch (error) {
+            if (error.name === 'AbortError') return;
+            if (navigator.onLine === false) showStatus('offline', 'You are offline. Changes cannot be saved until your connection returns.');
+            else showStatus('unstable', 'Network connected, but HotelDesk is having trouble reaching the server. We will keep retrying.');
+        } finally {
+            window.clearTimeout(timeout);
+            initialProbeComplete = true;
+        }
+    };
+
+    window.hotelDeskConnection = {
+        check: probe,
+        notifyFailure: (text = 'Network request failed. Check your connection and try again.') => showStatus('unstable', text),
+    };
+
+    window.addEventListener('offline', () => showStatus('offline', 'You are offline. Changes cannot be saved until your connection returns.'));
+    window.addEventListener('online', () => {
+        showStatus('online', 'Back online. Checking your connection…');
+        window.setTimeout(() => probe({ announceOnline: true }), 250);
+    });
+
+    const network = connectionInfo();
+    network?.addEventListener('change', () => probe());
+    window.setInterval(() => {
+        if (document.visibilityState === 'visible') probe();
+    }, 60000);
+
+    probe();
+};
+
 const setTheme = (theme) => {
     root.dataset.theme = theme;
     localStorage.setItem('hotel-theme', theme);
@@ -129,6 +233,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setTheme(root.dataset.theme || 'light');
     bindContextTooltips();
     bindPageLoading();
+    initConnectionMonitor();
     window.addEventListener('scroll', positionContextTooltip, true);
     window.addEventListener('resize', positionContextTooltip);
 

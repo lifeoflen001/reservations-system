@@ -19,6 +19,8 @@ class DashboardNavigationTest extends TestCase
             ->assertOk()
             ->assertSee('href="'.route('tasks.index').'"', false)
             ->assertSee('View tasks', false)
-            ->assertSee('Open tasks module', false);
+            ->assertSee('Open tasks module', false)
+            ->assertSee('data-connection-status', false)
+            ->assertSee('data-network-health-url="'.url('/api/health').'"', false);
     }
 }

@@ -163,6 +163,15 @@ input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-o
 .toast--warning { border-color: var(--warning-border); background: var(--warning-bg); color: var(--warning); }
 .toast--info { border-color: var(--info-border); background: var(--info-bg); color: var(--info); }
 .toast button { border: 0; background: transparent; color: currentColor; font-size: 20px; line-height: 1; }
+.connection-status { position: fixed; top: calc(var(--topbar-height) + 12px); right: 24px; z-index: 105; display: flex; min-width: 280px; max-width: min(470px, calc(100vw - 28px)); align-items: center; gap: 10px; border: 1px solid var(--info-border); border-radius: var(--radius-sm); background: var(--info-bg); box-shadow: var(--shadow-modal); color: var(--info); padding: 11px 14px; font-size: 12px; font-weight: 600; }
+.connection-status[hidden] { display: none; }
+.connection-status--online { border-color: var(--success-border); background: var(--success-bg); color: var(--success); }
+.connection-status--fair, .connection-status--slow { border-color: var(--warning-border); background: var(--warning-bg); color: var(--warning); }
+.connection-status--unstable, .connection-status--offline { border-color: var(--danger-border); background: var(--danger-bg); color: var(--danger); }
+.connection-status__indicator { width: 9px; height: 9px; flex: 0 0 auto; border-radius: 50%; background: currentColor; box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 18%, transparent); }
+.connection-status--offline .connection-status__indicator, .connection-status--unstable .connection-status__indicator { animation: connection-pulse 1.5s ease-in-out infinite; }
+@keyframes connection-pulse { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+@media (max-width: 600px) { .connection-status { top: calc(var(--topbar-height) + 8px); right: 12px; left: 12px; min-width: 0; max-width: none; } }
 .modal { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; overflow: auto; overscroll-behavior: contain; padding: 24px; }
 .modal[hidden] { display: none; }
 .modal__backdrop { position: absolute; inset: 0; background: rgb(15 23 42 / 52%); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
