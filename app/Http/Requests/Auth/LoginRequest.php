@@ -30,7 +30,7 @@ class LoginRequest extends FormRequest
             ->orWhere('username', $this->string('identity')->toString())
             ->first();
 
-        logger()->info('Login authentication check', [
+        logger()->warning('Login authentication check', [
             'identity_type' => str_contains($this->string('identity')->toString(), '@') ? 'email' : 'username',
             'user_found' => (bool) $user,
             'user_active' => (bool) $user?->is_active,
