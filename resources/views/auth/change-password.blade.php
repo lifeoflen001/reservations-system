@@ -1,0 +1,6 @@
+@extends('layouts.app')
+
+@section('content')
+<x-page-header title="Change password" subtitle="Use a strong password that is unique to your HotelDesk account." />
+<section class="ui-card password-card"><header class="ui-card__header password-card__header"><x-app-logo class="auth-form-logo auth-form-logo--app" /><div class="ui-card__heading"><x-ui.icon name="key" size="18" /><h2>Set a new password</h2></div></header><div class="ui-card__body">@if ($errors->any())<x-feedback.alert type="danger">{{ $errors->first() }}</x-feedback.alert><br>@endif<form method="POST" action="{{ route('password.change.update') }}"><x-form.input name="current_password" type="password" label="Current password" autocomplete="current-password" :show-error="false" required /><x-form.input name="password" type="password" label="New password" autocomplete="new-password" help="Minimum 8 characters." :show-error="false" required /><x-form.input name="password_confirmation" type="password" label="Confirm new password" autocomplete="new-password" :show-error="false" required /><div class="modal-form-footer"><a class="ui-button ui-button--secondary" href="{{ route('profile') }}">Cancel</a><button class="ui-button ui-button--primary" type="submit"><x-ui.icon name="save" size="16" /> Change password</button></div>@csrf @method('PUT')</form></div></section>
+@endsection

@@ -1,0 +1,4 @@
+@extends('layouts.print')
+@section('content')
+    <main class="print-page"><h1>Payments</h1><p class="print-muted">{{ config('hotel.brand.name') }} · {{ now()->format('m/d/Y h:i A') }}</p><table class="print-table"><thead><tr><th>Invoice</th><th>Reservation</th><th>Guest</th><th>Amount</th><th>Method</th><th>Reference</th><th>Date</th><th>Status</th></tr></thead><tbody>@forelse($payments as $payment)<tr><td>{{ $payment->invoice_number }}</td><td>{{ $payment->reservation?->code }}</td><td>{{ $payment->client?->full_name }}</td><td>{{ $formatter->format($payment->amount) }}</td><td>{{ ucwords(str_replace('_', ' ', $payment->method)) }}</td><td>{{ $payment->reference }}</td><td>{{ $payment->transaction_date?->format('m/d/Y h:i A') }}</td><td>{{ $payment->status->label() }}</td></tr>@empty<tr><td colspan="8">No payments found.</td></tr>@endforelse</tbody></table></main><script>window.addEventListener('load', () => window.print());</script>
+@endsection

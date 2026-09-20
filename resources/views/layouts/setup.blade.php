@@ -1,0 +1,5 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>@php($brandIcon = asset('assets/branding/lodgix-mark.png') . '?v=' . filemtime(public_path('assets/branding/lodgix-mark.png')))<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="icon" type="image/png" sizes="254x180" href="{{ $brandIcon }}"><link rel="shortcut icon" type="image/png" href="{{ $brandIcon }}"><link rel="apple-touch-icon" href="{{ $brandIcon }}"><link rel="mask-icon" href="{{ asset('assets/branding/lodgix-mark.svg') }}?v={{ filemtime(public_path('assets/branding/lodgix-mark.svg')) }}" color="#ef7d22"><meta name="theme-color" content="#ef7d22"><title>Lodgix setup</title><script>document.documentElement.dataset.theme = 'light';</script>@vite(['resources/css/app.css', 'resources/js/app.js'])</head>
+<body class="setup-body">@yield('content')</body>
+</html>

@@ -1,0 +1,86 @@
+:root {
+    --brand-primary: #e67e2f;
+    --brand-primary-hover: #cf6d25;
+    --brand-primary-soft: #fff1e6;
+    --brand-primary-border: #f3c39e;
+
+    --page-bg: #f3f4f6;
+    --surface-bg: #ffffff;
+    --surface-secondary: #f8fafc;
+    --surface-muted: #eef1f4;
+    --sidebar-bg: #ffffff;
+    --topbar-bg: #ffffff;
+
+    --text-primary: #344054;
+    --text-secondary: #667085;
+    --text-muted: #98a2b3;
+    --text-disabled: #b7bec8;
+    --border: #dfe3e8;
+    --border-strong: #cbd2da;
+    --input-bg: #ffffff;
+    --input-border: #cbd2da;
+    --input-focus: #69a7e8;
+
+    --success: #56a35a;
+    --success-bg: #eff9f0;
+    --success-border: #bce2c0;
+    --info: #69a7e8;
+    --info-bg: #eef6ff;
+    --info-border: #c6e0fa;
+    --warning: #df9d28;
+    --warning-bg: #fff7e8;
+    --warning-border: #f2d49a;
+    --danger: #d9534f;
+    --danger-bg: #fff0ef;
+    --danger-border: #f0bbb8;
+    --room-available: #69bf6d;
+    --room-occupied: #69a7e8;
+    --room-reserved: #df9d28;
+    --room-cleaning: #e67e2f;
+    --room-maintenance: #d9534f;
+    --room-blocked: #697586;
+
+    --shadow-sm: 0 1px 2px rgb(16 24 40 / 5%);
+    --shadow-modal: 0 18px 48px rgb(16 24 40 / 22%);
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --sidebar-width: 252px;
+    --sidebar-collapsed-width: 70px;
+    --topbar-height: 72px;
+}
+
+[data-theme='dark'] {
+    --page-bg: #0d1014;
+    --surface-bg: #171b20;
+    --surface-secondary: #1d2229;
+    --surface-muted: #222933;
+    --sidebar-bg: #111419;
+    --topbar-bg: #111419;
+    --text-primary: #f2f4f7;
+    --text-secondary: #aab4c2;
+    --text-muted: #7d8795;
+    --text-disabled: #5c6571;
+    --border: #2b333e;
+    --border-strong: #3b4652;
+    --input-bg: #171b20;
+    --input-border: #3b4652;
+    --input-focus: #69a7e8;
+    --brand-primary-soft: #302116;
+    --brand-primary-border: #75441f;
+    --success-bg: #15271a;
+    --info-bg: #14273a;
+    --warning-bg: #302613;
+    --danger-bg: #321a1b;
+    --success-border: #2f6938;
+    --info-border: #2d608f;
+    --warning-border: #785b20;
+    --danger-border: #793837;
+    --shadow-sm: 0 1px 2px rgb(0 0 0 / 22%);
+    --shadow-modal: 0 18px 48px rgb(0 0 0 / 48%);
+}
