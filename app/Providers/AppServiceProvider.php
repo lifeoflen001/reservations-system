@@ -43,6 +43,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -62,6 +63,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        if ($this->app->environment('production')) {
+            URL::forceScheme('https');
+        }
+
         RateLimiter::for('api', fn (Request $request) => Limit::perMinute(60)->by($request->bearerToken() ? hash('sha256', $request->bearerToken()) : $request->ip()));
         Event::listen(ReservationCreated::class, fn (ReservationCreated $event) => $this->reservationEvent($event->reservation, 'created'));
         Event::listen(ReservationUpdated::class, fn (ReservationUpdated $event) => $this->reservationEvent($event->reservation, 'updated'));
