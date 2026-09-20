@@ -39,10 +39,14 @@ class DatabaseSeeder extends Seeder
             'is_active' => true,
         ]);
 
-        // Keep the existing password when db:seed is run against an installed database.
+        // Keep the existing password on normal reseeds. A one-time Railway bootstrap
+        // override is available for recovering an installation whose admin password
+        // was never seeded correctly.
         if (! $administrator->exists) {
             $administrator->email = 'admin@hoteldesk.test';
-            $administrator->password = Hash::make('Admin123!');
+            $administrator->password = Hash::make(env('ADMIN_RESET_PASSWORD', 'Admin123!'));
+        } elseif (filled(env('ADMIN_RESET_PASSWORD'))) {
+            $administrator->password = Hash::make(env('ADMIN_RESET_PASSWORD'));
         }
 
         $administrator->save();
