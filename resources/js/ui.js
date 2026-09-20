@@ -492,7 +492,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 offsetX = 0;
                 offsetY = 0;
                 if (zoomInput) zoomInput.value = '1';
-                cropModal.hidden = false;
+                openModal(cropModal, avatarEditor.querySelector('[data-avatar-select]'));
                 drawCrop();
                 if (status) status.textContent = 'Drag to position the photo, then choose Use this photo.';
             };
@@ -515,7 +515,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         cropStage?.addEventListener('pointerup', () => { dragStart = null; });
         cropStage?.addEventListener('pointercancel', () => { dragStart = null; });
-        cropModal?.querySelector('[data-avatar-crop-cancel]')?.addEventListener('click', () => { cropModal.hidden = true; image = null; releaseObjectUrl(); });
+        cropModal?.querySelector('[data-avatar-crop-cancel]')?.addEventListener('click', () => { closeModal(cropModal, { force: true }); image = null; releaseObjectUrl(); });
         cropApply?.addEventListener('click', async () => {
             if (!image || !canvas || !avatarInput || typeof canvas.toDataURL !== 'function') return;
             cropApply.disabled = true;
@@ -545,7 +545,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     syncProfileHero();
                 }
                 if (status) status.textContent = 'Cropped photo ready. Save picture to apply it.';
-                cropModal.hidden = true;
+                closeModal(cropModal, { force: true });
                 image = null;
                 releaseObjectUrl();
             } catch (error) {
