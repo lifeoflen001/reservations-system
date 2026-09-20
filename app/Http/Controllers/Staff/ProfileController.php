@@ -80,18 +80,22 @@ class ProfileController extends Controller
 
     public function avatar(Request $request): StreamedResponse
     {
+        $disk = Storage::disk('public');
         $path = $request->user()->avatar_path;
-        abort_unless($path && Storage::disk('public')->exists($path), 404);
+        abort_unless($path && $disk->exists($path), 404);
 
-        $stream = Storage::disk('public')->readStream($path);
+        $stream = $disk->readStream($path);
         abort_unless(is_resource($stream), 404);
+        $mime = $disk->mimeType($path) ?: 'image/jpeg';
+        $size = $disk->size($path);
 
         return response()->stream(function () use ($stream): void {
             fpassthru($stream);
             fclose($stream);
         }, 200, [
             'Cache-Control' => 'private, max-age=3600',
-            'Content-Type' => Storage::disk('public')->mimeType($path) ?: 'image/jpeg',
+            'Content-Type' => $mime,
+            'Content-Length' => (string) $size,
             'X-Content-Type-Options' => 'nosniff',
         ]);
     }

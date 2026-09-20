@@ -442,6 +442,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const cropStage = cropModal?.querySelector('.avatar-cropper__stage');
         const canvas = cropModal?.querySelector('[data-avatar-canvas]');
         const zoomInput = cropModal?.querySelector('[data-avatar-zoom]');
+        const cropApply = cropModal?.querySelector('[data-avatar-crop-apply]');
+        const avatarForm = avatarEditor.closest('form');
         const cropImage = canvas?.getContext('2d');
         const profileHeroAvatar = document.querySelector('.detail-hero > .avatar');
         let image = null;
@@ -449,6 +451,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let offsetX = 0;
         let offsetY = 0;
         let dragStart = null;
+        let objectUrl = null;
 
         const syncProfileHero = () => {
             if (!profileHeroAvatar || !preview) return;
@@ -466,14 +469,24 @@ document.addEventListener('DOMContentLoaded', () => {
             cropImage.clearRect(0, 0, canvas.width, canvas.height);
             cropImage.drawImage(image, (canvas.width - width) / 2 + offsetX, (canvas.height - height) / 2 + offsetY, width, height);
         };
-        const showCropError = () => { if (status) status.textContent = 'That image could not be read. Choose another photo.'; };
+        const releaseObjectUrl = () => {
+            if (objectUrl) URL.revokeObjectURL(objectUrl);
+            objectUrl = null;
+        };
+        const showCropError = (message = 'That image could not be read. Choose another photo.') => {
+            releaseObjectUrl();
+            image = null;
+            if (status) status.textContent = message;
+        };
         const openCrop = (file) => {
             if (!file || !file.type.startsWith('image/') || file.size > 5 * 1024 * 1024 || !cropModal) {
                 if (status) status.textContent = 'Choose a JPG, PNG or WebP image up to 5 MB.';
                 return;
             }
-            const objectUrl = URL.createObjectURL(file);
+            releaseObjectUrl();
+            objectUrl = URL.createObjectURL(file);
             image = new Image();
+            image.decoding = 'async';
             image.onload = () => {
                 zoom = 1;
                 offsetX = 0;
@@ -481,7 +494,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (zoomInput) zoomInput.value = '1';
                 cropModal.hidden = false;
                 drawCrop();
-                URL.revokeObjectURL(objectUrl);
+                if (status) status.textContent = 'Drag to position the photo, then choose Use this photo.';
             };
             image.onerror = showCropError;
             image.src = objectUrl;
@@ -502,15 +515,21 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         cropStage?.addEventListener('pointerup', () => { dragStart = null; });
         cropStage?.addEventListener('pointercancel', () => { dragStart = null; });
-        cropModal?.querySelector('[data-avatar-crop-cancel]')?.addEventListener('click', () => { cropModal.hidden = true; image = null; });
-        cropModal?.querySelector('[data-avatar-crop-apply]')?.addEventListener('click', () => {
-            if (!image || !canvas || !avatarInput || typeof canvas.toBlob !== 'function') return;
-            canvas.toBlob((blob) => {
-                if (!blob) return;
-                const croppedFile = new File([blob], 'profile-picture.jpg', { type: 'image/jpeg' });
+        cropModal?.querySelector('[data-avatar-crop-cancel]')?.addEventListener('click', () => { cropModal.hidden = true; image = null; releaseObjectUrl(); });
+        cropApply?.addEventListener('click', async () => {
+            if (!image || !canvas || !avatarInput || typeof canvas.toDataURL !== 'function') return;
+            cropApply.disabled = true;
+            if (status) status.textContent = 'Preparing cropped photo…';
+            try {
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+                const encoded = dataUrl.split(',')[1];
+                const bytes = Uint8Array.from(atob(encoded), (character) => character.charCodeAt(0));
+                const blob = new Blob([bytes], { type: 'image/jpeg' });
+                const croppedFile = new File([blob], 'profile-picture.jpg', { type: 'image/jpeg', lastModified: Date.now() });
                 const transfer = new DataTransfer();
                 transfer.items.add(croppedFile);
                 avatarInput.files = transfer.files;
+                if (!avatarInput.files.length) throw new Error('The browser rejected the cropped file.');
                 if (removeInput) removeInput.value = '0';
                 if (preview) {
                     preview.classList.add('avatar--image');
@@ -528,7 +547,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (status) status.textContent = 'Cropped photo ready. Save picture to apply it.';
                 cropModal.hidden = true;
                 image = null;
-            }, 'image/jpeg', 0.9);
+                releaseObjectUrl();
+            } catch (error) {
+                showCropError('The crop could not be prepared. Choose the photo again or upload the original image.');
+                console.error('HotelDesk profile picture crop failed.', error);
+            } finally {
+                cropApply.disabled = false;
+            }
         });
         avatarEditor.querySelector('[data-avatar-remove]')?.addEventListener('click', () => {
             if (avatarInput) avatarInput.value = '';
@@ -543,6 +568,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 syncProfileHero();
             }
             if (status) status.textContent = 'Picture will be removed when you save.';
+        });
+        avatarForm?.addEventListener('submit', () => {
+            const saveButton = avatarForm.querySelector('button[type="submit"]');
+            if (saveButton) {
+                saveButton.disabled = true;
+                saveButton.setAttribute('aria-busy', 'true');
+                saveButton.querySelector('.ui-button__label')?.replaceChildren(document.createTextNode('Saving…'));
+            }
+            if (status) status.textContent = 'Uploading profile picture…';
         });
     }
 
