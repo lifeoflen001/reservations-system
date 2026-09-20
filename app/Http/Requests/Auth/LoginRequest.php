@@ -30,6 +30,13 @@ class LoginRequest extends FormRequest
             ->orWhere('username', $this->string('identity')->toString())
             ->first();
 
+        logger()->info('Login authentication check', [
+            'identity_type' => str_contains($this->string('identity')->toString(), '@') ? 'email' : 'username',
+            'user_found' => (bool) $user,
+            'user_active' => (bool) $user?->is_active,
+            'password_match' => (bool) ($user && Hash::check($this->string('password')->toString(), $user->password)),
+        ]);
+
         if (! $user || ! $user->is_active || ! Hash::check($this->string('password')->toString(), $user->password)) {
             throw ValidationException::withMessages([
                 'identity' => __('These credentials do not match our records.'),
