@@ -30,12 +30,12 @@ class LoginRequest extends FormRequest
             ->orWhere('username', $this->string('identity')->toString())
             ->first();
 
-        logger()->warning('Login authentication check', [
+        error_log('LOGIN_DIAG '.json_encode([
             'identity_type' => str_contains($this->string('identity')->toString(), '@') ? 'email' : 'username',
             'user_found' => (bool) $user,
             'user_active' => (bool) $user?->is_active,
             'password_match' => (bool) ($user && Hash::check($this->string('password')->toString(), $user->password)),
-        ]);
+        ]));
 
         if (! $user || ! $user->is_active || ! Hash::check($this->string('password')->toString(), $user->password)) {
             throw ValidationException::withMessages([
