@@ -24,7 +24,7 @@ class HotelNotificationService
             'category' => 'operational',
             'entity_type' => Reservation::class, 'entity_id' => $reservation->id, 'action_url' => route('reservations.index', ['search' => $reservation->code]),
         ];
-        $this->notifyUsers(User::query()->get()->filter(fn (User $user) => $user->hasPermission('reservations.view')), $payload);
+        $this->notifyUsers($this->usersWithPermission('reservations.view'), $payload);
         if ($type === 'confirmed' && $this->integrations->isConfigured('email') && $reservation->client?->email) {
             $this->emails->queue('reservation_confirmation', $reservation->client->email, $this->reservationVariables($reservation), $reservation->id, $reservation->client_id);
         }
@@ -41,7 +41,13 @@ class HotelNotificationService
             'category' => 'financial',
             'entity_type' => Payment::class, 'entity_id' => $payment->id, 'action_url' => route('payments.index', ['invoice' => $payment->invoice?->id]),
         ];
-        $this->notifyUsers(User::query()->get()->filter(fn (User $user) => $user->hasPermission('payments.view')), $payload);
+        $this->notifyUsers($this->usersWithPermission('payments.view'), $payload);
+    }
+
+    private function usersWithPermission(string $permission): Collection
+    {
+        return User::query()->with(['notificationPreferences', 'role.permissions'])->get()
+            ->filter(fn (User $user) => $user->hasPermission($permission));
     }
 
     private function notifyUsers(Collection $users, array $payload): void

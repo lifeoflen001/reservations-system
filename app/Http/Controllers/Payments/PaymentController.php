@@ -12,7 +12,6 @@ use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\PaymentMethod;
 use App\Models\Reservation;
-use App\Services\FinancialService;
 use App\Services\PaymentService;
 use App\Services\PropertySettingsService;
 use App\Services\MiniDashboardMetricsService;
@@ -29,7 +28,6 @@ class PaymentController extends Controller
 {
     public function __construct(
         private readonly PaymentService $payments,
-        private readonly FinancialService $financials,
     ) {}
 
     public function index(Request $request, CurrencyFormatter $formatter, PropertySettingsService $propertySettings, MiniDashboardMetricsService $metricsService)
@@ -44,13 +42,15 @@ class PaymentController extends Controller
 
         $reservationOptions = Reservation::query()
             ->whereIn('status', [ReservationStatus::Pending->value, ReservationStatus::Confirmed->value, ReservationStatus::CheckedIn->value, ReservationStatus::CheckedOut->value])
+            ->where(function (Builder $query): void {
+                $query->whereRaw('reservations.total_amount > (SELECT COALESCE(SUM(amount), 0) FROM payments WHERE payments.reservation_id = reservations.id AND payments.status = ?)', [PaymentStatus::Paid->value])
+                    ->orWhereExists(fn ($paymentQuery) => $paymentQuery->selectRaw('1')->from('payments')->whereColumn('payments.reservation_id', 'reservations.id'));
+            })
             ->with(['client', 'room.roomType'])
-            ->withExists('payments')
             ->withSum(['payments as paid_amount' => fn (Builder $query) => $query->successful()], 'amount')
             ->orderByDesc('check_in')
-            ->get()
-            ->filter(fn (Reservation $reservation) => $this->financials->balanceFromAggregate($reservation) > 0 || $reservation->payments_exists)
-            ->values();
+            ->limit(300)
+            ->get();
         $selectedReservation = $request->filled('reservation') ? $reservationOptions->firstWhere('id', $request->integer('reservation')) : null;
         $openPayment = $request->filled('edit') ? Payment::with(['invoice', 'reservation.client', 'reservation.room.roomType'])->find($request->integer('edit')) : null;
         $invoice = $request->filled('invoice') ? Invoice::with(['payment.client', 'payment.reservation.room.roomType', 'payment.creator'])->find($request->integer('invoice')) : null;

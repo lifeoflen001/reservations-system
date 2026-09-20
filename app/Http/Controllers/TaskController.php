@@ -58,7 +58,12 @@ class TaskController extends Controller
 
         $metricsQuery = Task::query()->active();
         $this->applyVisibility($metricsQuery, $request);
-        $metrics = ['total' => (clone $metricsQuery)->count(), 'pending' => (clone $metricsQuery)->whereIn('status', [TaskStatus::New->value, TaskStatus::Pending->value, TaskStatus::InProgress->value, TaskStatus::OnHold->value])->count(), 'completed' => (clone $metricsQuery)->where('status', TaskStatus::Completed->value)->count(), 'overdue' => (clone $metricsQuery)->overdue()->count()];
+        $now = now();
+        $metricsRow = $metricsQuery->selectRaw(
+            'COUNT(*) as total, SUM(CASE WHEN status IN (?, ?, ?, ?) THEN 1 ELSE 0 END) as pending, SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as completed, SUM(CASE WHEN due_at IS NOT NULL AND due_at < ? AND status NOT IN (?, ?) THEN 1 ELSE 0 END) as overdue',
+            [TaskStatus::New->value, TaskStatus::Pending->value, TaskStatus::InProgress->value, TaskStatus::OnHold->value, TaskStatus::Completed->value, $now, TaskStatus::Completed->value, TaskStatus::Cancelled->value],
+        )->first();
+        $metrics = ['total' => (int) ($metricsRow->total ?? 0), 'pending' => (int) ($metricsRow->pending ?? 0), 'completed' => (int) ($metricsRow->completed ?? 0), 'overdue' => (int) ($metricsRow->overdue ?? 0)];
         $editTask = $request->filled('edit') ? Task::with($this->tasks->detailRelations())->findOrFail($request->integer('edit')) : null;
         return view('tasks.index', ['tasks' => $tasks, 'metrics' => $metrics, 'departments' => Department::where('is_active', true)->orderBy('sort_order')->orderBy('name')->get(), 'rooms' => Room::active()->with('roomType')->orderBy('room_number')->get(), 'reservations' => Reservation::with(['client', 'room'])->whereNotIn('status', ['cancelled', 'no_show'])->latest('id')->limit(150)->get(), 'clients' => Client::where('is_active', true)->orderBy('last_name')->orderBy('first_name')->limit(150)->get(), 'staff' => User::with(['department', 'role'])->where('is_active', true)->orderBy('name')->get(), 'statuses' => TaskStatus::cases(), 'priorities' => TaskPriority::cases(), 'categories' => ['General', 'Front Desk', 'Guest Request', 'Housekeeping', 'Maintenance', 'Reservation', 'Payment Follow-up', 'Transport', 'Management', 'Finance', 'Inspection'], 'openNew' => $request->boolean('new'), 'editTask' => $editTask]);
     }

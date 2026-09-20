@@ -42,20 +42,53 @@ class SettingsController extends Controller
         };
         abort_unless($request->user()->hasPermission($requiredPermission) || $request->user()->hasPermission('settings.manage'), 403);
 
-        return view('settings.index', [
-            'section' => $section, 'property' => $this->properties->current(), 'currency' => $this->properties->currency(),
-            'currencies' => $this->properties->currencies(), 'languages' => $this->properties->languages(),
+        $data = [
+            'section' => $section,
+            'property' => $this->properties->current(),
+            'currency' => null,
+            'currencies' => collect(),
+            'languages' => collect(),
             'settings' => array_replace($this->system->defaults(), $this->system->all()),
-            'sources' => ReservationSource::query()->withCount('reservations')->orderBy('sort_order')->orderBy('name')->get(),
-            'databaseInfo' => $this->databaseInfo(), 'backups' => $this->backups->recent(), 'version' => config('app.version'),
+            'sources' => collect(),
+            'databaseInfo' => [],
+            'backups' => [],
+            'version' => config('app.version'),
             'edition' => $this->system->get('edition', 'Pro (Development)'),
-            'source' => $request->filled('edit_source') ? ReservationSource::find($request->integer('edit_source')) : null,
-            'openSourceForm' => $request->boolean('new_source') || $request->filled('edit_source'),
-            'emailIntegration' => $this->integrations->get('email'), 'whatsappIntegration' => $this->integrations->get('whatsapp'),
-            'gatewayIntegrations' => IntegrationSetting::query()->where('key', 'like', 'gateway:%')->get(), 'channels' => ChannelConnection::query()->latest()->get(),
-            'apiTokens' => ApiToken::query()->where('user_id', $request->user()->id)->latest()->get(), 'webhooks' => WebhookEndpoint::query()->latest()->get(),
+            'source' => null,
+            'openSourceForm' => false,
+            'emailIntegration' => null,
+            'whatsappIntegration' => null,
+            'gatewayIntegrations' => collect(),
+            'channels' => collect(),
+            'apiTokens' => collect(),
+            'webhooks' => collect(),
             'oneTimeToken' => session('one_time_api_token'),
-        ]);
+        ];
+
+        if ($section === 'general') {
+            $data['currency'] = $this->properties->currency();
+            $data['currencies'] = $this->properties->currencies();
+            $data['languages'] = $this->properties->languages();
+        }
+        if ($section === 'sources') {
+            $data['sources'] = ReservationSource::query()->withCount('reservations')->orderBy('sort_order')->orderBy('name')->get();
+            $data['source'] = $request->filled('edit_source') ? ReservationSource::find($request->integer('edit_source')) : null;
+            $data['openSourceForm'] = $request->boolean('new_source') || $request->filled('edit_source');
+        }
+        if ($section === 'database') {
+            $data['databaseInfo'] = $this->databaseInfo();
+            $data['backups'] = $this->backups->recent();
+        }
+        if ($section === 'integrations') {
+            $data['emailIntegration'] = $this->integrations->get('email');
+            $data['whatsappIntegration'] = $this->integrations->get('whatsapp');
+            $data['gatewayIntegrations'] = IntegrationSetting::query()->where('key', 'like', 'gateway:%')->get();
+            $data['channels'] = ChannelConnection::query()->latest()->get();
+            $data['apiTokens'] = ApiToken::query()->where('user_id', $request->user()->id)->latest()->get();
+            $data['webhooks'] = WebhookEndpoint::query()->latest()->get();
+        }
+
+        return view('settings.index', $data);
     }
 
     public function updateEmail(UpdateEmailIntegrationRequest $request): RedirectResponse

@@ -66,6 +66,9 @@
                 <tr><td colspan="7"><div class="empty-state"><x-ui.icon name="chart" size="28" /><strong>No reservations in this period.</strong><span>Adjust the date range to view operational activity.</span></div></td></tr>
             @endforelse
         </tbody></x-data.table>
+        @if($reservations->hasPages())
+            <div class="pagination-wrap">{{ $reservations->links() }}</div>
+        @endif
     </x-ui.card>
 </div>
 @endsection

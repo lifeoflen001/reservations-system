@@ -17,6 +17,7 @@ use App\Models\Task;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Collection;
 
 class HotelAnalyticsService
@@ -66,7 +67,7 @@ class HotelAnalyticsService
     {
         $from = Carbon::instance($from)->startOfDay();
         $to = Carbon::instance($to)->endOfDay();
-        $reservations = $this->reportReservationsQuery($from, $to)->get();
+        $reservations = $this->reportReservationsQuery($from, $to)->paginate(25)->withQueryString();
         $roomNights = $this->overlappingRoomNights($from, $to);
         $availableRoomNights = $this->availableRoomNights($from, $to);
         $revenue = $includeFinancial ? $this->financials->collectedBetween($from, $to) : 0;
@@ -170,17 +171,51 @@ class HotelAnalyticsService
     {
         $mode = $range === 'custom' ? $this->customTrendMode($from, $to) : $range;
         $buckets = $this->trendBuckets($from, $to, $mode);
-        $reservationQuery = Reservation::query()->whereBetween('created_at', [$from, $to])->select(['created_at']);
-        $paymentQuery = Payment::query()->successful()->whereBetween('transaction_date', [$from, $to])->select(['transaction_date', 'amount']);
-        foreach ($reservationQuery->cursor() as $row) {
-            $key = $this->bucketKey(Carbon::parse((string) $row->created_at, config('app.timezone')), $mode);
-            if (isset($buckets[$key])) $buckets[$key]['reservations']++;
-        }
-        if ($includeFinancial) foreach ($paymentQuery->cursor() as $row) {
-            $key = $this->bucketKey(Carbon::parse((string) $row->transaction_date, config('app.timezone')), $mode);
-            if (isset($buckets[$key])) $buckets[$key]['revenue'] += (float) $row->amount;
+        $reservationDate = $this->databaseDateExpression('created_at', $mode);
+        $reservationCounts = Reservation::query()->whereBetween('created_at', [$from, $to])
+            ->selectRaw("{$reservationDate} as bucket_key, COUNT(*) as aggregate")
+            ->groupBy('bucket_key')->pluck('aggregate', 'bucket_key');
+        foreach ($reservationCounts as $key => $count) if (isset($buckets[$key])) $buckets[$key]['reservations'] = (int) $count;
+
+        if ($includeFinancial) {
+            $paymentDate = $this->databaseDateExpression('transaction_date', $mode);
+            $paymentTotals = Payment::query()->successful()->whereBetween('transaction_date', [$from, $to])
+                ->selectRaw("{$paymentDate} as bucket_key, COALESCE(SUM(amount), 0) as aggregate")
+                ->groupBy('bucket_key')->pluck('aggregate', 'bucket_key');
+            foreach ($paymentTotals as $key => $amount) if (isset($buckets[$key])) $buckets[$key]['revenue'] = (float) $amount;
         }
         return ['mode' => $mode, 'items' => array_values($buckets), 'hasData' => collect($buckets)->contains(fn (array $item) => $item['revenue'] > 0 || $item['reservations'] > 0)];
+    }
+
+    private function databaseDateExpression(string $column, string $mode): string
+    {
+        $driver = DB::connection()->getDriverName();
+        if ($mode === 'monthly') {
+            return match ($driver) {
+                'sqlite' => "strftime('%Y-%m', {$column})",
+                'pgsql' => "to_char({$column}, 'YYYY-MM')",
+                default => "DATE_FORMAT({$column}, '%Y-%m')",
+            };
+        }
+        if ($mode === 'yearly') {
+            return match ($driver) {
+                'sqlite' => "strftime('%Y', {$column})",
+                'pgsql' => "to_char({$column}, 'YYYY')",
+                default => "DATE_FORMAT({$column}, '%Y')",
+            };
+        }
+        if ($mode === 'weekly') {
+            return match ($driver) {
+                'sqlite' => "date({$column}, '-' || ((strftime('%w', {$column}) + 6) % 7) || ' days')",
+                'pgsql' => "to_char(date_trunc('week', {$column}), 'YYYY-MM-DD')",
+                default => "DATE_SUB(DATE({$column}), INTERVAL WEEKDAY({$column}) DAY)",
+            };
+        }
+        return match ($driver) {
+            'sqlite' => "date({$column})",
+            'pgsql' => "to_char({$column}, 'YYYY-MM-DD')",
+            default => "DATE({$column})",
+        };
     }
 
     private function customTrendMode(CarbonInterface $from, CarbonInterface $to): string
