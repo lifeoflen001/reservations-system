@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Schema;
 class PropertySettingsService
 {
     private const CACHE_KEY = 'hotel.property-settings';
+    private const CURRENCIES_CACHE_KEY = 'hotel.active-currencies';
+    private const LANGUAGES_CACHE_KEY = 'hotel.active-languages';
 
     public function current(): ?Property
     {
@@ -95,15 +97,17 @@ class PropertySettingsService
     public function clearCache(): void
     {
         Cache::forget(self::CACHE_KEY);
+        Cache::forget(self::CURRENCIES_CACHE_KEY);
+        Cache::forget(self::LANGUAGES_CACHE_KEY);
     }
 
     public function currencies()
     {
-        return Currency::query()->where('is_active', true)->orderBy('code')->get();
+        return Cache::rememberForever(self::CURRENCIES_CACHE_KEY, fn () => Currency::query()->where('is_active', true)->orderBy('code')->get());
     }
 
     public function languages()
     {
-        return Language::query()->where('is_active', true)->orderBy('name')->get();
+        return Cache::rememberForever(self::LANGUAGES_CACHE_KEY, fn () => Language::query()->where('is_active', true)->orderBy('name')->get());
     }
 }

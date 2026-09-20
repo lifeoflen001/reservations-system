@@ -907,6 +907,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const rate = form.querySelector('[data-nightly-rate]');
         const total = form.querySelector('[data-total-amount]');
         const availabilityError = form.querySelector('[data-availability-error]');
+        let availabilityController = null;
+        let availabilityTimer = null;
         const showAvailabilityError = (message = '') => {
             if (!availabilityError) return;
             availabilityError.textContent = message;
@@ -914,11 +916,15 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         const refreshRooms = async () => {
             if (!checkIn?.value || !checkOut?.value || !room) return;
+            if (availabilityTimer) window.clearTimeout(availabilityTimer);
+            availabilityController?.abort();
+            availabilityController = new AbortController();
             const params = new URLSearchParams({ check_in: checkIn.value, check_out: checkOut.value });
             if (form.dataset.ignoreReservationId) params.set('ignore_reservation_id', form.dataset.ignoreReservationId);
             showAvailabilityError();
-            try {
-                const response = await fetch(`${form.dataset.availabilityUrl}?${params.toString()}`, { headers: { Accept: 'application/json' } });
+            availabilityTimer = window.setTimeout(async () => {
+              try {
+                const response = await fetch(`${form.dataset.availabilityUrl}?${params.toString()}`, { headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, signal: availabilityController.signal });
                 if (!response.ok) throw new Error(`Availability request failed with status ${response.status}.`);
                 const payload = await response.json();
                 const rooms = Array.isArray(payload) ? payload : payload?.data;
@@ -933,10 +939,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 const selectedOption = room.options[room.selectedIndex];
                 if (selectedOption?.dataset.rate && (!rate.value || rate.dataset.autoRate === '1')) { rate.value = selectedOption.dataset.rate; rate.dataset.autoRate = '1'; }
                 updateTotal();
-            } catch (error) {
+              } catch (error) {
+                if (error.name === 'AbortError') return;
                 showAvailabilityError('Room availability could not be loaded. Check the connection and try again.');
                 console.error('HotelDesk room availability request failed.', error);
-            }
+              }
+            }, 150);
         };
         const updateTotal = () => {
             if (!checkIn?.value || !checkOut?.value || !rate || !total) return;

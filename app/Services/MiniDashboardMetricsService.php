@@ -28,10 +28,15 @@ class MiniDashboardMetricsService
     /** @return array<int, array<string, mixed>> */
     public function staff(): array
     {
-        $total = User::query()->count();
-        $active = User::query()->where('is_active', true)->count();
+        $recentCutoff = $this->now()->subDay();
+        $summary = User::query()->selectRaw(
+            'COUNT(*) as total, SUM(CASE WHEN is_active = ? THEN 1 ELSE 0 END) as active, SUM(CASE WHEN last_login_at IS NOT NULL AND last_login_at >= ? THEN 1 ELSE 0 END) as recent',
+            [true, $recentCutoff],
+        )->first();
+        $total = (int) ($summary->total ?? 0);
+        $active = (int) ($summary->active ?? 0);
         $departments = Department::query()->where('is_active', true)->count();
-        $recent = User::query()->whereNotNull('last_login_at')->where('last_login_at', '>=', $this->now()->subDay())->count();
+        $recent = (int) ($summary->recent ?? 0);
 
         return [
             $this->card('Total staff', $total, 'users', 'info', "Across {$departments} active departments"),
@@ -45,10 +50,15 @@ class MiniDashboardMetricsService
     public function housekeeping(): array
     {
         $activeStatuses = [TaskStatus::New->value, TaskStatus::Pending->value, TaskStatus::InProgress->value, TaskStatus::OnHold->value];
-        $pending = HousekeepingTask::query()->whereIn('status', [TaskStatus::New->value, TaskStatus::Pending->value])->count();
-        $inProgress = HousekeepingTask::query()->where('status', TaskStatus::InProgress->value)->count();
-        $completedToday = HousekeepingTask::query()->where('status', TaskStatus::Completed->value)->whereBetween('completed_at', $this->todayBounds())->count();
-        $total = HousekeepingTask::query()->whereIn('status', $activeStatuses)->count() + $completedToday;
+        [$todayStart, $todayEnd] = $this->todayBounds();
+        $summary = HousekeepingTask::query()->selectRaw(
+            'SUM(CASE WHEN status IN (?, ?) THEN 1 ELSE 0 END) as pending, SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as in_progress, SUM(CASE WHEN status = ? AND completed_at BETWEEN ? AND ? THEN 1 ELSE 0 END) as completed_today, SUM(CASE WHEN status IN (?, ?, ?, ?) THEN 1 ELSE 0 END) as active',
+            [TaskStatus::New->value, TaskStatus::Pending->value, TaskStatus::InProgress->value, TaskStatus::Completed->value, $todayStart, $todayEnd, ...$activeStatuses],
+        )->first();
+        $pending = (int) ($summary->pending ?? 0);
+        $inProgress = (int) ($summary->in_progress ?? 0);
+        $completedToday = (int) ($summary->completed_today ?? 0);
+        $total = (int) ($summary->active ?? 0) + $completedToday;
 
         return [
             $this->card('Total tasks', $total, 'broom', 'info', 'Current operational workload'),
@@ -61,11 +71,15 @@ class MiniDashboardMetricsService
     /** @return array<int, array<string, mixed>> */
     public function maintenance(): array
     {
-        $open = fn (Builder $query) => $query->whereNotIn('status', [TaskStatus::Completed->value, TaskStatus::Cancelled->value]);
-        $openCount = MaintenanceTask::query()->tap($open)->count();
-        $inProgress = MaintenanceTask::query()->where('status', TaskStatus::InProgress->value)->count();
-        $highPriority = MaintenanceTask::query()->tap($open)->whereIn('priority', [TaskPriority::High->value, TaskPriority::Urgent->value])->count();
-        $overdue = MaintenanceTask::query()->tap($open)->whereNotNull('due_at')->where('due_at', '<', $this->now())->count();
+        $now = $this->now();
+        $summary = MaintenanceTask::query()->selectRaw(
+            'SUM(CASE WHEN status NOT IN (?, ?) THEN 1 ELSE 0 END) as open_count, SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as in_progress, SUM(CASE WHEN status NOT IN (?, ?) AND priority IN (?, ?) THEN 1 ELSE 0 END) as high_priority, SUM(CASE WHEN status NOT IN (?, ?) AND due_at IS NOT NULL AND due_at < ? THEN 1 ELSE 0 END) as overdue',
+            [TaskStatus::Completed->value, TaskStatus::Cancelled->value, TaskStatus::InProgress->value, TaskStatus::Completed->value, TaskStatus::Cancelled->value, TaskPriority::High->value, TaskPriority::Urgent->value, TaskStatus::Completed->value, TaskStatus::Cancelled->value, $now],
+        )->first();
+        $openCount = (int) ($summary->open_count ?? 0);
+        $inProgress = (int) ($summary->in_progress ?? 0);
+        $highPriority = (int) ($summary->high_priority ?? 0);
+        $overdue = (int) ($summary->overdue ?? 0);
 
         return [
             $this->card('Open issues', $openCount, 'wrench', 'info', 'Not completed or cancelled'),
@@ -123,11 +137,16 @@ class MiniDashboardMetricsService
         $arrivals = [ReservationStatus::Pending->value, ReservationStatus::Confirmed->value, ReservationStatus::CheckedIn->value];
         $departures = [ReservationStatus::Pending->value, ReservationStatus::Confirmed->value, ReservationStatus::CheckedIn->value, ReservationStatus::CheckedOut->value];
 
+        $summary = Reservation::query()->selectRaw(
+            'SUM(CASE WHEN status IN (?, ?, ?, ?) THEN 1 ELSE 0 END) as total, SUM(CASE WHEN status IN (?, ?, ?) AND check_in BETWEEN ? AND ? THEN 1 ELSE 0 END) as arrivals, SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as in_house, SUM(CASE WHEN status IN (?, ?, ?, ?) AND check_out BETWEEN ? AND ? THEN 1 ELSE 0 END) as departures',
+            [...$valid, ...$arrivals, $today[0], $today[1], ReservationStatus::CheckedIn->value, ...$departures, $today[0], $today[1]],
+        )->first();
+
         return [
-            $this->card('Total reservations', Reservation::query()->whereIn('status', $valid)->count(), 'calendar', 'info', 'Current valid bookings'),
-            $this->card('Arrivals today', Reservation::query()->whereIn('status', $arrivals)->whereBetween('check_in', $today)->count(), 'arrow-right', 'warning', 'Expected arrivals today', route('reservations.index', ['from' => $this->now()->toDateString(), 'to' => $this->now()->toDateString()])),
-            $this->card('In-house', Reservation::query()->where('status', ReservationStatus::CheckedIn->value)->count(), 'bed', 'success', 'Guests currently staying'),
-            $this->card('Departures today', Reservation::query()->whereIn('status', $departures)->whereBetween('check_out', $today)->count(), 'logout', 'info', 'Expected check-outs today'),
+            $this->card('Total reservations', (int) ($summary->total ?? 0), 'calendar', 'info', 'Current valid bookings'),
+            $this->card('Arrivals today', (int) ($summary->arrivals ?? 0), 'arrow-right', 'warning', 'Expected arrivals today', route('reservations.index', ['from' => $this->now()->toDateString(), 'to' => $this->now()->toDateString()])),
+            $this->card('In-house', (int) ($summary->in_house ?? 0), 'bed', 'success', 'Guests currently staying'),
+            $this->card('Departures today', (int) ($summary->departures ?? 0), 'logout', 'info', 'Expected check-outs today'),
         ];
     }
 

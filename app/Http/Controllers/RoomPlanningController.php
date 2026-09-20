@@ -47,8 +47,10 @@ class RoomPlanningController extends Controller
             : now()->startOfDay();
         $end = $start->copy()->addDays($periodDays)->startOfDay();
         $reservationSearch = trim((string) $request->input('reservation_search', ''));
+        $canViewFinancials = $request->user()->hasPermission('payments.view');
 
-        $rooms = Room::query()->active()->with(['floor', 'category', 'roomType'])
+        $rooms = Room::query()->active()->select(['id', 'room_number', 'floor_id', 'room_category_id', 'room_type_id', 'operational_status', 'housekeeping_status', 'is_active'])
+            ->with(['floor:id,name', 'category:id,name,color', 'roomType:id,name'])
             ->when($request->filled('search'), function ($query) use ($request) {
                 $search = '%'.(string) $request->string('search').'%';
                 $query->where(function ($roomQuery) use ($search) {
@@ -62,7 +64,7 @@ class RoomPlanningController extends Controller
             ->when($request->filled('room_type_id') && $request->input('room_type_id') !== 'all', fn ($query) => $query->where('room_type_id', $request->integer('room_type_id')))
             ->when($request->filled('status') && $request->input('status') !== 'all', fn ($query) => $query->where('operational_status', (string) $request->input('status')))
             ->orderBy('room_category_id')->orderBy('room_type_id')->orderBy('floor_id')->orderBy('room_number')->get();
-        $reservations = Reservation::query()
+        $reservations = Reservation::query()->select(['id', 'code', 'client_id', 'room_id', 'check_in', 'check_out', 'adults', 'children', 'total_amount', 'status'])
             ->blockingAvailability()
             ->where('check_in', '<', $end)
             ->where('check_out', '>', $start)
@@ -74,16 +76,16 @@ class RoomPlanningController extends Controller
                         ->orWhereHas('client', fn ($clientQuery) => $clientQuery->where('first_name', 'like', $term)->orWhere('last_name', 'like', $term));
                 });
             })
-            ->with('client')
-            ->withSum(['payments as paid_amount' => fn ($query) => $query->successful()], 'amount')
+            ->with('client:id,first_name,middle_name,last_name')
+            ->when($canViewFinancials, fn ($query) => $query->withSum(['payments as paid_amount' => fn ($paymentQuery) => $paymentQuery->successful()], 'amount'))
             ->orderBy('check_in')
             ->get()
             ->groupBy('room_id');
         $conflictingReservationIds = $this->findConflictingReservationIds($reservations);
 
-        $blocks = RoomBlock::query()->where('is_active', true)
+        $blocks = RoomBlock::query()->select(['id', 'room_id', 'type', 'reason', 'starts_at', 'ends_at'])->where('is_active', true)
             ->where('starts_at', '<', $end)->where('ends_at', '>', $start)->get()->groupBy('room_id');
-        $maintenance = MaintenanceTask::query()->whereIn('status', [TaskStatus::Pending->value, TaskStatus::InProgress->value])
+        $maintenance = MaintenanceTask::query()->select(['id', 'room_id', 'issue', 'starts_at', 'ends_at', 'status'])->whereIn('status', [TaskStatus::Pending->value, TaskStatus::InProgress->value])
             ->whereNotNull('starts_at')->whereNotNull('ends_at')
             ->where('starts_at', '<', $end)->where('ends_at', '>', $start)->get()->groupBy('room_id');
 
@@ -110,25 +112,7 @@ class RoomPlanningController extends Controller
         });
 
         $days = collect(range(0, $periodDays - 1))->map(fn (int $day) => $start->copy()->addDays($day));
-        $availabilityByCategory = $rooms->groupBy(fn (Room $room) => $room->category?->name ?? 'Uncategorized')
-            ->mapWithKeys(function (Collection $categoryRooms, string $categoryName) use ($days, $reservations, $blocks, $maintenance) {
-                return [$categoryName => $days->map(function (Carbon $day) use ($categoryRooms, $reservations, $blocks, $maintenance) {
-                    $dayStart = $day->copy()->startOfDay();
-                    $dayEnd = $dayStart->copy()->addDay();
-
-                    return $categoryRooms->filter(function (Room $room) use ($dayStart, $dayEnd, $reservations, $blocks, $maintenance) {
-                        if ($room->operational_status !== RoomOperationalStatus::Available) {
-                            return false;
-                        }
-
-                        $hasReservation = ($reservations->get($room->id) ?? collect())->contains(fn (Reservation $reservation) => $reservation->check_in->lessThan($dayEnd) && $reservation->check_out->greaterThan($dayStart));
-                        $hasBlock = ($blocks->get($room->id) ?? collect())->contains(fn (RoomBlock $block) => $block->starts_at->lessThan($dayEnd) && $block->ends_at->greaterThan($dayStart));
-                        $hasMaintenance = ($maintenance->get($room->id) ?? collect())->contains(fn (MaintenanceTask $task) => $task->starts_at->lessThan($dayEnd) && $task->ends_at->greaterThan($dayStart));
-
-                        return ! $hasReservation && ! $hasBlock && ! $hasMaintenance;
-                    })->count();
-                })->values()];
-            });
+        $availabilityByCategory = $this->availabilityByCategory($rooms, $days, $reservations, $blocks, $maintenance);
 
         $weekGroups = collect();
         foreach ($days as $index => $day) {
@@ -161,8 +145,36 @@ class RoomPlanningController extends Controller
             'roomTypes' => RoomType::where('is_active', true)->orderBy('sort_order')->orderBy('name')->get(),
             'statuses' => RoomOperationalStatus::cases(),
             'reservationStatuses' => ReservationStatus::cases(),
-            'canViewFinancials' => $request->user()->hasPermission('payments.view'),
+            'canViewFinancials' => $canViewFinancials,
         ]);
+    }
+
+    private function availabilityByCategory(Collection $rooms, Collection $days, Collection $reservations, Collection $blocks, Collection $maintenance): Collection
+    {
+        $unavailableByRoom = [];
+        foreach ($rooms as $room) {
+            $unavailableByRoom[$room->id] = [];
+        }
+
+        foreach ($reservations->flatten(1)->concat($blocks->flatten(1))->concat($maintenance->flatten(1)) as $interval) {
+            $from = $interval->check_in ?? $interval->starts_at;
+            $to = $interval->check_out ?? $interval->ends_at;
+            if (! $from || ! $to) continue;
+            $cursor = Carbon::parse((string) $from)->startOfDay();
+            $last = Carbon::parse((string) $to)->startOfDay();
+            while ($cursor->lessThan($last)) {
+                if (isset($unavailableByRoom[$interval->room_id])) $unavailableByRoom[$interval->room_id][$cursor->toDateString()] = true;
+                $cursor->addDay();
+            }
+        }
+
+        return $rooms->groupBy(fn (Room $room) => $room->category?->name ?? 'Uncategorized')
+            ->mapWithKeys(function (Collection $categoryRooms, string $categoryName) use ($days, $unavailableByRoom) {
+                return [$categoryName => $days->map(function (Carbon $day) use ($categoryRooms, $unavailableByRoom) {
+                    $dateKey = $day->toDateString();
+                    return $categoryRooms->filter(fn (Room $room) => $room->operational_status === RoomOperationalStatus::Available && ! isset($unavailableByRoom[$room->id][$dateKey]))->count();
+                })->values()];
+            });
     }
 
     private function findConflictingReservationIds(Collection $reservationsByRoom): array
@@ -224,7 +236,8 @@ class RoomPlanningController extends Controller
         $end = $start->copy()->addDays($periodDays)->startOfDay();
         $reservationSearch = trim((string) $request->input('reservation_search', ''));
 
-        $rooms = Room::query()->active()->with(['floor', 'category', 'roomType'])
+        $rooms = Room::query()->active()->select(['id', 'room_number', 'floor_id', 'room_category_id', 'room_type_id', 'operational_status', 'housekeeping_status'])
+            ->with(['floor:id,name', 'category:id,name,color', 'roomType:id,name'])
             ->when($request->filled('search'), function ($query) use ($request) {
                 $term = '%'.trim((string) $request->input('search')).'%';
                 $query->where(function ($roomQuery) use ($term) {
@@ -240,7 +253,7 @@ class RoomPlanningController extends Controller
             ->orderBy('room_category_id')->orderBy('room_type_id')->orderBy('floor_id')->orderBy('room_number')
             ->get();
 
-        $reservations = Reservation::query()->blockingAvailability()
+        $reservations = Reservation::query()->select(['id', 'code', 'client_id', 'room_id', 'check_in', 'check_out', 'adults', 'children', 'status'])->blockingAvailability()
             ->where('check_in', '<', $end)->where('check_out', '>', $start)
             ->when($request->filled('reservation_status') && $request->input('reservation_status') !== 'all', fn ($query) => $query->where('status', (string) $request->input('reservation_status')))
             ->when($reservationSearch !== '', function ($query) use ($reservationSearch) {
@@ -250,12 +263,12 @@ class RoomPlanningController extends Controller
                         ->orWhereHas('client', fn ($clientQuery) => $clientQuery->where('first_name', 'like', $term)->orWhere('last_name', 'like', $term));
                 });
             })
-            ->with(['client', 'room.roomType'])
+            ->with(['client:id,first_name,middle_name,last_name', 'room:id,room_number,room_type_id', 'room.roomType:id,name'])
             ->orderBy('check_in')
             ->get();
 
-        $blocks = RoomBlock::query()->where('is_active', true)->where('starts_at', '<', $end)->where('ends_at', '>', $start)->get();
-        $maintenance = MaintenanceTask::query()->whereIn('status', [TaskStatus::Pending->value, TaskStatus::InProgress->value])
+        $blocks = RoomBlock::query()->select(['id', 'room_id', 'type', 'reason', 'starts_at', 'ends_at'])->where('is_active', true)->where('starts_at', '<', $end)->where('ends_at', '>', $start)->get();
+        $maintenance = MaintenanceTask::query()->select(['id', 'room_id', 'issue', 'starts_at', 'ends_at', 'status'])->whereIn('status', [TaskStatus::Pending->value, TaskStatus::InProgress->value])
             ->whereNotNull('starts_at')->whereNotNull('ends_at')->where('starts_at', '<', $end)->where('ends_at', '>', $start)->get();
 
         return response()->json([
