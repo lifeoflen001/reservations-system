@@ -81,11 +81,18 @@ class ProfileController extends Controller
             ],
         );
 
-        $delivery = $emails->queue('email_change_verification', $email, [
-            'user_name' => $user->display_name,
-            'verification_code' => $code,
-            'expires_in' => '10 minutes',
-        ]);
+        try {
+            $delivery = $emails->queue('email_change_verification', $email, [
+                'user_name' => $user->display_name,
+                'verification_code' => $code,
+                'expires_in' => '10 minutes',
+            ], sendImmediately: true);
+        } catch (Throwable $exception) {
+            report($exception);
+            $pending->delete();
+
+            return back()->withErrors(['email' => 'We could not deliver the verification code to that address. Check the address and try again.'])->with('section', 'profile');
+        }
 
         if (! $delivery) {
             $pending->delete();
@@ -252,6 +259,14 @@ class ProfileController extends Controller
         );
 
         return redirect()->route('profile', ['section' => 'preferences'])->with('success', 'Preferences saved.');
+    }
+
+    public function updateTheme(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $data = $request->validate(['theme' => ['required', 'string', 'in:light,dark']]);
+        UserPreference::updateOrCreate(['user_id' => $request->user()->id], ['theme' => $data['theme']]);
+
+        return response()->json(['theme' => $data['theme']]);
     }
 
     public function enableTwoFactor(EnableTwoFactorRequest $request, EnableTwoFactorAuthentication $enable): RedirectResponse

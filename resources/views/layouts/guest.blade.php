@@ -11,7 +11,7 @@
     <link rel="mask-icon" href="{{ asset('assets/branding/lodgix-mark.svg') }}?v={{ filemtime(public_path('assets/branding/lodgix-mark.svg')) }}" color="#ef7d22">
     <meta name="theme-color" content="#ef7d22">
     <title>{{ config('hotel.brand.name') }} · {{ $title ?? 'Sign in' }}</title>
-    <script>const configuredTheme = @json(app(\App\Services\SystemSettingsService::class)->get('theme', 'system')); document.documentElement.dataset.theme = localStorage.getItem('hotel-theme') || (configuredTheme === 'system' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : configuredTheme);</script>
+    <script>const themePreference = @json(app(\App\Services\SystemSettingsService::class)->get('theme', 'system')); document.documentElement.dataset.themePreference = themePreference; document.documentElement.dataset.theme = themePreference === 'system' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : themePreference;</script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="guest-body" data-network-health-url="{{ url('/api/health') }}">

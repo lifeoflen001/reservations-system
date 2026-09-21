@@ -105,9 +105,25 @@ const initConnectionMonitor = () => {
     probe();
 };
 
-const setTheme = (theme) => {
+const persistThemePreference = (theme) => {
+    const url = body.dataset.themePreferenceUrl;
+    const token = document.querySelector('meta[name="csrf-token"]')?.content;
+    if (!url || !token || !['light', 'dark'].includes(theme)) return;
+    fetch(url, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': token, 'X-Requested-With': 'XMLHttpRequest' },
+        body: JSON.stringify({ theme }),
+        credentials: 'same-origin',
+    }).catch(() => {});
+};
+
+const setTheme = (theme, { persist = true } = {}) => {
+    if (!['light', 'dark'].includes(theme)) theme = 'light';
     root.dataset.theme = theme;
-    localStorage.setItem('hotel-theme', theme);
+    if (persist) {
+        root.dataset.themePreference = theme;
+        persistThemePreference(theme);
+    }
     document.querySelectorAll('[data-theme-toggle]').forEach((button) => {
         const label = theme === 'dark' ? 'Use light mode' : 'Use dark mode';
         button.setAttribute('aria-label', label);
@@ -230,7 +246,13 @@ const bindPageLoading = () => {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-    setTheme(root.dataset.theme || 'light');
+    setTheme(root.dataset.theme || 'light', { persist: false });
+    const systemTheme = window.matchMedia('(prefers-color-scheme: dark)');
+    const applySystemTheme = () => {
+        if (root.dataset.themePreference === 'system') setTheme(systemTheme.matches ? 'dark' : 'light', { persist: false });
+    };
+    if (typeof systemTheme.addEventListener === 'function') systemTheme.addEventListener('change', applySystemTheme);
+    else if (typeof systemTheme.addListener === 'function') systemTheme.addListener(applySystemTheme);
     bindContextTooltips();
     bindPageLoading();
     initConnectionMonitor();

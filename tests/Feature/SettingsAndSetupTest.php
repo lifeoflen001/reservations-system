@@ -85,6 +85,9 @@ class SettingsAndSetupTest extends TestCase
         $this->assertSame('15:00', substr($property->check_in_time, 0, 5));
         $this->assertSame($originalCurrency, $property->base_currency_id);
         $this->assertSame('dark', app(SystemSettingsService::class)->get('theme'));
+        $this->actingAs($admin)->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('const themePreference = "dark"; document.documentElement.dataset.themePreference = themePreference;', false);
 
         $this->actingAs($admin)->put(route('settings.security.update'), [
             'session_timeout' => 45,

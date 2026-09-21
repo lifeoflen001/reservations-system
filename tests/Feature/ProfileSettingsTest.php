@@ -63,6 +63,11 @@ class ProfileSettingsTest extends TestCase
         $this->assertSame('dark', $admin->preferences()->firstOrFail()->theme);
         $this->assertSame(['email'], $admin->notificationPreferences()->firstOrFail()->channels);
         $this->assertSame(['financial'], $admin->notificationPreferences()->firstOrFail()->categories);
+
+        $this->actingAs($admin)->putJson(route('profile.theme.update'), ['theme' => 'light'])
+            ->assertOk()
+            ->assertJson(['theme' => 'light']);
+        $this->assertSame('light', $admin->preferences()->firstOrFail()->theme);
     }
 
     public function test_user_can_change_username_from_profile_and_duplicate_usernames_are_rejected(): void

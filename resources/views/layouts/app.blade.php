@@ -12,10 +12,12 @@
     <meta name="theme-color" content="#ef7d22">
     <title>{{ $title ?? config('hotel.brand.name') }}</title>
     @php($profileTheme = auth()->user()?->preferences?->theme)
-    <script>const configuredTheme = @json(app(\App\Services\SystemSettingsService::class)->get('theme', 'system')); const profileTheme = @json($profileTheme); const storedTheme = localStorage.getItem('hotel-theme'); const initialTheme = profileTheme && profileTheme !== 'system' ? profileTheme : (storedTheme || configuredTheme); document.documentElement.dataset.theme = initialTheme === 'system' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : initialTheme;</script>
+    @php($configuredTheme = app(\App\Services\SystemSettingsService::class)->get('theme', 'system'))
+    @php($themePreference = $profileTheme && $profileTheme !== 'system' ? $profileTheme : $configuredTheme)
+    <script>const themePreference = @json($themePreference); document.documentElement.dataset.themePreference = themePreference; document.documentElement.dataset.theme = themePreference === 'system' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : themePreference;</script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="app-body @if(request()->routeIs('room-planning.*')) planning-app-body @endif" data-app-shell data-property-timezone="{{ app(\App\Services\PropertySettingsService::class)->timezone() }}" data-network-health-url="{{ url('/api/health') }}">
+<body class="app-body @if(request()->routeIs('room-planning.*')) planning-app-body @endif" data-app-shell data-theme-preference-url="{{ route('profile.theme.update') }}" data-property-timezone="{{ app(\App\Services\PropertySettingsService::class)->timezone() }}" data-network-health-url="{{ url('/api/health') }}">
     <x-sidebar />
     <div class="app-shell">
         <x-topbar />

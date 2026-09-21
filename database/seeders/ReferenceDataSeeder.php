@@ -57,6 +57,8 @@ class ReferenceDataSeeder extends Seeder
             ['invoice', 'Invoice', 'Invoice for {{ reservation_code }}', 'Your invoice for reservation {{ reservation_code }} at {{ property_name }} is ready.', ['email']],
             ['post_stay_thank_you', 'Post-stay thank you', 'Thank you for staying with {{ property_name }}', 'Thank you for staying with us, {{ guest_name }}. We hope to welcome you again.', ['email']],
             ['email_change_verification', 'Email change verification', 'Verify your HotelDesk email change', 'Hello {{ user_name }}, your HotelDesk email verification code is {{ verification_code }}. It expires in {{ expires_in }}. If you did not request this change, you can safely ignore this message.', ['email']],
+            ['notification_alert', 'Notification alert', '{{ notification_title }} · {{ property_name }}', '{{ notification_message }}', ['email']],
+            ['staff_invitation', 'Staff invitation', 'You have been invited to {{ property_name }}', 'Hello {{ user_name }}, an administrator created a Lodgix staff account for you. Sign in with username {{ username }} and the password provided by your administrator. You will be asked to change your password after signing in. Sign in here: {{ login_url }}', ['email']],
         ] as [$key, $name, $subject, $body, $channels]) {
             EmailTemplate::updateOrCreate(['key' => $key], compact('name', 'subject', 'body', 'channels') + ['is_enabled' => true]);
         }

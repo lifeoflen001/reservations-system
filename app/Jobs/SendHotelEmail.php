@@ -9,6 +9,7 @@ use App\Services\ConfiguredEmailProvider;
 use App\Services\IntegrationSettingsService;
 use App\Services\SafeTemplateRenderer;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Bus\Queueable;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
@@ -16,7 +17,7 @@ use Throwable;
 
 class SendHotelEmail implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, SerializesModels;
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 3;
 
@@ -32,15 +33,23 @@ class SendHotelEmail implements ShouldQueue
         $log = EmailDeliveryLog::query()->findOrFail($this->deliveryLogId);
         $template = EmailTemplate::query()->where('key', $log->template)->firstOrFail();
         $log->update(['status' => 'sending', 'attempts' => $log->attempts + 1]);
-        $provider = $integrations->get('email');
+        $provider = $integrations->emailProvider();
         if (! $provider) {
             throw new ProviderNotConfiguredException('Email provider is not configured.');
         }
         $subject = $renderer->render($template->subject, $this->variables);
         $body = $renderer->render($template->body, $this->variables);
-        app(ConfiguredEmailProvider::class, ['integration' => $provider])->send($log->recipient, $subject, $body);
+        app(ConfiguredEmailProvider::class, ['integration' => $provider])->send(
+            $log->recipient,
+            $subject,
+            $body,
+            $this->variables['action_url'] ?? $this->variables['login_url'] ?? null,
+            $this->variables['notification_title'] ?? $this->variables['invitation_title'] ?? null,
+        );
         $log->update(['status' => 'sent', 'sent_at' => now(), 'error_summary' => null]);
-        $provider->update(['last_success_at' => now(), 'last_error' => null]);
+        if ($provider->exists) {
+            $provider->update(['last_success_at' => now(), 'last_error' => null]);
+        }
         $integrations->forget('email');
     }
 

@@ -80,7 +80,7 @@ class SettingsController extends Controller
             $data['backups'] = $this->backups->recent();
         }
         if ($section === 'integrations') {
-            $data['emailIntegration'] = $this->integrations->get('email');
+            $data['emailIntegration'] = $this->integrations->emailProvider();
             $data['whatsappIntegration'] = $this->integrations->get('whatsapp');
             $data['gatewayIntegrations'] = IntegrationSetting::query()->where('key', 'like', 'gateway:%')->get();
             $data['channels'] = ChannelConnection::query()->latest()->get();
@@ -109,11 +109,14 @@ class SettingsController extends Controller
     public function testEmail(Request $request): RedirectResponse
     {
         abort_unless($request->user()->hasPermission('email_settings.manage'), 403);
-        $integration = $this->integrations->get('email');
+        $integration = $this->integrations->emailProvider();
         if (! $integration || ! app(ConfiguredEmailProvider::class, ['integration' => $integration])->configurationValid()) {
             return back()->with('warning', 'Email settings are incomplete. No message was sent.');
         }
-        $this->integrations->save('email', ['status' => 'configured', 'last_success_at' => now(), 'last_error' => null]);
+        if ($storedIntegration = $this->integrations->get('email')) {
+            $storedIntegration->update(['status' => 'configured', 'last_success_at' => now(), 'last_error' => null]);
+            $this->integrations->forget('email');
+        }
 
         return back()->with('success', 'Email configuration validated. No test message was sent.');
     }

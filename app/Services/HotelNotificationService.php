@@ -54,13 +54,21 @@ class HotelNotificationService
     {
         foreach ($users as $user) {
             $preferences = $user->notificationPreferences;
-            if ($preferences && ! in_array('in_app', $preferences->channels ?? [], true)) {
-                continue;
-            }
             if ($preferences && ! in_array($payload['category'] ?? 'operational', $preferences->categories ?? [], true)) {
                 continue;
             }
-            $user->notify(new HotelDatabaseNotification($payload));
+            $channels = $preferences?->channels ?? ['in_app'];
+            if (in_array('in_app', $channels, true)) {
+                $user->notify(new HotelDatabaseNotification($payload));
+            }
+            if (in_array('email', $channels, true) && filter_var($user->email, FILTER_VALIDATE_EMAIL) && $this->integrations->isConfigured('email')) {
+                $this->emails->queue('notification_alert', $user->email, [
+                    'notification_title' => $payload['title'] ?? 'Lodgix notification',
+                    'notification_message' => $payload['message'] ?? '',
+                    'property_name' => app(PropertySettingsService::class)->name(),
+                    'action_url' => $payload['action_url'] ?? route('notifications.index'),
+                ]);
+            }
         }
     }
 

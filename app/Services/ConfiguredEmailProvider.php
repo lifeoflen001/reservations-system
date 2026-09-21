@@ -17,7 +17,7 @@ class ConfiguredEmailProvider implements EmailProviderInterface
 
     public function __construct(private readonly IntegrationSetting $integration) {}
 
-    public function send(string $recipient, string $subject, string $body): void
+    public function send(string $recipient, string $subject, string $body, ?string $actionUrl = null, ?string $title = null): void
     {
         $settings = $this->integration->settings ?? [];
         $secrets = $this->integration->secrets ?? [];
@@ -30,7 +30,14 @@ class ConfiguredEmailProvider implements EmailProviderInterface
             'username' => $settings['username'] ?? null, 'password' => $secrets['password'] ?? null,
             'timeout' => 10, 'from' => ['address' => $settings['from_email'], 'name' => $settings['from_name'] ?? config('hotel.brand.name')],
         ]);
-        $mailer->html($body, function ($message) use ($recipient, $subject, $settings): void {
+        $html = view('emails.hotel', [
+            'subject' => $subject,
+            'title' => $title,
+            'body' => $body,
+            'actionUrl' => $actionUrl,
+            'propertyName' => $settings['from_name'] ?? config('hotel.brand.name'),
+        ])->render();
+        $mailer->html($html, function ($message) use ($recipient, $subject, $settings): void {
             $message->to($recipient)->from($settings['from_email'], $settings['from_name'] ?? config('hotel.brand.name'))->subject($subject);
         });
     }
