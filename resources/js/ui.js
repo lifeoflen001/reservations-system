@@ -11,6 +11,16 @@ const initConnectionMonitor = () => {
     let hideTimer = null;
     let lastState = navigator.onLine === false ? 'offline' : 'unknown';
     let initialProbeComplete = false;
+    let consecutiveDegradedProbes = 0;
+
+    // A single round trip can be delayed by the public route to Railway even
+    // when the user's local Wi-Fi is healthy. Require sustained degradation
+    // before showing a quality warning.
+    const requiredDegradedProbes = 2;
+    const fairLatencyThreshold = 1500;
+    const slowLatencyThreshold = 3000;
+    const fairRttThreshold = 1200;
+    const slowRttThreshold = 2000;
 
     const hideStatus = () => {
         window.clearTimeout(hideTimer);
@@ -31,23 +41,32 @@ const initConnectionMonitor = () => {
         const info = connectionInfo();
         const type = info?.effectiveType;
         const rtt = Number(info?.rtt) || 0;
-        if (latency >= 1800 || rtt >= 1200 || type === 'slow-2g' || type === '2g') return 'slow';
-        if (latency >= 700 || rtt >= 600 || type === '3g') return 'fair';
+        if (latency >= slowLatencyThreshold || rtt >= slowRttThreshold || type === 'slow-2g' || type === '2g') return 'slow';
+        if (latency >= fairLatencyThreshold || rtt >= fairRttThreshold || type === '3g') return 'fair';
         return 'good';
     };
 
     const showQuality = (quality, announceOnline = false) => {
         const hadProblem = ['offline', 'unstable', 'fair', 'slow'].includes(lastState);
         if (quality === 'good') {
+            consecutiveDegradedProbes = 0;
             if (announceOnline || (initialProbeComplete && hadProblem)) showStatus('online', announceOnline ? 'Back online. Connection is good.' : 'Connection restored. You are back online.', true);
             else { lastState = 'good'; hideStatus(); }
             return;
         }
-        if (quality === 'slow') {
-            showStatus('slow', announceOnline ? 'Back online, but your connection is slow. Pages and saves may take longer.' : 'Your connection is slow. Pages and saves may take longer.');
+
+        consecutiveDegradedProbes += 1;
+        if (consecutiveDegradedProbes < requiredDegradedProbes) {
+            lastState = 'good';
+            hideStatus();
             return;
         }
-        showStatus('fair', announceOnline ? 'Back online. Connection quality is fair.' : 'Connection quality is fair. Pages may take longer to load.', true);
+
+        if (quality === 'slow') {
+            if (lastState !== 'slow') showStatus('slow', announceOnline ? 'Back online, but your connection is slow. Pages and saves may take longer.' : 'Your connection is slow. Pages and saves may take longer.');
+            return;
+        }
+        if (lastState !== 'fair') showStatus('fair', announceOnline ? 'Back online. Connection quality is fair.' : 'Connection quality is fair. Pages may take longer to load.', true);
     };
 
     const probe = async ({ announceOnline = false } = {}) => {
