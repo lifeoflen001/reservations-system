@@ -161,12 +161,43 @@ class User extends Authenticatable
         return collect(preg_split('/\s+/', trim($this->display_name)))->filter()->take(2)->map(fn ($part) => strtoupper(substr($part, 0, 1)))->implode('');
     }
 
+    /**
+     * Return the user's role name for both the current RBAC relation and
+     * legacy installations that still expose a string `role` attribute.
+     */
+    public function roleName(): ?string
+    {
+        $role = $this->getAttribute('role');
+
+        if ($role instanceof Role) {
+            return $role->name;
+        }
+
+        return is_string($role) && trim($role) !== '' ? trim($role) : null;
+    }
+
+    public function roleLabel(): ?string
+    {
+        $role = $this->getAttribute('role');
+
+        if ($role instanceof Role) {
+            return $role->label ?: $role->name;
+        }
+
+        return $this->roleName();
+    }
+
     public function hasPermission(string $permission): bool
     {
-        if ($this->role?->name === 'super_administrator') {
+        if ($this->roleName() === 'super_administrator') {
             return true;
         }
-        $role = $this->role;
+
+        $role = $this->getAttribute('role');
+        if (! $role instanceof Role) {
+            return false;
+        }
+
         if (! $role) {
             return false;
         }

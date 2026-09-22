@@ -134,8 +134,8 @@ class StaffController extends Controller
     public function roleUpdate(UpdateRoleRequest $request, Role $role): RedirectResponse
     {
         Gate::authorize('update', $role);
-        abort_unless($request->user()->role?->name === 'super_administrator' || $request->user()->hasPermission('roles.manage'), 403);
-        if ($role->name === 'super_administrator' && $request->user()->role?->name !== 'super_administrator') {
+        abort_unless($request->user()->roleName() === 'super_administrator' || $request->user()->hasPermission('roles.manage'), 403);
+        if ($role->name === 'super_administrator' && $request->user()->roleName() !== 'super_administrator') {
             return back()->with('error', 'Only a Super Administrator can edit the Super Administrator role.');
         }
         if ($role->name === 'super_administrator' && ($request->validated('is_active') ?? false) === false) {
@@ -173,6 +173,6 @@ class StaffController extends Controller
 
     private function authorizeDepartments(Request $request): void
     {
-        abort_unless($request->user()->role?->name === 'super_administrator' || $request->user()->hasPermission('departments.manage'), 403);
+        abort_unless($request->user()->roleName() === 'super_administrator' || $request->user()->hasPermission('departments.manage'), 403);
     }
 }

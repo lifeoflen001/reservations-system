@@ -78,7 +78,7 @@ class SearchController extends Controller
                     $query->where('name', 'like', $like)->orWhere('first_name', 'like', $like)->orWhere('last_name', 'like', $like)->orWhere('username', 'like', $like)->orWhere('email', 'like', $like);
                 })->latest('id')->limit(8)->get()->map(fn (User $staff): array => [
                     'title' => $staff->display_name,
-                    'subtitle' => trim(($staff->role?->label ?? 'Staff member').' · '.($staff->department?->name ?? 'No department')),
+                    'subtitle' => trim(($staff->roleLabel() ?? 'Staff member').' · '.($staff->department?->name ?? 'No department')),
                     'meta' => $staff->email,
                     'url' => route('staff.show', $staff),
                 ])->all();
