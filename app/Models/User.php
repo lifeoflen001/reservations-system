@@ -91,6 +91,23 @@ class User extends Authenticatable
         return $this->belongsTo(Role::class);
     }
 
+    /**
+     * Resolve the current RBAC role without allowing a legacy `role` column
+     * to shadow the role_id relationship on older installations.
+     */
+    private function resolvedRole(): ?Role
+    {
+        if (! $this->getAttribute('role_id')) {
+            return null;
+        }
+
+        $role = $this->relationLoaded('role')
+            ? $this->getRelation('role')
+            : $this->role()->first();
+
+        return $role instanceof Role ? $role : null;
+    }
+
     public function createdReservations(): HasMany
     {
         return $this->hasMany(Reservation::class, 'created_by');
@@ -167,20 +184,22 @@ class User extends Authenticatable
      */
     public function roleName(): ?string
     {
-        $role = $this->getAttribute('role');
+        $role = $this->resolvedRole();
 
-        if ($role instanceof Role) {
+        if ($role) {
             return $role->name;
         }
 
-        return is_string($role) && trim($role) !== '' ? trim($role) : null;
+        $legacyRole = $this->getRawOriginal('role');
+
+        return is_string($legacyRole) && trim($legacyRole) !== '' ? trim($legacyRole) : null;
     }
 
     public function roleLabel(): ?string
     {
-        $role = $this->getAttribute('role');
+        $role = $this->resolvedRole();
 
-        if ($role instanceof Role) {
+        if ($role) {
             return $role->label ?: $role->name;
         }
 
@@ -193,14 +212,11 @@ class User extends Authenticatable
             return true;
         }
 
-        $role = $this->getAttribute('role');
+        $role = $this->resolvedRole();
         if (! $role instanceof Role) {
             return false;
         }
 
-        if (! $role) {
-            return false;
-        }
         if (! $role->relationLoaded('permissions')) {
             $role->load('permissions');
         }
