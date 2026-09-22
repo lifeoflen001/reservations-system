@@ -37,7 +37,7 @@
 
         <div class="dropdown profile-dropdown" data-dropdown>
             <button type="button" class="profile-control" data-dropdown-toggle aria-expanded="false">
-                <span class="avatar {{ $currentUser->avatar_path ? 'avatar--image' : '' }}">@if($currentUser->avatar_path)<img src="{{ route('profile.avatar') }}?v={{ $currentUser->updated_at?->timestamp }}" alt="{{ $userName }}">@else{{ $initials ?: 'U' }}@endif</span>
+                <span class="avatar {{ $currentUser->hasAvatar() ? 'avatar--image' : '' }}">@if($currentUser->hasAvatar())<img src="{{ route('profile.avatar') }}?v={{ $currentUser->updated_at?->timestamp }}" alt="{{ $userName }}">@else{{ $initials ?: 'U' }}@endif</span>
                 <span class="profile-copy"><strong>{{ $userName }}</strong><small>{{ auth()->user()->role?->label ?? 'Administrator' }}</small></span>
             </button>
             <div class="dropdown__menu dropdown__menu--profile" data-dropdown-menu hidden>

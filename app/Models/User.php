@@ -26,6 +26,8 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'avatar_path',
+        'avatar_data',
+        'avatar_mime',
         'first_name',
         'last_name',
         'username',
@@ -57,6 +59,7 @@ class User extends Authenticatable
         'remember_token',
         'two_factor_secret',
         'two_factor_recovery_codes',
+        'avatar_data',
     ];
 
     /**
@@ -176,6 +179,11 @@ class User extends Authenticatable
     public function getInitialsAttribute(): string
     {
         return collect(preg_split('/\s+/', trim($this->display_name)))->filter()->take(2)->map(fn ($part) => strtoupper(substr($part, 0, 1)))->implode('');
+    }
+
+    public function hasAvatar(): bool
+    {
+        return filled($this->avatar_path) || (filled($this->avatar_data) && filled($this->avatar_mime));
     }
 
     /**
