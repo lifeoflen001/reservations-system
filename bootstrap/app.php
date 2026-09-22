@@ -17,6 +17,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Railway terminates TLS before forwarding requests to the PHP
+        // process. Trust its forwarded headers so Laravel preserves the
+        // original HTTPS scheme for redirects, cookies and CSRF sessions.
+        $middleware->trustProxies(at: env('TRUSTED_PROXIES', '*'));
         $middleware->web(append: [UsePropertySettings::class]);
         $middleware->alias([
             'installation.complete' => EnsureInstallationComplete::class,

@@ -12,6 +12,39 @@ class LoginHistoryTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_railway_forwarded_https_is_used_for_generated_urls(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $response = $this->withServerVariables([
+            'REMOTE_ADDR' => '10.0.0.2',
+            'HTTP_X_FORWARDED_HOST' => 'lodgix.up.railway.app',
+            'HTTP_X_FORWARDED_PROTO' => 'https',
+        ])->get('/login');
+
+        $response->assertOk()
+            ->assertSee('action="https://lodgix.up.railway.app/login"', false);
+    }
+
+    public function test_railway_forwarded_https_preserves_csrf_session_on_login_submission(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $server = [
+            'REMOTE_ADDR' => '10.0.0.2',
+            'HTTP_X_FORWARDED_HOST' => 'lodgix.up.railway.app',
+            'HTTP_X_FORWARDED_PROTO' => 'https',
+        ];
+
+        $this->withServerVariables($server)->get('/login')->assertOk();
+
+        $this->withServerVariables($server)->post('/login', [
+            'identity' => 'invalid@example.test',
+            'password' => 'not-a-real-password',
+        ])->assertRedirect('https://lodgix.up.railway.app/login')
+            ->assertSessionHasErrors('identity');
+    }
+
     public function test_successful_login_is_recorded_and_can_be_signed_out(): void
     {
         $this->seed(DatabaseSeeder::class);
