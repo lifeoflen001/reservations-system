@@ -4,5 +4,5 @@ namespace App\Contracts;
 
 interface EmailProviderInterface
 {
-    public function send(string $recipient, string $subject, string $body): void;
+    public function send(string $recipient, string $subject, string $body, ?string $actionUrl = null, ?string $title = null): void;
 }

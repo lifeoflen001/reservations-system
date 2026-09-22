@@ -22,6 +22,8 @@ use App\Services\HotelEmailService;
 use App\Services\LoginHistoryService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
@@ -81,11 +83,18 @@ class ProfileController extends Controller
             ],
         );
 
-        $delivery = $emails->queue('email_change_verification', $email, [
-            'user_name' => $user->display_name,
-            'verification_code' => $code,
-            'expires_in' => '10 minutes',
-        ]);
+        try {
+            $delivery = $emails->queue('email_change_verification', $email, [
+                'user_name' => $user->display_name,
+                'verification_code' => $code,
+                'expires_in' => '10 minutes',
+            ], sendImmediately: true);
+        } catch (Throwable $exception) {
+            report($exception);
+            $pending->delete();
+
+            return back()->withErrors(['email' => 'We could not deliver the verification code to that address. Check the address and try again.'])->with('section', 'profile');
+        }
 
         if (! $delivery) {
             $pending->delete();
@@ -155,28 +164,19 @@ class ProfileController extends Controller
     public function update(UpdateProfileRequest $request): RedirectResponse
     {
         $data = $request->validated();
+        unset($data['avatar'], $data['remove_avatar']);
         $data['name'] = trim($data['first_name'].' '.$data['last_name']);
         $data['updated_by'] = $request->user()->id;
         $user = $request->user();
         $oldAvatarPath = $user->avatar_path;
-        $newAvatarPath = null;
 
         if ($request->hasFile('avatar')) {
-            $newAvatarPath = $request->file('avatar')->store('profile-avatars', 'public');
-            $data['avatar_path'] = $newAvatarPath;
+            $data = array_merge($data, $this->avatarAttributes($request->file('avatar')));
         } elseif ($request->boolean('remove_avatar')) {
-            $data['avatar_path'] = null;
+            $data = array_merge($data, $this->emptyAvatarAttributes());
         }
 
-        try {
-            $user->update($data);
-        } catch (Throwable $exception) {
-            if ($newAvatarPath) {
-                Storage::disk('public')->delete($newAvatarPath);
-            }
-
-            throw $exception;
-        }
+        $user->update($data);
 
         if ($oldAvatarPath && $oldAvatarPath !== $user->avatar_path) {
             Storage::disk('public')->delete($oldAvatarPath);
@@ -185,10 +185,23 @@ class ProfileController extends Controller
         return back()->with('success', 'Profile updated.');
     }
 
-    public function avatar(Request $request): StreamedResponse
+    public function avatar(Request $request): Response|StreamedResponse
     {
+        $user = $request->user();
+        if ($user->avatar_data && $user->avatar_mime) {
+            $contents = base64_decode($user->avatar_data, true);
+            abort_unless($contents !== false, 404);
+
+            return response($contents, 200, [
+                'Cache-Control' => 'private, max-age=3600',
+                'Content-Type' => $user->avatar_mime,
+                'Content-Length' => (string) strlen($contents),
+                'X-Content-Type-Options' => 'nosniff',
+            ]);
+        }
+
         $disk = Storage::disk('public');
-        $path = $request->user()->avatar_path;
+        $path = $user->avatar_path;
         abort_unless($path && $disk->exists($path), 404);
 
         $stream = $disk->readStream($path);
@@ -211,30 +224,40 @@ class ProfileController extends Controller
     {
         $user = $request->user();
         $oldAvatarPath = $user->avatar_path;
-        $newAvatarPath = null;
 
-        try {
-            if ($request->hasFile('avatar')) {
-                $newAvatarPath = $request->file('avatar')->store('profile-avatars', 'public');
-                $user->update(['avatar_path' => $newAvatarPath, 'updated_by' => $user->id]);
-            } elseif ($request->boolean('remove_avatar')) {
-                $user->update(['avatar_path' => null, 'updated_by' => $user->id]);
-            } else {
-                return back()->with('warning', 'Choose a profile picture or select remove first.');
-            }
-        } catch (Throwable $exception) {
-            if ($newAvatarPath) {
-                Storage::disk('public')->delete($newAvatarPath);
-            }
-
-            throw $exception;
+        if ($request->hasFile('avatar')) {
+            $user->update(array_merge($this->avatarAttributes($request->file('avatar')), ['updated_by' => $user->id]));
+        } elseif ($request->boolean('remove_avatar')) {
+            $user->update(array_merge($this->emptyAvatarAttributes(), ['updated_by' => $user->id]));
+        } else {
+            return back()->with('warning', 'Choose a profile picture or select remove first.');
         }
 
         if ($oldAvatarPath && $oldAvatarPath !== $user->fresh()->avatar_path) {
             Storage::disk('public')->delete($oldAvatarPath);
         }
 
-        return back()->with('success', $newAvatarPath ? 'Profile picture updated.' : 'Profile picture removed.');
+        return back()->with('success', $request->hasFile('avatar') ? 'Profile picture updated.' : 'Profile picture removed.');
+    }
+
+    /** @return array{avatar_path: null, avatar_data: string, avatar_mime: string} */
+    private function avatarAttributes(UploadedFile $file): array
+    {
+        return [
+            'avatar_path' => null,
+            'avatar_data' => base64_encode($file->get()),
+            'avatar_mime' => $file->getMimeType() ?: 'application/octet-stream',
+        ];
+    }
+
+    /** @return array{avatar_path: null, avatar_data: null, avatar_mime: null} */
+    private function emptyAvatarAttributes(): array
+    {
+        return [
+            'avatar_path' => null,
+            'avatar_data' => null,
+            'avatar_mime' => null,
+        ];
     }
 
     public function updatePreferences(UpdateProfilePreferencesRequest $request): RedirectResponse
@@ -252,6 +275,14 @@ class ProfileController extends Controller
         );
 
         return redirect()->route('profile', ['section' => 'preferences'])->with('success', 'Preferences saved.');
+    }
+
+    public function updateTheme(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $data = $request->validate(['theme' => ['required', 'string', 'in:light,dark']]);
+        UserPreference::updateOrCreate(['user_id' => $request->user()->id], ['theme' => $data['theme']]);
+
+        return response()->json(['theme' => $data['theme']]);
     }
 
     public function enableTwoFactor(EnableTwoFactorRequest $request, EnableTwoFactorAuthentication $enable): RedirectResponse

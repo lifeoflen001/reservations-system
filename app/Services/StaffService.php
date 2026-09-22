@@ -52,14 +52,14 @@ class StaffService
 
     public function assertRoleAssignment(?int $roleId, User $actor): void
     {
-        if (! $roleId || $actor->role?->name === 'super_administrator') return;
+        if (! $roleId || $actor->roleName() === 'super_administrator') return;
         $role = Role::find($roleId);
         if ($actor->hasPermission('roles.manage') && $role?->name !== 'super_administrator') return;
         if ($role?->name === 'super_administrator' || $role?->is_system) throw new LogicException('You are not authorized to assign this system role.');
         throw new LogicException('You are not authorized to change staff roles.');
     }
 
-    private function isSuperAdministrator(User $user): bool { return $user->role?->name === 'super_administrator'; }
+    private function isSuperAdministrator(User $user): bool { return $user->roleName() === 'super_administrator'; }
     private function assertNotFinalSuperAdministrator(User $user): void
     {
         if (User::where('role_id', $user->role_id)->where('is_active', true)->count() <= 1) throw new LogicException('The final Super Administrator cannot be disabled or demoted.');

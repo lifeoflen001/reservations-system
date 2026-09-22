@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Models\Role;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -34,5 +35,20 @@ class FormSystemTest extends TestCase
             ->assertOk()
             ->assertSee('Contact details', false)
             ->assertDontSee('name="address"', false);
+    }
+
+    public function test_unauthorized_web_requests_render_the_access_warning_modal(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+        $housekeeper = Role::query()->where('name', 'housekeeper')->firstOrFail();
+        $user = User::query()->where('username', 'admin')->firstOrFail();
+        $user->update(['role_id' => $housekeeper->id]);
+
+        $this->actingAs($user)->get(route('reservations.create'))
+            ->assertStatus(403)
+            ->assertSee('Access restricted', false)
+            ->assertSee('You have no access to perform this task.', false)
+            ->assertSee('data-modal-auto-open', false)
+            ->assertDontSee('This action is unauthorized.', false);
     }
 }

@@ -3,11 +3,14 @@
 namespace Tests\Feature;
 
 use App\Models\Client;
+use App\Jobs\SendHotelEmail;
+use App\Models\IntegrationSetting;
 use App\Models\Role;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 class PeopleAccessTest extends TestCase
@@ -45,6 +48,26 @@ class PeopleAccessTest extends TestCase
         $this->actingAs($admin)->post(route('staff.reset-password', $staff), ['password' => 'NewStrongPass123!', 'password_confirmation' => 'NewStrongPass123!'])->assertRedirect();
         $this->assertTrue($staff->fresh()->must_change_password);
         $this->assertTrue(Hash::check('NewStrongPass123!', $staff->fresh()->password));
+    }
+
+    public function test_staff_creation_queues_a_branded_invitation_email(): void
+    {
+        Queue::fake();
+        $admin = User::firstOrFail();
+        $role = Role::where('name', 'manager')->firstOrFail();
+        IntegrationSetting::create([
+            'key' => 'email', 'provider' => 'smtp', 'status' => 'configured', 'mode' => 'smtp', 'is_enabled' => true,
+            'settings' => ['host' => 'smtp.example.test', 'from_email' => 'frontdesk@example.test', 'from_name' => 'Lodgix'],
+            'secrets' => ['password' => 'test-password'],
+        ]);
+
+        $this->actingAs($admin)->post(route('staff.store'), [
+            'first_name' => 'Noah', 'last_name' => 'Guest', 'email' => 'noah@example.com', 'username' => 'noah',
+            'role_id' => $role->id, 'password' => 'StrongPass123!', 'password_confirmation' => 'StrongPass123!',
+        ])->assertRedirect()->assertSessionHas('success', 'Staff account created. An invitation email has been queued for noah@example.com.');
+
+        $this->assertDatabaseHas('email_delivery_logs', ['recipient' => 'noah@example.com', 'template' => 'staff_invitation', 'status' => 'queued']);
+        Queue::assertPushed(SendHotelEmail::class, fn (SendHotelEmail $job): bool => $job->variables['username'] === 'noah');
     }
 
     public function test_forced_password_change_redirects_before_dashboard_access(): void

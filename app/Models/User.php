@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 
 class User extends Authenticatable
@@ -26,6 +27,8 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'avatar_path',
+        'avatar_data',
+        'avatar_mime',
         'first_name',
         'last_name',
         'username',
@@ -57,6 +60,7 @@ class User extends Authenticatable
         'remember_token',
         'two_factor_secret',
         'two_factor_recovery_codes',
+        'avatar_data',
     ];
 
     /**
@@ -89,6 +93,23 @@ class User extends Authenticatable
     public function role(): BelongsTo
     {
         return $this->belongsTo(Role::class);
+    }
+
+    /**
+     * Resolve the current RBAC role without allowing a legacy `role` column
+     * to shadow the role_id relationship on older installations.
+     */
+    private function resolvedRole(): ?Role
+    {
+        if (! $this->getAttribute('role_id')) {
+            return null;
+        }
+
+        $role = $this->relationLoaded('role')
+            ? $this->getRelation('role')
+            : $this->role()->first();
+
+        return $role instanceof Role ? $role : null;
     }
 
     public function createdReservations(): HasMany
@@ -161,15 +182,54 @@ class User extends Authenticatable
         return collect(preg_split('/\s+/', trim($this->display_name)))->filter()->take(2)->map(fn ($part) => strtoupper(substr($part, 0, 1)))->implode('');
     }
 
-    public function hasPermission(string $permission): bool
+    public function hasAvatar(): bool
     {
-        if ($this->role?->name === 'super_administrator') {
+        if (filled($this->avatar_data) && filled($this->avatar_mime)) {
             return true;
         }
-        $role = $this->role;
-        if (! $role) {
+
+        return filled($this->avatar_path) && Storage::disk('public')->exists($this->avatar_path);
+    }
+
+    /**
+     * Return the user's role name for both the current RBAC relation and
+     * legacy installations that still expose a string `role` attribute.
+     */
+    public function roleName(): ?string
+    {
+        $role = $this->resolvedRole();
+
+        if ($role) {
+            return $role->name;
+        }
+
+        $legacyRole = $this->getRawOriginal('role');
+
+        return is_string($legacyRole) && trim($legacyRole) !== '' ? trim($legacyRole) : null;
+    }
+
+    public function roleLabel(): ?string
+    {
+        $role = $this->resolvedRole();
+
+        if ($role) {
+            return $role->label ?: $role->name;
+        }
+
+        return $this->roleName();
+    }
+
+    public function hasPermission(string $permission): bool
+    {
+        if ($this->roleName() === 'super_administrator') {
+            return true;
+        }
+
+        $role = $this->resolvedRole();
+        if (! $role instanceof Role) {
             return false;
         }
+
         if (! $role->relationLoaded('permissions')) {
             $role->load('permissions');
         }

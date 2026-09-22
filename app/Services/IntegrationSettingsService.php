@@ -31,9 +31,48 @@ class IntegrationSettingsService
 
     public function isConfigured(string $key): bool
     {
-        $integration = $this->get($key);
+        $integration = $key === 'email' ? $this->emailProvider() : $this->get($key);
 
         return (bool) ($integration?->is_enabled && $integration->status === 'configured');
+    }
+
+    /**
+     * Resolve the database-backed email integration, or the Laravel SMTP
+     * configuration when no integration record has been saved yet.
+     */
+    public function emailProvider(): ?IntegrationSetting
+    {
+        $integration = $this->get('email');
+        if ($integration) {
+            return $integration;
+        }
+
+        $host = (string) config('mail.mailers.smtp.host');
+        $from = (string) config('mail.from.address');
+        $username = (string) config('mail.mailers.smtp.username');
+        $password = (string) config('mail.mailers.smtp.password');
+        if ($host === '' || $from === '' || $username === '' || $password === '') {
+            return null;
+        }
+
+        $scheme = (string) config('mail.mailers.smtp.scheme');
+
+        return new IntegrationSetting([
+            'key' => 'email',
+            'provider' => 'smtp',
+            'status' => 'configured',
+            'mode' => 'smtp',
+            'is_enabled' => true,
+            'settings' => [
+                'host' => $host,
+                'port' => (int) config('mail.mailers.smtp.port', 587),
+                'encryption' => $scheme === 'smtps' ? 'ssl' : 'tls',
+                'username' => $username,
+                'from_email' => $from,
+                'from_name' => (string) config('mail.from.name', config('hotel.brand.name')),
+            ],
+            'secrets' => ['password' => $password],
+        ]);
     }
 
     public function maskSecret(?string $value): string

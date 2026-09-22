@@ -1,4 +1,6 @@
 :root {
+    color-scheme: light;
+
     --brand-primary: #e67e2f;
     --brand-primary-hover: #cf6d25;
     --brand-primary-soft: #fff1e6;
@@ -20,6 +22,10 @@
     --input-bg: #ffffff;
     --input-border: #cbd2da;
     --input-focus: #69a7e8;
+    --form-surface: var(--surface-bg);
+    --form-control-bg: var(--input-bg);
+    --form-control-hover: var(--surface-secondary);
+    --overlay-bg: rgb(15 23 42 / 52%);
 
     --success: #56a35a;
     --success-bg: #eff9f0;
@@ -56,6 +62,8 @@
 }
 
 [data-theme='dark'] {
+    color-scheme: dark;
+
     --page-bg: #0d1014;
     --surface-bg: #171b20;
     --surface-secondary: #1d2229;
@@ -68,9 +76,13 @@
     --text-disabled: #5c6571;
     --border: #2b333e;
     --border-strong: #3b4652;
-    --input-bg: #171b20;
+    --input-bg: #0d1014;
     --input-border: #3b4652;
     --input-focus: #69a7e8;
+    --form-surface: #111419;
+    --form-control-bg: #0d1014;
+    --form-control-hover: #171b20;
+    --overlay-bg: rgb(0 0 0 / 68%);
     --brand-primary-soft: #302116;
     --brand-primary-border: #75441f;
     --success-bg: #15271a;

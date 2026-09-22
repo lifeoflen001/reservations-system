@@ -4,10 +4,12 @@ use App\Http\Middleware\ConfiguredSessionSecurity;
 use App\Http\Middleware\EnsureInstallationComplete;
 use App\Http\Middleware\EnsureInstallationIncomplete;
 use App\Http\Middleware\UsePropertySettings;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -32,4 +34,14 @@ return Application::configure(basePath: dirname(__DIR__))
         // API/database failures must remain machine-readable instead of being
         // rendered as an HTML page or mistaken for an empty data response.
         $exceptions->shouldRenderJsonWhen(fn (Request $request, Throwable $exception): bool => $request->is('api/*') || $request->expectsJson());
+
+        $exceptions->renderable(function (Throwable $exception, Request $request) {
+            $status = $exception instanceof HttpExceptionInterface ? $exception->getStatusCode() : null;
+            $isForbidden = $exception instanceof AuthorizationException || $status === 403;
+            if ($request->expectsJson() || ! $isForbidden) {
+                return null;
+            }
+
+            return response()->view('errors.403', status: 403);
+        });
     })->create();

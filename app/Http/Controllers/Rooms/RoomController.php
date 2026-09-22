@@ -244,6 +244,6 @@ class RoomController extends Controller
 
     private function authorizeCatalog(Request $request): void
     {
-        abort_unless($request->user()->role?->name === 'super_administrator' || $request->user()->hasPermission('room_categories.manage') || $request->user()->hasPermission('room_types.manage') || $request->user()->hasPermission('floors.manage') || $request->user()->hasPermission('rooms.manage') || $request->user()->hasPermission('rooms.manage_status'), 403);
+        abort_unless($request->user()->roleName() === 'super_administrator' || $request->user()->hasPermission('room_categories.manage') || $request->user()->hasPermission('room_types.manage') || $request->user()->hasPermission('floors.manage') || $request->user()->hasPermission('rooms.manage') || $request->user()->hasPermission('rooms.manage_status'), 403);
     }
 }

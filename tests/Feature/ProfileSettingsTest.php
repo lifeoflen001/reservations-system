@@ -9,7 +9,6 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Queue;
-use Illuminate\Support\Facades\Storage;
 use PragmaRX\Google2FA\Google2FA;
 use Tests\TestCase;
 
@@ -19,7 +18,6 @@ class ProfileSettingsTest extends TestCase
 
     public function test_user_can_upload_crop_ready_profile_picture_and_remove_it(): void
     {
-        Storage::fake('public');
         $this->seed(DatabaseSeeder::class);
         $admin = User::firstOrFail();
 
@@ -31,17 +29,23 @@ class ProfileSettingsTest extends TestCase
         ])->assertRedirect()->assertSessionHasNoErrors();
 
         $avatarPath = $admin->fresh()->avatar_path;
-        $this->assertNotNull($avatarPath);
-        Storage::disk('public')->assertExists($avatarPath);
-        $this->actingAs($admin)->get(route('profile.avatar'))->assertOk()->assertHeader('Content-Type', 'image/png');
+        $savedAdmin = $admin->fresh();
+        $this->assertNull($avatarPath);
+        $this->assertNotNull($savedAdmin->avatar_data);
+        $this->assertSame('image/png', $savedAdmin->avatar_mime);
+        $this->assertTrue($savedAdmin->hasAvatar());
+        $this->actingAs($savedAdmin)->get(route('profile.avatar'))->assertOk()->assertHeader('Content-Type', 'image/png');
 
         $this->actingAs($admin)->post(route('profile.avatar.update'), [
             '_method' => 'PUT',
             'remove_avatar' => '1',
         ])->assertRedirect();
 
-        $this->assertNull($admin->fresh()->avatar_path);
-        Storage::disk('public')->assertMissing($avatarPath);
+        $removedAdmin = $admin->fresh();
+        $this->assertNull($removedAdmin->avatar_path);
+        $this->assertNull($removedAdmin->avatar_data);
+        $this->assertNull($removedAdmin->avatar_mime);
+        $this->assertFalse($removedAdmin->hasAvatar());
     }
 
     public function test_profile_preferences_are_saved_for_the_current_user(): void
@@ -63,6 +67,11 @@ class ProfileSettingsTest extends TestCase
         $this->assertSame('dark', $admin->preferences()->firstOrFail()->theme);
         $this->assertSame(['email'], $admin->notificationPreferences()->firstOrFail()->channels);
         $this->assertSame(['financial'], $admin->notificationPreferences()->firstOrFail()->categories);
+
+        $this->actingAs($admin)->putJson(route('profile.theme.update'), ['theme' => 'light'])
+            ->assertOk()
+            ->assertJson(['theme' => 'light']);
+        $this->assertSame('light', $admin->preferences()->firstOrFail()->theme);
     }
 
     public function test_user_can_change_username_from_profile_and_duplicate_usernames_are_rejected(): void

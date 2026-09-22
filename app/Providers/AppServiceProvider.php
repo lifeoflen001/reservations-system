@@ -91,7 +91,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('reports.view', fn (User $user): bool => $user->hasPermission('reports.view'));
         Gate::define('reports.export', fn (User $user): bool => $user->hasPermission('reports.export'));
         Gate::before(function (User $user): ?bool {
-            return $user->role?->name === 'super_administrator' ? true : null;
+            return $user->roleName() === 'super_administrator' ? true : null;
         });
     }
 

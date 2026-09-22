@@ -18,12 +18,15 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use App\Services\SystemSettingsService;
+use App\Services\HotelEmailService;
+use App\Services\IntegrationSettingsService;
+use App\Services\PropertySettingsService;
 use Illuminate\View\View;
 use LogicException;
 
 class StaffController extends Controller
 {
-    public function __construct(private readonly StaffService $staffService) {}
+    public function __construct(private readonly StaffService $staffService, private readonly HotelEmailService $emails, private readonly IntegrationSettingsService $integrations) {}
 
     public function index(Request $request, MiniDashboardMetricsService $metricsService): View
     {
@@ -83,7 +86,25 @@ class StaffController extends Controller
         Gate::authorize('create', User::class);
         try { $staff = $this->staffService->create($request->validated(), $request->user()); }
         catch (LogicException $exception) { return back()->withInput()->with('error', $exception->getMessage()); }
-        return redirect()->route('staff.index', ['staff' => $staff->id])->with('success', 'Staff account created.');
+        $invitationQueued = false;
+        if (filter_var($staff->email, FILTER_VALIDATE_EMAIL) && $this->integrations->isConfigured('email')) {
+            $invitationQueued = $this->emails->queue('staff_invitation', $staff->email, [
+                'user_name' => $staff->display_name,
+                'username' => $staff->username,
+                'property_name' => app(PropertySettingsService::class)->name(),
+                'login_url' => route('login'),
+                'invitation_title' => 'Staff invitation',
+            ]) !== null;
+        }
+
+        $message = 'Staff account created.';
+        if ($invitationQueued) {
+            $message .= ' An invitation email has been queued for '.$staff->email.'.';
+        } elseif (filter_var($staff->email, FILTER_VALIDATE_EMAIL)) {
+            $message .= ' The invitation email was not sent because email delivery is not configured.';
+        }
+
+        return redirect()->route('staff.index', ['staff' => $staff->id])->with('success', $message);
     }
 
     public function update(StoreStaffRequest $request, User $staff): RedirectResponse
@@ -113,8 +134,8 @@ class StaffController extends Controller
     public function roleUpdate(UpdateRoleRequest $request, Role $role): RedirectResponse
     {
         Gate::authorize('update', $role);
-        abort_unless($request->user()->role?->name === 'super_administrator' || $request->user()->hasPermission('roles.manage'), 403);
-        if ($role->name === 'super_administrator' && $request->user()->role?->name !== 'super_administrator') {
+        abort_unless($request->user()->roleName() === 'super_administrator' || $request->user()->hasPermission('roles.manage'), 403);
+        if ($role->name === 'super_administrator' && $request->user()->roleName() !== 'super_administrator') {
             return back()->with('error', 'Only a Super Administrator can edit the Super Administrator role.');
         }
         if ($role->name === 'super_administrator' && ($request->validated('is_active') ?? false) === false) {
@@ -152,6 +173,6 @@ class StaffController extends Controller
 
     private function authorizeDepartments(Request $request): void
     {
-        abort_unless($request->user()->role?->name === 'super_administrator' || $request->user()->hasPermission('departments.manage'), 403);
+        abort_unless($request->user()->roleName() === 'super_administrator' || $request->user()->hasPermission('departments.manage'), 403);
     }
 }
