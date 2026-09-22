@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 
 class User extends Authenticatable
@@ -183,7 +184,11 @@ class User extends Authenticatable
 
     public function hasAvatar(): bool
     {
-        return filled($this->avatar_path) || (filled($this->avatar_data) && filled($this->avatar_mime));
+        if (filled($this->avatar_data) && filled($this->avatar_mime)) {
+            return true;
+        }
+
+        return filled($this->avatar_path) && Storage::disk('public')->exists($this->avatar_path);
     }
 
     /**
