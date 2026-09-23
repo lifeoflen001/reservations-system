@@ -6,6 +6,7 @@ use App\Enums\OperatingMode;
 use App\Services\SystemSettingsService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use App\Services\EmailAddressPolicy;
 
 class StoreSetupRequest extends FormRequest
 {
@@ -17,7 +18,11 @@ class StoreSetupRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'full_name' => ['required', 'string', 'max:200'], 'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'full_name' => ['required', 'string', 'max:200'], 'email' => ['required', 'email', 'max:255', 'unique:users,email', function (string $attribute, mixed $value, \Closure $fail): void {
+                if (! app(EmailAddressPolicy::class)->isDeliverable($value)) {
+                    $fail('Please use a real email address that can receive mail.');
+                }
+            }],
             'username' => ['required', 'alpha_dash', 'max:100', 'unique:users,username'],
             'password' => ['required', 'confirmed', app(SystemSettingsService::class)->passwordRule()],
             'operating_mode' => ['required', Rule::enum(OperatingMode::class)],

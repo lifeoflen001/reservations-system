@@ -87,7 +87,9 @@ class StaffController extends Controller
         try { $staff = $this->staffService->create($request->validated(), $request->user()); }
         catch (LogicException $exception) { return back()->withInput()->with('error', $exception->getMessage()); }
         $invitationQueued = false;
-        if (filter_var($staff->email, FILTER_VALIDATE_EMAIL) && $this->integrations->isConfigured('email')) {
+        $validEmail = filter_var($staff->email, FILTER_VALIDATE_EMAIL) !== false;
+        $deliverableEmail = $this->emails->isDeliverableRecipient($staff->email);
+        if ($deliverableEmail && $this->integrations->isConfigured('email')) {
             $invitationQueued = $this->emails->queue('staff_invitation', $staff->email, [
                 'user_name' => $staff->display_name,
                 'username' => $staff->username,
@@ -100,7 +102,9 @@ class StaffController extends Controller
         $message = 'Staff account created.';
         if ($invitationQueued) {
             $message .= ' An invitation email has been queued for '.$staff->email.'.';
-        } elseif (filter_var($staff->email, FILTER_VALIDATE_EMAIL)) {
+        } elseif ($validEmail && ! $deliverableEmail) {
+            $message .= ' '.$this->emails->rejectionMessage();
+        } elseif ($validEmail) {
             $message .= ' The invitation email was not sent because email delivery is not configured.';
         }
 

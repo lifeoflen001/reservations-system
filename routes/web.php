@@ -8,6 +8,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\HousekeepingController;
 use App\Http\Controllers\MaintenanceController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\OperationalDataTransferController;
 use App\Http\Controllers\Payments\InvoiceController;
 use App\Http\Controllers\Payments\PaymentController;
 use App\Http\Controllers\ReportsController;
@@ -60,6 +61,10 @@ Route::middleware(['auth', EnsureActiveUser::class, EnsureInstallationComplete::
     Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
     Route::get('/search', [SearchController::class, 'index'])->name('search');
+
+    Route::get('/data-transfer/{resource}/export/{format}', [OperationalDataTransferController::class, 'export'])->whereIn('resource', ['rooms', 'clients', 'staff', 'tasks', 'maintenance', 'housekeeping'])->whereIn('format', ['csv', 'pdf'])->name('data-transfer.export');
+    Route::get('/data-transfer/{resource}/template', [OperationalDataTransferController::class, 'template'])->whereIn('resource', ['rooms', 'clients', 'staff', 'tasks', 'maintenance', 'housekeeping'])->name('data-transfer.template');
+    Route::post('/data-transfer/{resource}/import', [OperationalDataTransferController::class, 'import'])->whereIn('resource', ['rooms', 'clients', 'staff', 'tasks', 'maintenance', 'housekeeping'])->name('data-transfer.import');
 
     Route::get('/reservations/export', [ReservationController::class, 'export'])->name('reservations.export');
     Route::post('/reservations/{reservation}/check-in', [ReservationController::class, 'checkIn'])->name('reservations.check-in');

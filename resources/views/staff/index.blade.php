@@ -2,10 +2,12 @@
 
 @section('content')
 <x-page-header title="Staff" subtitle="Accounts, roles, departments and access.">
+    <x-operational-data-transfer resource="staff" />
     @can('create', \App\Models\User::class)
         <a class="ui-button ui-button--primary" href="{{ route('staff.index', ['new' => 1]) }}"><x-ui.icon name="plus" size="16" /> New staff member</a>
     @endcan
 </x-page-header>
+@if ($errors->any())<x-feedback.alert type="danger" class="page-feedback">{{ $errors->first() }}</x-feedback.alert>@endif
 
 <nav class="ui-tabs page-tabs" aria-label="Staff sections">
     <a class="ui-tab {{ !request('tab') || request('tab') === 'staff' ? 'is-active' : '' }}" href="{{ route('staff.index', ['tab' => 'staff']) }}">Staff</a>

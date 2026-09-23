@@ -9,12 +9,17 @@ use Throwable;
 
 class HotelEmailService
 {
-    public function __construct(private readonly SafeTemplateRenderer $renderer) {}
+    public function __construct(private readonly SafeTemplateRenderer $renderer, private readonly EmailAddressPolicy $emailPolicy) {}
+
+    public function isDeliverableRecipient(?string $recipient): bool
+    {
+        return $this->emailPolicy->isDeliverable($recipient);
+    }
 
     public function queue(string $templateKey, string $recipient, array $variables, ?int $reservationId = null, ?int $clientId = null, bool $sendImmediately = false): ?EmailDeliveryLog
     {
         $template = EmailTemplate::query()->where('key', $templateKey)->where('is_enabled', true)->first();
-        if (! $template || ! filter_var($recipient, FILTER_VALIDATE_EMAIL)) {
+        if (! $template || ! $this->emailPolicy->isDeliverable($recipient)) {
             return null;
         }
         $log = EmailDeliveryLog::create([

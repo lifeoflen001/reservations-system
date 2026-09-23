@@ -3,8 +3,10 @@
 @section('content')
 @php($modalClient = $editClient)
 <x-page-header title="Clients" subtitle="Guest profiles, contact details and stay history.">
+    <x-operational-data-transfer resource="clients" />
     @can('create', \App\Models\Client::class)<a class="ui-button ui-button--primary" href="{{ route('clients.index', ['new' => 1]) }}"><x-ui.icon name="plus" size="16" /> New client</a>@endcan
 </x-page-header>
+@if ($errors->any())<x-feedback.alert type="danger" class="page-feedback">{{ $errors->first() }}</x-feedback.alert>@endif
 
 <x-kpi-grid :items="$kpis" />
 

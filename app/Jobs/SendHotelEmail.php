@@ -6,6 +6,7 @@ use App\Exceptions\ProviderNotConfiguredException;
 use App\Models\EmailDeliveryLog;
 use App\Models\EmailTemplate;
 use App\Services\ConfiguredEmailProvider;
+use App\Services\EmailAddressPolicy;
 use App\Services\IntegrationSettingsService;
 use App\Services\SafeTemplateRenderer;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -28,9 +29,20 @@ class SendHotelEmail implements ShouldQueue
         return [30, 120, 600];
     }
 
-    public function handle(IntegrationSettingsService $integrations, SafeTemplateRenderer $renderer): void
+    public function handle(IntegrationSettingsService $integrations, SafeTemplateRenderer $renderer, EmailAddressPolicy $emailPolicy): void
     {
         $log = EmailDeliveryLog::query()->findOrFail($this->deliveryLogId);
+        if ($log->status === 'sent') {
+            return;
+        }
+        if (! $emailPolicy->isDeliverable($log->recipient)) {
+            $log->update([
+                'status' => 'skipped',
+                'failed_at' => null,
+                'error_summary' => 'Recipient uses a reserved or placeholder domain.',
+            ]);
+            return;
+        }
         $template = EmailTemplate::query()->where('key', $log->template)->firstOrFail();
         $log->update(['status' => 'sending', 'attempts' => $log->attempts + 1]);
         $provider = $integrations->emailProvider();

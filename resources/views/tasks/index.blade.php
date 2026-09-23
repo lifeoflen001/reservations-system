@@ -2,7 +2,7 @@
 
 @php($edit = $editTask)
 @section('content')
-<x-page-header title="Tasks" subtitle="Manage hotel operational tasks, assignments and follow-ups."><a class="ui-button ui-button--primary" href="{{ route('tasks.index', ['new' => 1]) }}"><x-ui.icon name="plus" size="16" /> Create task</a></x-page-header>
+<x-page-header title="Tasks" subtitle="Manage hotel operational tasks, assignments and follow-ups."><x-operational-data-transfer resource="tasks" /><a class="ui-button ui-button--primary" href="{{ route('tasks.index', ['new' => 1]) }}"><x-ui.icon name="plus" size="16" /> Create task</a></x-page-header>
 @if($errors->any())<x-feedback.alert type="danger">Please review the highlighted task fields and try again.</x-feedback.alert>@endif
 
 <div class="metric-grid task-metrics">

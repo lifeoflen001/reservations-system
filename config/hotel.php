@@ -12,6 +12,15 @@ return [
         'tagline' => env('HOTEL_BRAND_TAGLINE', 'Hotel Management System'),
     ],
 
+    'email' => [
+        // Keep RFC-reserved addresses available to automated tests, but never
+        // permit them to reach a real provider in production.
+        'allow_reserved_recipients' => filter_var(
+            env('HOTEL_ALLOW_RESERVED_EMAILS', env('APP_ENV') === 'testing'),
+            FILTER_VALIDATE_BOOL
+        ),
+    ],
+
     'defaults' => [
         'property_name' => env('HOTEL_PROPERTY_NAME', 'HotelDesk Property'),
         'language' => 'en',

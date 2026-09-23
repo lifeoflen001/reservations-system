@@ -10,6 +10,7 @@
 
 @section('content')
 <x-page-header title="Rooms" subtitle="Room inventory, categories, types and operational status.">
+    <x-operational-data-transfer resource="rooms" />
     @if($tab === 'catalog' && $canFloorManage)
         <button class="ui-button ui-button--secondary" data-modal-open="floor-modal"><x-ui.icon name="building" size="16" /> Manage floors</button>
     @endif
