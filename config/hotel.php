@@ -59,5 +59,9 @@ return [
         'booking_channels.view', 'booking_channels.manage', 'booking_channels.sync',
         'api_tokens.view', 'api_tokens.manage', 'webhooks.view', 'webhooks.manage', 'webhooks.retry',
         'notifications.view', 'notifications.manage',
+        'announcements.view', 'announcements.create', 'announcements.update', 'announcements.publish',
+        'announcements.archive', 'announcements.statistics', 'announcements.manage',
+        'announcements.manage_categories', 'announcements.manage_audience', 'announcements.send_email',
+        'announcements.send_browser_notification',
     ],
 ];

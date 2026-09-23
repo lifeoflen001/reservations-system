@@ -50,10 +50,10 @@
 @elseif ($tab === 'list')
     <form class="filter-toolbar reservation-filters" method="GET" action="{{ route('rooms.index') }}">
         <input type="hidden" name="tab" value="list">
-        <x-form.input name="search" value="{{ request('search') }}" placeholder="Search rooms" aria-label="Search rooms" />
+        <x-form.input name="search" value="{{ request('search') }}" placeholder="Search rooms" aria-label="Search rooms" field-class="reservation-filter-search" />
         <x-form.select name="status" aria-label="Filter by room status"><option value="all">All statuses</option>@foreach ($statuses as $status)<option value="{{ $status->value }}" @selected(request('status', 'all') === $status->value)>{{ $status->label() }}</option>@endforeach</x-form.select>
         <x-form.select name="housekeeping" aria-label="Filter by housekeeping"><option value="all">All housekeeping</option>@foreach ($housekeepingStatuses as $status)<option value="{{ $status->value }}" @selected(request('housekeeping', 'all') === $status->value)>{{ ucfirst($status->value) }}</option>@endforeach</x-form.select>
-        <x-form.select name="floor_id" aria-label="Filter by floor"><option value="all">All floors</option>@foreach ($floors as $floor)<option value="{{ $floor->id }}" @selected((string) request('floor_id', 'all') === (string) $floor->id)>{{ $floor->name }}</option>@endforeach</x-form.select>
+        <x-form.select name="floor_id" aria-label="Filter by floor" field-class="reservation-filter-compact"><option value="all">All floors</option>@foreach ($floors as $floor)<option value="{{ $floor->id }}" @selected((string) request('floor_id', 'all') === (string) $floor->id)>{{ $floor->name }}</option>@endforeach</x-form.select>
         <button class="ui-button ui-button--info" type="submit"><x-ui.icon name="filter" size="16" /> Filter</button><a class="ui-button ui-button--secondary" href="{{ route('rooms.index', ['tab' => 'list']) }}">Reset</a>
     </form>
     <section class="ui-card"><x-data.table caption="Room list"><thead><tr><th>Room</th><th>Floor</th><th>Category</th><th>Room type</th><th>Rate</th><th>Capacity</th><th>Operational status</th><th>Housekeeping</th><th>Actions</th></tr></thead><tbody>
@@ -62,7 +62,7 @@
         @empty
             <tr><td colspan="9"><div class="empty-state"><x-ui.icon name="bed" size="28" /><strong>No rooms found.</strong><span>Add a room to start managing inventory.</span></div></td></tr>
         @endforelse
-    </tbody></x-data.table></section>
+    </tbody></x-data.table><x-data.pagination :paginator="$rooms" /></section>
 @elseif ($tab === 'catalog')
     <div class="catalog-grid catalog-grid--reference">
         <section class="ui-card catalog-panel">

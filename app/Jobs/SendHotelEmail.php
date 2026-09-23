@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Exceptions\ProviderNotConfiguredException;
 use App\Models\EmailDeliveryLog;
 use App\Models\EmailTemplate;
+use App\Models\AnnouncementRecipient;
 use App\Services\ConfiguredEmailProvider;
 use App\Services\EmailAddressPolicy;
 use App\Services\IntegrationSettingsService;
@@ -59,6 +60,9 @@ class SendHotelEmail implements ShouldQueue
             $this->variables['notification_title'] ?? $this->variables['invitation_title'] ?? null,
         );
         $log->update(['status' => 'sent', 'sent_at' => now(), 'error_summary' => null]);
+        if ($log->announcement_recipient_id) {
+            AnnouncementRecipient::query()->whereKey($log->announcement_recipient_id)->update(['email_status' => 'sent']);
+        }
         if ($provider->exists) {
             $provider->update(['last_success_at' => now(), 'last_error' => null]);
         }
@@ -69,5 +73,8 @@ class SendHotelEmail implements ShouldQueue
     {
         $log = EmailDeliveryLog::query()->find($this->deliveryLogId);
         $log?->update(['status' => 'failed', 'failed_at' => now(), 'error_summary' => mb_substr($exception->getMessage(), 0, 500)]);
+        if ($log?->announcement_recipient_id) {
+            AnnouncementRecipient::query()->whereKey($log->announcement_recipient_id)->update(['email_status' => 'failed']);
+        }
     }
 }

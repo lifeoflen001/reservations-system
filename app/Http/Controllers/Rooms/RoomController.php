@@ -13,6 +13,7 @@ use App\Models\RoomCategory;
 use App\Models\RoomStatus;
 use App\Models\RoomType;
 use App\Services\RoomService;
+use App\Support\TablePagination;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
@@ -30,7 +31,7 @@ class RoomController extends Controller
             ->when($request->filled('status') && (string) $request->string('status') !== 'all', fn ($q) => $q->where('operational_status', (string) $request->string('status')))
             ->when($request->filled('housekeeping') && (string) $request->string('housekeeping') !== 'all', fn ($q) => $q->where('housekeeping_status', (string) $request->string('housekeeping')))
             ->when($request->filled('floor_id') && (string) $request->string('floor_id') !== 'all', fn ($q) => $q->where('floor_id', $request->integer('floor_id')))
-            ->orderBy('room_number')->get();
+            ->orderBy('room_number')->paginate(TablePagination::perPage($request, 15))->withQueryString();
 
         $openRoom = $request->filled('room') ? Room::with(['floor', 'category', 'roomType.amenities', 'reservations.client', 'maintenanceTasks', 'housekeepingTasks'])->find($request->integer('room')) : null;
         $editRoom = $request->filled('edit') ? Room::find($request->integer('edit')) : null;

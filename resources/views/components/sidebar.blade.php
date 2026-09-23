@@ -20,6 +20,7 @@
             ['label' => 'Maintenance', 'route' => 'maintenance.*', 'icon' => 'wrench'],
         ],
         'Management' => [
+            ['label' => 'Announcements', 'route' => 'announcements.*', 'icon' => 'bell'],
             ['label' => 'Staff', 'route' => 'staff.*', 'icon' => 'users'],
             ['label' => 'Payments', 'route' => 'payments.*', 'icon' => 'card'],
             ['label' => 'Reports', 'route' => 'reports.*', 'icon' => 'chart'],
@@ -52,6 +53,7 @@
                         'Tasks' => Gate::allows('viewAny', \App\Models\Task::class),
                         'Housekeeping' => Gate::allows('viewAny', HousekeepingTask::class),
                         'Maintenance' => Gate::allows('viewAny', MaintenanceTask::class),
+                        'Announcements' => auth()->user()->hasPermission('announcements.view') || auth()->user()->hasPermission('announcements.manage'),
                         'Staff' => Gate::allows('viewAny', User::class),
                         'Payments' => auth()->user()->hasPermission('payments.view') || auth()->user()->hasPermission('payments.manage'),
                         'Reports' => auth()->user()->hasPermission('reports.view') || auth()->user()->hasPermission('reports.manage'),

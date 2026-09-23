@@ -19,6 +19,7 @@ use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Collection;
+use App\Support\TablePagination;
 
 class HotelAnalyticsService
 {
@@ -67,7 +68,7 @@ class HotelAnalyticsService
     {
         $from = Carbon::instance($from)->startOfDay();
         $to = Carbon::instance($to)->endOfDay();
-        $reservations = $this->reportReservationsQuery($from, $to)->paginate(25)->withQueryString();
+        $reservations = $this->reportReservationsQuery($from, $to)->paginate(TablePagination::perPage(request(), 25))->withQueryString();
         $roomNights = $this->overlappingRoomNights($from, $to);
         $availableRoomNights = $this->availableRoomNights($from, $to);
         $revenue = $includeFinancial ? $this->financials->collectedBetween($from, $to) : 0;

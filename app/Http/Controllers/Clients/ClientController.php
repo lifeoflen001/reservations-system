@@ -10,6 +10,7 @@ use App\Models\Reservation;
 use App\Services\ClientService;
 use App\Services\MiniDashboardMetricsService;
 use App\Support\CurrencyFormatter;
+use App\Support\TablePagination;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -30,7 +31,7 @@ class ClientController extends Controller
         $sort = $sorts[(string) $request->get('sort', 'created')] ?? $sorts['created'];
         if ($sort[0] === 'last_name') $query->orderBy('last_name', 'asc')->orderBy('first_name', 'asc'); else $query->orderBy($sort[0], $sort[1]);
         $query->orderBy('clients.id');
-        $clients = $query->paginate(15)->withQueryString();
+        $clients = $query->paginate(TablePagination::perPage($request, 15))->withQueryString();
         $openClient = $request->filled('client') ? Client::with(['reservations.room.roomType', 'reservations.source', 'reservations.payments', 'payments'])->withSum(['payments as total_spent' => fn (Builder $q) => $q->successful()], 'amount')->find($request->integer('client')) : null;
         $editClient = $request->filled('edit') ? Client::find($request->integer('edit')) : null;
         $duplicateMatches = session('duplicate_matches') ? Client::whereIn('id', session('duplicate_matches'))->get() : collect();

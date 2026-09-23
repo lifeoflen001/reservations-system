@@ -54,7 +54,7 @@
             @endforelse
             </tbody>
         </x-data.table>
-        @if($staff->hasPages())<div class="pagination-wrap">{{ $staff->links() }}</div>@endif
+        <x-data.pagination :paginator="$staff" />
     </section>
 @elseif(request('tab') === 'roles')
     <section class="ui-card roles-permissions-card"><header class="table-card__header roles-permissions-card__header"><div class="roles-permissions-card__title"><span class="roles-permissions-card__icon"><x-ui.icon name="shield" size="18" /></span><div><h2>Roles & permissions</h2><p>Control access through reusable role templates.</p></div></div><span class="roles-permissions-card__meta">{{ $allRoles->count() }} {{ \Illuminate\Support\Str::plural('role', $allRoles->count()) }}</span></header>

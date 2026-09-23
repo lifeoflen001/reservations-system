@@ -23,6 +23,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use App\Support\TablePagination;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class TaskController extends Controller
@@ -54,7 +55,7 @@ class TaskController extends Controller
             ->when($request->filled('date_to'), fn ($q) => $q->whereDate('due_at', '<=', $request->date('date_to')));
         $sorts = ['task_number' => ['task_number', 'asc'], 'due_at' => ['due_at', 'asc'], 'status' => ['status', 'asc'], 'priority' => ['priority', 'desc'], 'created_at' => ['created_at', 'desc']];
         [$sortColumn, $sortDirection] = $sorts[(string) $request->input('sort', 'created_at')] ?? $sorts['created_at'];
-        $tasks = $query->orderByRaw('due_at is null')->orderBy($sortColumn, $sortDirection)->paginate(20)->withQueryString();
+        $tasks = $query->orderByRaw('due_at is null')->orderBy($sortColumn, $sortDirection)->paginate(TablePagination::perPage($request, 20))->withQueryString();
 
         $metricsQuery = Task::query()->active();
         $this->applyVisibility($metricsQuery, $request);

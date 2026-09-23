@@ -15,7 +15,7 @@
         @empty
             <tr><td colspan="9"><div class="empty-state"><x-ui.icon name="card" size="28" /><strong>{{ request()->hasAny(['search','status','method','from','to']) ? 'No payments match the selected filters.' : 'No payments recorded yet.' }}</strong><span>Record a payment against an active reservation to generate an invoice.</span></div></td></tr>
         @endforelse
-    </tbody></x-data.table>@if($payments->hasPages())<div class="pagination-wrap">{{ $payments->links() }}</div>@endif</section>
+    </tbody></x-data.table><x-data.pagination :paginator="$payments" /></section>
 
     @can('create', \App\Models\Payment::class)
         <x-ui.modal id="payment-form" title="New payment" size="default" :open="$openNew">

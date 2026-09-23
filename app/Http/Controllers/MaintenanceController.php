@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Services\MaintenanceTaskService;
 use App\Services\MiniDashboardMetricsService;
 use App\Services\PropertySettingsService;
+use App\Support\TablePagination;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use LogicException;
@@ -23,7 +24,7 @@ class MaintenanceController extends Controller
         Gate::authorize('viewAny', MaintenanceTask::class);
         $tasks = MaintenanceTask::with(['room', 'assignee'])->when($request->filled('status') && (string) $request->string('status') !== 'all', fn ($q) => $q->where('status', (string) $request->string('status')))->when($request->boolean('overdue'), function ($q) {
             $q->whereNotIn('status', [TaskStatus::Completed->value, TaskStatus::Cancelled->value])->whereNotNull('due_at')->where('due_at', '<', now(app(PropertySettingsService::class)->timezone()));
-        })->orderByRaw('due_at is null')->orderBy('due_at')->latest()->orderByDesc('maintenance_tasks.id')->paginate(25)->withQueryString();
+        })->orderByRaw('due_at is null')->orderBy('due_at')->latest()->orderByDesc('maintenance_tasks.id')->paginate(TablePagination::perPage($request, 25))->withQueryString();
         $maintenanceDepartmentId = Department::where('name', 'Maintenance')->value('id');
         return view('maintenance.index', ['tasks' => $tasks, 'rooms' => Room::active()->with(['floor', 'roomType'])->orderBy('room_number')->get(), 'staff' => User::with(['department', 'role'])->where('is_active', true)->orderByRaw('department_id = ? desc', [$maintenanceDepartmentId])->orderBy('name')->get(), 'statuses' => TaskStatus::cases(), 'openNew' => $request->boolean('new'), 'editTask' => $request->filled('edit') ? MaintenanceTask::find($request->integer('edit')) : null, 'kpis' => $metricsService->maintenance()]);
     }

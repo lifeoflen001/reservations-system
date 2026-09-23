@@ -16,6 +16,7 @@ use App\Services\PaymentService;
 use App\Services\PropertySettingsService;
 use App\Services\MiniDashboardMetricsService;
 use App\Support\CurrencyFormatter;
+use App\Support\TablePagination;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -37,7 +38,7 @@ class PaymentController extends Controller
             ->with(['invoice', 'reservation.client', 'reservation.room.roomType', 'creator'])
             ->latest('transaction_date')
             ->orderByDesc('payments.id')
-            ->paginate(15)
+            ->paginate(TablePagination::perPage($request, 15))
             ->withQueryString();
 
         $reservationOptions = Reservation::query()

@@ -23,6 +23,8 @@ use App\Models\Role;
 use App\Models\Room;
 use App\Models\User;
 use App\Models\Task;
+use App\Models\Announcement;
+use App\Policies\AnnouncementPolicy;
 use App\Policies\ClientPolicy;
 use App\Policies\HousekeepingTaskPolicy;
 use App\Policies\InvoicePolicy;
@@ -84,6 +86,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Role::class, RolePolicy::class);
         Gate::policy(User::class, StaffPolicy::class);
         Gate::policy(Task::class, TaskPolicy::class);
+        Gate::policy(Announcement::class, AnnouncementPolicy::class);
         Gate::policy(Payment::class, PaymentPolicy::class);
         Gate::policy(Invoice::class, InvoicePolicy::class);
         Gate::define('room_planning.view', fn (User $user): bool => $user->hasPermission('room_planning.view'));

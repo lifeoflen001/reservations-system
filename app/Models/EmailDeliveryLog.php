@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class EmailDeliveryLog extends Model
 {
-    protected $fillable = ['recipient', 'subject', 'template', 'reservation_id', 'client_id', 'status', 'provider', 'attempts', 'sent_at', 'failed_at', 'error_summary'];
+    protected $fillable = ['recipient', 'subject', 'template', 'reservation_id', 'client_id', 'announcement_recipient_id', 'status', 'provider', 'attempts', 'sent_at', 'failed_at', 'error_summary'];
 
     protected function casts(): array
     {

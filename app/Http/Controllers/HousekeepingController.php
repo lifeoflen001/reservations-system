@@ -10,6 +10,7 @@ use App\Models\Room;
 use App\Models\User;
 use App\Services\HousekeepingService;
 use App\Services\MiniDashboardMetricsService;
+use App\Support\TablePagination;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use LogicException;
@@ -20,7 +21,7 @@ class HousekeepingController extends Controller
     public function index(Request $request, MiniDashboardMetricsService $metricsService)
     {
         Gate::authorize('viewAny', HousekeepingTask::class);
-        $tasks = HousekeepingTask::with(['room', 'assignee'])->when($request->filled('status') && (string) $request->string('status') !== 'all', fn ($q) => $q->where('status', (string) $request->string('status')))->orderByRaw('due_at is null')->orderBy('due_at')->latest()->orderByDesc('housekeeping_tasks.id')->paginate(25)->withQueryString();
+        $tasks = HousekeepingTask::with(['room', 'assignee'])->when($request->filled('status') && (string) $request->string('status') !== 'all', fn ($q) => $q->where('status', (string) $request->string('status')))->orderByRaw('due_at is null')->orderBy('due_at')->latest()->orderByDesc('housekeeping_tasks.id')->paginate(TablePagination::perPage($request, 25))->withQueryString();
         $housekeepingDepartmentId = Department::where('name', 'Housekeeping')->value('id');
         return view('housekeeping.index', ['tasks' => $tasks, 'rooms' => Room::active()->with(['floor', 'roomType'])->orderBy('room_number')->get(), 'staff' => User::with(['department', 'role'])->where('is_active', true)->orderByRaw('department_id = ? desc', [$housekeepingDepartmentId])->orderBy('name')->get(), 'statuses' => TaskStatus::cases(), 'openNew' => $request->boolean('new'), 'editTask' => $request->filled('edit') ? HousekeepingTask::find($request->integer('edit')) : null, 'kpis' => $metricsService->housekeeping()]);
     }

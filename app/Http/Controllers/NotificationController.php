@@ -7,6 +7,7 @@ use App\Models\UserNotificationPreference;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use App\Support\TablePagination;
 
 class NotificationController extends Controller
 {
@@ -18,11 +19,11 @@ class NotificationController extends Controller
         if ($filter === 'unread') {
             $query->whereNull('read_at');
         }
-        if (in_array($filter, ['operational', 'financial', 'integrations'], true)) {
+        if (in_array($filter, ['operational', 'financial', 'integrations', 'announcements'], true)) {
             $query->where('data', 'like', '%"category":"'.$filter.'"%');
         }
 
-        return view('notifications.index', ['notifications' => $query->paginate(20)->withQueryString(), 'filter' => $filter]);
+        return view('notifications.index', ['notifications' => $query->paginate(TablePagination::perPage($request, 20))->withQueryString(), 'filter' => $filter]);
     }
 
     public function read(Request $request, string $notification): RedirectResponse

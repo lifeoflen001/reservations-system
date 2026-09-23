@@ -21,6 +21,7 @@ use App\Services\SystemSettingsService;
 use App\Services\HotelEmailService;
 use App\Services\IntegrationSettingsService;
 use App\Services\PropertySettingsService;
+use App\Support\TablePagination;
 use Illuminate\View\View;
 use LogicException;
 
@@ -52,7 +53,7 @@ class StaffController extends Controller
             ->when($request->filled('department_id') && $request->input('department_id') !== 'all', fn ($q) => $q->where('department_id', $request->integer('department_id')))
             ->when(in_array($request->input('status'), ['active', 'inactive'], true), fn ($q) => $q->where('is_active', $request->input('status') === 'active'))
             ->orderBy($sortColumn, $sortDirection)->orderBy('id')
-            ->paginate(15)->withQueryString();
+            ->paginate(TablePagination::perPage($request, 15))->withQueryString();
 
         $openStaff = $request->filled('staff')
             ? User::with(['role.permissions', 'department', 'language'])->find($request->integer('staff'))

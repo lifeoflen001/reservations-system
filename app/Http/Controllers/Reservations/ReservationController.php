@@ -15,6 +15,7 @@ use App\Services\ReservationService;
 use App\Services\ReservationWorkflowService;
 use App\Services\PropertySettingsService;
 use App\Services\MiniDashboardMetricsService;
+use App\Support\TablePagination;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -38,7 +39,7 @@ class ReservationController extends Controller
             ->withExists('payments')
             ->latest('check_in')
             ->orderByDesc('reservations.id')
-            ->paginate(15)
+            ->paginate(TablePagination::perPage($request, 15))
             ->withQueryString();
 
         $openReservation = $request->filled('reservation')

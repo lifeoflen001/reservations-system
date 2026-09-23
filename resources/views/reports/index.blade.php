@@ -67,7 +67,7 @@
             @endforelse
         </tbody></x-data.table>
         @if($reservations->hasPages())
-            <div class="pagination-wrap">{{ $reservations->links() }}</div>
+            <x-data.pagination :paginator="$reservations" />
         @endif
     </x-ui.card>
 </div>
