@@ -40,12 +40,12 @@ class OperationalDataTransferTest extends TestCase
     {
         $user = $this->user(['clients.view', 'clients.create']);
         $file = UploadedFile::fake()->createWithContent('clients.csv', implode("\n", [
-            'first_name,last_name,email,phone,country,is_active',
-            'Asha,Mollel,asha@example.com,+255700000001,Tanzania,1',
+            'first_name,last_name,email,phone,country,nationality,is_active',
+            'Asha,Mollel,asha@example.com,+255700000001,Tanzania,Tanzanian,1',
         ]));
 
         $this->actingAs($user)->post(route('data-transfer.import', 'clients'), ['file' => $file])->assertRedirect()->assertSessionHas('success', '1 clients imported successfully.');
-        $this->assertDatabaseHas('clients', ['first_name' => 'Asha', 'last_name' => 'Mollel', 'email' => 'asha@example.com']);
+        $this->assertDatabaseHas('clients', ['first_name' => 'Asha', 'last_name' => 'Mollel', 'email' => 'asha@example.com', 'nationality' => 'TZ']);
 
         $second = UploadedFile::fake()->createWithContent('clients.csv', implode("\n", [
             'first_name,last_name,email,phone,country,is_active',
@@ -74,6 +74,20 @@ class OperationalDataTransferTest extends TestCase
         $this->assertDatabaseHas('tasks', ['task_number' => 'TSK-2026-00001', 'status' => 'in_progress', 'reservation_id' => null]);
         $this->assertDatabaseHas('maintenance_tasks', ['status' => 'pending']);
         $this->assertDatabaseHas('housekeeping_tasks', ['status' => 'in_progress']);
+    }
+
+    public function test_json_import_returns_row_level_errors_without_saving_rows(): void
+    {
+        $user = $this->user(['clients.view', 'clients.create']);
+        $file = UploadedFile::fake()->createWithContent('clients.csv', "first_name,last_name,nationality\nAsha,Mollel,Atlantis\n");
+
+        $this->actingAs($user)->withHeaders(['Accept' => 'application/json', 'X-Requested-With' => 'XMLHttpRequest'])
+            ->post(route('data-transfer.import', 'clients'), ['file' => $file])
+            ->assertStatus(422)
+            ->assertJsonPath('status', 'error')
+            ->assertJsonPath('errors.0', 'Import failed. No rows were saved.')
+            ->assertJsonPath('errors.1', "Row 2: Invalid nationality 'Atlantis'. Use an ISO-2 code such as TZ, KE, RW, UG or BI, or a supported country name.");
+        $this->assertDatabaseCount('clients', 0);
     }
 
     public function test_import_requires_the_matching_permission_and_sensitive_client_columns_are_protected(): void

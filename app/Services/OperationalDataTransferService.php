@@ -139,7 +139,10 @@ class OperationalDataTransferService
                 try { $this->importRow($resource, $row['data'], $actor); }
                 catch (\Throwable $exception) { $errors[] = 'Row '.$row['line'].': '.$exception->getMessage(); }
             }
-            if ($errors !== []) throw ValidationException::withMessages(['file' => implode(' ', array_slice($errors, 0, 10)).(count($errors) > 10 ? ' Additional rows were rejected.' : '')]);
+            if ($errors !== []) throw ValidationException::withMessages([
+                'file' => 'Import failed. No rows were saved.',
+                'rows' => array_slice($errors, 0, 25),
+            ]);
         });
 
         return count($rows);
@@ -182,6 +185,7 @@ class OperationalDataTransferService
         $attributes = collect($row)->only(['first_name', 'middle_name', 'last_name', 'email', 'phone', 'alternate_phone', 'country', 'city', 'postal_code', 'nationality', 'date_of_birth', 'gender', 'document_type', 'document_number', 'document_expiry', 'address', 'notes'])->map(fn ($value) => $value === '' ? null : $value)->all();
         $attributes['first_name'] = $this->required($row, 'first_name');
         $attributes['last_name'] = $this->required($row, 'last_name');
+        $attributes['nationality'] = $this->nationality($row['nationality'] ?? null);
         $attributes['date_of_birth'] = $this->dateValue($row['date_of_birth'] ?? null, 'date_of_birth');
         $attributes['document_expiry'] = $this->dateValue($row['document_expiry'] ?? null, 'document_expiry');
         $attributes['is_active'] = $this->boolean($row['is_active'] ?? null, true);
@@ -304,6 +308,31 @@ class OperationalDataTransferService
     }
     private function dateValue(?string $value, string $field): ?string { return $this->parseDate($value, $field, ['Y-m-d', 'd/m/Y', 'd-m-Y']); }
     private function dateTimeValue(?string $value, string $field): ?string { return $this->parseDate($value, $field, ['Y-m-d H:i:s', 'Y-m-d H:i', 'd/m/Y H:i:s', 'd/m/Y H:i', 'd-m-Y H:i:s', 'd-m-Y H:i'], 'Y-m-d H:i:s'); }
+    private function nationality(?string $value): ?string
+    {
+        if (trim((string) $value) === '') return null;
+        $normalized = Str::lower(trim((string) $value));
+        $codes = [
+            'burundian' => 'BI', 'burundi' => 'BI',
+            'kenyan' => 'KE', 'kenya' => 'KE',
+            'rwandan' => 'RW', 'rwanda' => 'RW',
+            'tanzanian' => 'TZ', 'tanzania' => 'TZ',
+            'ugandan' => 'UG', 'uganda' => 'UG',
+            'american' => 'US', 'united states' => 'US',
+            'british' => 'GB', 'united kingdom' => 'GB',
+            'canadian' => 'CA', 'canada' => 'CA',
+            'french' => 'FR', 'france' => 'FR',
+            'german' => 'DE', 'germany' => 'DE',
+            'indian' => 'IN', 'india' => 'IN',
+            'italian' => 'IT', 'italy' => 'IT',
+            'nigerian' => 'NG', 'nigeria' => 'NG',
+            'south african' => 'ZA', 'south africa' => 'ZA',
+        ];
+        if (isset($codes[$normalized])) return $codes[$normalized];
+        $code = Str::upper(trim((string) $value));
+        if (preg_match('/^[A-Z]{2}$/', $code)) return $code;
+        throw new \InvalidArgumentException("Invalid nationality '{$value}'. Use an ISO-2 code such as TZ, KE, RW, UG or BI, or a supported country name.");
+    }
     private function parseDate(?string $value, string $field, array $formats, string $output = 'Y-m-d'): ?string
     {
         if (trim((string) $value) === '') return null;

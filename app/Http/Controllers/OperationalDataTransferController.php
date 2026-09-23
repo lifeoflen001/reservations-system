@@ -4,8 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Services\OperationalDataTransferService;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 
 class OperationalDataTransferController extends Controller
@@ -36,16 +36,29 @@ class OperationalDataTransferController extends Controller
         return $transfer->csv($resource, $request->user(), true);
     }
 
-    public function import(Request $request, string $resource, OperationalDataTransferService $transfer): RedirectResponse
+    public function import(Request $request, string $resource, OperationalDataTransferService $transfer): RedirectResponse|JsonResponse
     {
         abort_unless($transfer->canImport($request->user(), $resource), 403);
-        $request->validate(['file' => ['required', 'file', 'max:10240', 'mimes:csv,txt']]);
 
         try {
+            $request->validate(['file' => ['required', 'file', 'max:10240', 'mimes:csv,txt']]);
             $count = $transfer->import($resource, $request->file('file'), $request->user());
         } catch (ValidationException $exception) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Import failed. No rows were saved.',
+                    'errors' => collect($exception->errors())->flatten()->values()->all(),
+                ], 422);
+            }
             throw $exception;
         }
+
+        if ($request->expectsJson()) return response()->json([
+            'status' => 'success',
+            'message' => $count.' '.str($transfer->definition($resource)['label'])->lower().' imported successfully.',
+            'count' => $count,
+        ]);
 
         return back()->with('success', $count.' '.str($transfer->definition($resource)['label'])->lower().' imported successfully.');
     }

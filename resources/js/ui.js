@@ -867,6 +867,108 @@ document.addEventListener('DOMContentLoaded', () => {
         if (modal?.dataset.modalStaticBackdrop === 'true') triggerModalAttention(modal);
         else requestModalClose(modal);
     }));
+    document.querySelectorAll('[data-import-file]').forEach((fileInput) => {
+        const form = fileInput.closest('[data-import-form], form');
+        const modal = document.getElementById(`data-import-${form?.action?.split('/').at(-2) || ''}`) || fileInput.closest('.data-transfer-toolbar')?.querySelector('[data-import-progress]')?.closest('[data-modal]');
+        const progress = modal?.querySelector('[data-import-progress]');
+        if (!form || !modal || !progress) return;
+        const status = progress.querySelector('[data-import-status]');
+        const detail = progress.querySelector('[data-import-detail]');
+        const spinner = progress.querySelector('[data-import-spinner]');
+        const bar = progress.querySelector('[data-import-progress-bar]');
+        const barShell = progress.querySelector('[role="progressbar"]');
+        const errorBox = progress.querySelector('[data-import-errors]');
+        const errorList = progress.querySelector('[data-import-error-list]');
+        const closeButton = progress.querySelector('[data-import-close]');
+        const reloadButton = progress.querySelector('[data-import-reload]');
+        const steps = [...progress.querySelectorAll('[data-import-step]')];
+        let activeRequest = null;
+        const setStep = (current, state = 'active') => {
+            const order = ['selected', 'uploading', 'importing', 'complete'];
+            const currentIndex = order.indexOf(current);
+            steps.forEach((step) => {
+                const index = order.indexOf(step.dataset.importStep);
+                step.classList.toggle('is-complete', index < currentIndex || (current === 'complete' && index === currentIndex));
+                step.classList.toggle('is-active', index === currentIndex && state === 'active');
+                step.classList.toggle('is-error', state === 'error' && index === currentIndex);
+            });
+        };
+        const setProgress = (value, indeterminate = false) => {
+            const bounded = Math.max(0, Math.min(100, Number(value) || 0));
+            bar.style.width = `${bounded}%`;
+            barShell?.setAttribute('aria-valuenow', String(Math.round(bounded)));
+            barShell?.classList.toggle('is-indeterminate', indeterminate);
+        };
+        const reset = (file) => {
+            status.textContent = 'Preparing import…';
+            detail.textContent = `${file.name} · ${Math.max(1, Math.round(file.size / 1024))} KB`;
+            spinner.hidden = false;
+            progress.classList.remove('is-success', 'is-error');
+            errorBox.hidden = true;
+            errorList.replaceChildren();
+            closeButton.disabled = true;
+            reloadButton.hidden = true;
+            setProgress(0);
+            setStep('selected');
+        };
+        const finish = (success, message, errors = []) => {
+            activeRequest = null;
+            spinner.hidden = true;
+            closeButton.disabled = false;
+            status.textContent = message;
+            progress.classList.toggle('is-success', success);
+            progress.classList.toggle('is-error', !success);
+            if (success) {
+                setProgress(100);
+                setStep('complete');
+                detail.textContent = 'Your records are available after the page reloads.';
+                reloadButton.hidden = false;
+                window.setTimeout(() => window.location.reload(), 1400);
+            } else {
+                setProgress(100);
+                setStep('importing', 'error');
+                detail.textContent = 'No rows were saved. Fix the listed rows and try again.';
+                errorBox.hidden = false;
+                const items = errors.length ? errors : ['The server did not return row-level details. Check the application logs.'];
+                items.forEach((error) => { const item = document.createElement('li'); item.textContent = error; errorList.append(item); });
+            }
+        };
+        const runImport = (file) => {
+            reset(file);
+            openModal(modal, fileInput);
+            setStep('uploading');
+            status.textContent = 'Uploading file…';
+            detail.textContent = 'The server will validate the template before saving any rows.';
+            const body = new FormData(form);
+            activeRequest = new XMLHttpRequest();
+            activeRequest.open('POST', form.action, true);
+            activeRequest.responseType = 'json';
+            activeRequest.setRequestHeader('Accept', 'application/json');
+            activeRequest.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+            activeRequest.upload.addEventListener('progress', (event) => {
+                if (!event.lengthComputable) return;
+                setProgress(Math.round((event.loaded / event.total) * 42));
+                detail.textContent = `Uploaded ${Math.round((event.loaded / 1024))} KB of ${Math.max(1, Math.round(event.total / 1024))} KB.`;
+            });
+            activeRequest.upload.addEventListener('load', () => {
+                setStep('importing');
+                setProgress(58, true);
+                status.textContent = 'Validating and importing rows…';
+                detail.textContent = 'This can take a moment for larger CSV files. Please keep this window open.';
+            });
+            activeRequest.addEventListener('load', () => {
+                const payload = activeRequest.response || (() => { try { return JSON.parse(activeRequest.responseText); } catch { return {}; } })();
+                if (activeRequest.status >= 200 && activeRequest.status < 300 && payload.status === 'success') finish(true, payload.message || 'Import completed successfully.');
+                else finish(false, payload.message || 'Import failed.', payload.errors || []);
+            });
+            activeRequest.addEventListener('error', () => finish(false, 'The import could not reach the server.'));
+            activeRequest.addEventListener('abort', () => finish(false, 'The import was cancelled.'));
+            activeRequest.send(body);
+        };
+        fileInput.addEventListener('change', () => { const file = fileInput.files?.[0]; if (file) runImport(file); });
+        closeButton.addEventListener('click', () => { if (!activeRequest) closeModal(modal, { force: true }); });
+        reloadButton.addEventListener('click', () => window.location.reload());
+    });
     document.querySelectorAll('[data-planning-group-toggle]').forEach((toggle) => {
         const key = toggle.dataset.planningGroupToggle;
         const storageKey = `hotel-planning-group:${key}`;
