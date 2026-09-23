@@ -119,6 +119,25 @@ class RoomOperationsTest extends TestCase
             ->assertOk()->assertSee($room->room_number);
     }
 
+    public function test_maintenance_index_renders_existing_tasks(): void
+    {
+        $room = $this->room();
+        $user = $this->user(config('hotel.permissions'));
+        MaintenanceTask::create([
+            'room_id' => $room->id,
+            'issue' => 'Broken lock',
+            'priority' => TaskPriority::High,
+            'status' => TaskStatus::Pending,
+            'cost' => 25,
+        ]);
+
+        $this->actingAs($user)->get(route('maintenance.index'))
+            ->assertOk()
+            ->assertSee('Broken lock')
+            ->assertSee('High')
+            ->assertSee('Pending');
+    }
+
     public function test_room_can_be_created_without_a_floor(): void
     {
         $category = RoomCategory::create(['name' => 'Standard']);

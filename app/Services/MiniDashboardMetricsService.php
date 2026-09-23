@@ -73,12 +73,12 @@ class MiniDashboardMetricsService
     {
         $now = $this->now();
         $summary = MaintenanceTask::query()->selectRaw(
-            'SUM(CASE WHEN status NOT IN (?, ?) THEN 1 ELSE 0 END) as open_count, SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as in_progress, SUM(CASE WHEN status NOT IN (?, ?) AND priority IN (?, ?) THEN 1 ELSE 0 END) as high_priority, SUM(CASE WHEN status NOT IN (?, ?) AND due_at IS NOT NULL AND due_at < ? THEN 1 ELSE 0 END) as overdue',
+            'SUM(CASE WHEN status NOT IN (?, ?) THEN 1 ELSE 0 END) as open_count, SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as in_progress, SUM(CASE WHEN status NOT IN (?, ?) AND priority IN (?, ?) THEN 1 ELSE 0 END) as priority_attention_count, SUM(CASE WHEN status NOT IN (?, ?) AND due_at IS NOT NULL AND due_at < ? THEN 1 ELSE 0 END) as overdue',
             [TaskStatus::Completed->value, TaskStatus::Cancelled->value, TaskStatus::InProgress->value, TaskStatus::Completed->value, TaskStatus::Cancelled->value, TaskPriority::High->value, TaskPriority::Urgent->value, TaskStatus::Completed->value, TaskStatus::Cancelled->value, $now],
         )->first();
         $openCount = (int) ($summary->open_count ?? 0);
         $inProgress = (int) ($summary->in_progress ?? 0);
-        $highPriority = (int) ($summary->high_priority ?? 0);
+        $highPriority = (int) ($summary->priority_attention_count ?? 0);
         $overdue = (int) ($summary->overdue ?? 0);
 
         return [
