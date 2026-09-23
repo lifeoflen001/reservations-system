@@ -70,6 +70,27 @@ class AnnouncementsTest extends TestCase
         $this->actingAs($admin)->get(route('announcements.attachments.download', [$announcement, $attachment]))->assertOk();
     }
 
+    public function test_dashboard_view_includes_published_announcements_after_they_expire(): void
+    {
+        [$admin] = $this->users();
+        $announcement = Announcement::create([
+            'title' => 'Historical policy update',
+            'category' => 'Policy Updates',
+            'short_description' => 'Published announcements remain discoverable.',
+            'content' => '<p>Published history.</p>',
+            'start_at' => now()->subMonth(),
+            'end_at' => now()->subDay(),
+            'status' => 'active',
+            'is_company_wide' => true,
+            'created_by' => $admin->id,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('announcements.dashboard'))
+            ->assertOk()
+            ->assertSee($announcement->title);
+    }
+
     /** @return array{0: User, 1: User} */
     private function users(): array
     {

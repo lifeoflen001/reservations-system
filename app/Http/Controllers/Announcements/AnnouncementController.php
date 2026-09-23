@@ -58,8 +58,15 @@ class AnnouncementController extends Controller
     public function dashboard(Request $request): View
     {
         Gate::authorize('viewAny', Announcement::class);
+        $this->announcements->processDue();
         $tab = $request->input('tab', 'all');
-        $query = Announcement::query()->with('departments')->visible()->latest('start_at');
+        // Dashboard View is an announcement history and discovery surface, so it
+        // must retain published announcements after they expire. Drafts and
+        // archived announcements remain private to List View.
+        $query = Announcement::query()
+            ->with('departments')
+            ->whereIn('status', ['scheduled', 'active', 'expired'])
+            ->latest('start_at');
         if (! $request->user()->hasPermission('announcements.manage')) $query->whereHas('recipients', fn ($q) => $q->where('user_id', $request->user()->id));
         match ($tab) {
             'priority' => $query->where('is_high_priority', true),
