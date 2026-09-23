@@ -26,7 +26,7 @@ class OperationalDataTransferController extends Controller
 
         return response($dompdf->output(), 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'attachment; filename="'.$data['filename'].'pdf"',
+            'Content-Disposition' => 'attachment; filename="'.$data['filename'].'.pdf"',
         ]);
     }
 

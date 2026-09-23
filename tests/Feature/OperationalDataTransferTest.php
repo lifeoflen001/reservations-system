@@ -25,6 +25,17 @@ class OperationalDataTransferTest extends TestCase
         $pdf->assertOk()->assertHeader('Content-Type', 'application/pdf')->assertSee('%PDF');
     }
 
+    public function test_staff_can_be_exported_as_csv_and_pdf(): void
+    {
+        $user = $this->user(['staff.view']);
+
+        $csv = $this->actingAs($user)->get(route('data-transfer.export', ['resource' => 'staff', 'format' => 'csv']));
+        $csv->assertOk()->assertHeader('Content-Type', 'text/csv; charset=UTF-8')->assertHeader('Content-Disposition');
+
+        $pdf = $this->actingAs($user)->get(route('data-transfer.export', ['resource' => 'staff', 'format' => 'pdf']));
+        $pdf->assertOk()->assertHeader('Content-Type', 'application/pdf')->assertSee('%PDF');
+    }
+
     public function test_client_csv_import_upserts_by_email(): void
     {
         $user = $this->user(['clients.view', 'clients.create']);
