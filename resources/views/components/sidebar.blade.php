@@ -18,6 +18,7 @@
             ['label' => 'Tasks', 'route' => 'tasks.*', 'icon' => 'check-square'],
             ['label' => 'Housekeeping', 'route' => 'housekeeping.*', 'icon' => 'broom'],
             ['label' => 'Maintenance', 'route' => 'maintenance.*', 'icon' => 'wrench'],
+            ['label' => 'POS', 'route' => 'pos.*', 'href' => 'pos.terminal', 'icon' => 'card'],
         ],
         'Management' => [
             ['label' => 'Announcements', 'route' => 'announcements.*', 'icon' => 'bell'],
@@ -53,6 +54,7 @@
                         'Tasks' => Gate::allows('viewAny', \App\Models\Task::class),
                         'Housekeeping' => Gate::allows('viewAny', HousekeepingTask::class),
                         'Maintenance' => Gate::allows('viewAny', MaintenanceTask::class),
+                        'POS' => auth()->user()->hasPermission('pos.access') || auth()->user()->hasPermission('pos.sell'),
                         'Announcements' => auth()->user()->hasPermission('announcements.view') || auth()->user()->hasPermission('announcements.manage'),
                         'Staff' => Gate::allows('viewAny', User::class),
                         'Payments' => auth()->user()->hasPermission('payments.view') || auth()->user()->hasPermission('payments.manage'),
@@ -67,7 +69,8 @@
                     <p class="nav-group__label">{{ $group }}</p>
                     @foreach ($visibleItems as $item)
                         @php($active = request()->routeIs($item['route']))
-                        <a class="nav-item {{ $active ? 'is-active' : '' }}" href="{{ Route::has(str_replace('.*', '.index', $item['route'])) ? route(str_replace('.*', '.index', $item['route'])) : '#' }}" aria-label="{{ $item['label'] }}" @if($active) aria-current="page" @endif data-tooltip="{{ $item['label'] }}">
+                        @php($hrefRoute = $item['href'] ?? str_replace('.*', '.index', $item['route']))
+                        <a class="nav-item {{ $active ? 'is-active' : '' }}" href="{{ Route::has($hrefRoute) ? route($hrefRoute) : '#' }}" aria-label="{{ $item['label'] }}" @if($active) aria-current="page" @endif data-tooltip="{{ $item['label'] }}">
                             <x-ui.icon :name="$item['icon']" size="19" />
                             <span>{{ $item['label'] }}</span>
                         </a>

@@ -145,6 +145,8 @@ class SearchController extends Controller
             ['label' => 'Rooms', 'description' => 'Room inventory and operational status', 'icon' => 'bed', 'route' => 'rooms.index', 'permission' => 'rooms.view'],
             ['label' => 'Housekeeping', 'description' => 'Room preparation tasks', 'icon' => 'broom', 'route' => 'housekeeping.index', 'permission' => 'housekeeping.view'],
             ['label' => 'Maintenance', 'description' => 'Incidents, repairs and availability', 'icon' => 'wrench', 'route' => 'maintenance.index', 'permission' => 'maintenance.view'],
+            ['label' => 'POS Terminal', 'description' => 'Fast hotel sales and room charges', 'icon' => 'card', 'route' => 'pos.terminal', 'permission' => 'pos.access'],
+            ['label' => 'POS Sales', 'description' => 'Orders, receipts and transaction history', 'icon' => 'document', 'route' => 'pos.orders', 'permission' => 'pos.view_orders'],
             ['label' => 'Staff', 'description' => 'Team accounts, roles and departments', 'icon' => 'users', 'route' => 'staff.index', 'permission' => 'staff.view'],
             ['label' => 'Payments', 'description' => 'Transactions and invoices', 'icon' => 'card', 'route' => 'payments.index', 'permission' => 'payments.view'],
             ['label' => 'Reports', 'description' => 'Revenue, occupancy and operational exports', 'icon' => 'chart', 'route' => 'reports.index', 'permission' => 'reports.view'],

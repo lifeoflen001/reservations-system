@@ -26,30 +26,32 @@ class DatabaseSeeder extends Seeder
             RbacSeeder::class,
             RoomCatalogSeeder::class,
         ]);
+        if (app()->environment('local')) {
+            $this->call(PosDemoSeeder::class);
+        }
 
         $superAdministratorRole = Role::where('name', 'super_administrator')->firstOrFail();
 
         $administrator = User::query()
             ->where(fn ($query) => $query->where('email', 'admin@hoteldesk.test')->orWhere('username', 'admin'))
-            ->first() ?? new User;
-        $administrator->fill([
-            'name' => 'HotelDesk Administrator',
-            'username' => 'admin',
-            'role_id' => $superAdministratorRole->getKey(),
-            'is_active' => true,
-        ]);
+            ->first();
 
         // Keep the existing password on normal reseeds. A one-time Railway bootstrap
         // override is available for recovering an installation whose admin password
         // was never seeded correctly.
-        if (! $administrator->exists) {
-            $administrator->email = 'admin@hoteldesk.test';
-            $administrator->password = Hash::make(env('ADMIN_RESET_PASSWORD', 'Admin123!'));
+        if (! $administrator) {
+            $administrator = User::create([
+                'name' => 'HotelDesk Administrator',
+                'email' => 'admin@hoteldesk.test',
+                'username' => 'admin',
+                'role_id' => $superAdministratorRole->getKey(),
+                'is_active' => true,
+                'password' => Hash::make(env('ADMIN_RESET_PASSWORD', 'Admin123!')),
+            ]);
         } elseif (filled(env('ADMIN_RESET_PASSWORD'))) {
             $administrator->password = Hash::make(env('ADMIN_RESET_PASSWORD'));
+            $administrator->save();
         }
-
-        $administrator->save();
 
         $currency = Currency::where('code', 'USD')->first();
         Property::firstOrCreate([], [
@@ -58,7 +60,7 @@ class DatabaseSeeder extends Seeder
             'timezone' => config('hotel.defaults.timezone'), 'base_currency_id' => $currency?->id,
         ]);
         $installation = Installation::firstOrCreate([], ['status' => 'unconfigured', 'base_currency_id' => $currency?->id]);
-        if (! $installation->isComplete()) {
+        if ($installation->wasRecentlyCreated) {
             $installation->update(['status' => 'complete', 'base_currency_id' => $currency?->id, 'completed_at' => now()]);
         }
         $settings = app(SystemSettingsService::class);

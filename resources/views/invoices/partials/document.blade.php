@@ -8,6 +8,8 @@
     $email = $property?->email ?? ($propertySettings->email() ?: '—');
     $phone = $property?->phone ?? ($propertySettings->phone() ?: '—');
     $amount = (float) ($payment?->amount ?? 0);
+    $roomCharges = $reservation?->posRoomCharges?->where('status', 'active') ?? collect();
+    $totalDue = $reservation ? app(\App\Services\FinancialService::class)->totalDue($reservation) : $amount;
 @endphp
 <article class="invoice-document">
     <header class="invoice-document__brand">
@@ -25,7 +27,7 @@
         <section><small>Issuer</small><h3>{{ $propertyName }}</h3><p>{{ $address }}<br>{{ $email }} · {{ $phone }}</p></section>
         <section><small>Customer</small><h3>{{ $client?->full_name ?? '—' }}</h3><p>{{ implode(', ', array_filter([$client?->city, $client?->country])) ?: '—' }}<br>{{ $client?->email ?? '—' }} · {{ $client?->phone ?? '—' }}</p></section>
     </div>
-    <table class="invoice-lines"><thead><tr><th>Description</th><th>Quantity</th><th>Unit price</th><th>Total</th></tr></thead><tbody><tr><td><strong>Accommodation payment</strong><small>Reservation {{ $reservation?->code ?? '—' }} | Room {{ $reservation?->room?->room_number ?? '—' }} · {{ $reservation?->room?->roomType?->name ?? 'Room' }} | {{ $reservation?->check_in?->format('m/d/Y') ?? '—' }} - {{ $reservation?->check_out?->format('m/d/Y') ?? '—' }}</small></td><td>1</td><td>{{ $formatter->format($amount) }}</td><td>{{ $formatter->format($amount) }}</td></tr></tbody></table>
-    <div class="invoice-total"><span>Subtotal <strong>{{ $formatter->format($amount) }}</strong></span><span>Total <strong>{{ $formatter->format($amount) }}</strong></span></div>
+    <table class="invoice-lines"><thead><tr><th>Description</th><th>Quantity</th><th>Unit price</th><th>Total</th></tr></thead><tbody><tr><td><strong>Accommodation payment</strong><small>Reservation {{ $reservation?->code ?? '—' }} | Room {{ $reservation?->room?->room_number ?? '—' }} · {{ $reservation?->room?->roomType?->name ?? 'Room' }} | {{ $reservation?->check_in?->format('m/d/Y') ?? '—' }} - {{ $reservation?->check_out?->format('m/d/Y') ?? '—' }}</small></td><td>1</td><td>{{ $formatter->format($amount) }}</td><td>{{ $formatter->format($amount) }}</td></tr>@foreach($roomCharges as $charge)@php($description = $charge->order?->items?->pluck('product_name_snapshot')->filter()->join(', ') ?: 'POS room charge')<tr><td><strong>{{ $description }}</strong><small>POS order {{ $charge->order?->order_number ?? '—' }} · Outlet {{ $charge->order?->outlet?->name ?? '—' }} · Date {{ $charge->posted_at?->format('m/d/Y, h:i A') ?? '—' }} · POS room charge</small></td><td>1</td><td>{{ $formatter->format($charge->amount) }}</td><td>{{ $formatter->format($charge->amount) }}</td></tr>@endforeach</tbody></table>
+    <div class="invoice-total"><span>Payment received <strong>{{ $formatter->format($amount) }}</strong></span><span>Total due <strong>{{ $formatter->format($totalDue) }}</strong></span><span>Balance <strong>{{ $formatter->format(max(0, $totalDue - app(\App\Services\FinancialService::class)->paidAmount($reservation))) }}</strong></span></div>
     <footer class="invoice-document__footer">Reference: {{ $payment?->reference ?? '—' }} · This document was generated electronically by {{ config('hotel.brand.name') }}.</footer>
 </article>

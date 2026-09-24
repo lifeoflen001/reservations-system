@@ -43,6 +43,8 @@ class Reservation extends Model
     public function canceller(): BelongsTo { return $this->belongsTo(User::class, 'cancelled_by'); }
     public function noShowBy(): BelongsTo { return $this->belongsTo(User::class, 'no_show_by'); }
     public function payments(): HasMany { return $this->hasMany(Payment::class); }
+    public function posOrders(): HasMany { return $this->hasMany(PosOrder::class); }
+    public function posRoomCharges(): HasMany { return $this->hasMany(PosRoomCharge::class); }
     public function tasks(): HasMany { return $this->hasMany(Task::class); }
 
     public function scopeBlockingAvailability(Builder $query): Builder

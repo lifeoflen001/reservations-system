@@ -5,7 +5,6 @@ namespace Database\Seeders;
 use App\Models\Currency;
 use App\Models\Department;
 use App\Models\EmailTemplate;
-use App\Models\Installation;
 use App\Models\Language;
 use App\Models\PaymentMethod;
 use App\Models\ReservationSource;
@@ -15,11 +14,11 @@ class ReferenceDataSeeder extends Seeder
 {
     public function run(): void
     {
-        $usd = Currency::updateOrCreate(['code' => 'USD'], [
+        $usd = Currency::firstOrCreate(['code' => 'USD'], [
             'name' => 'US Dollar', 'symbol' => '$', 'decimal_places' => 2, 'is_active' => true,
         ]);
 
-        Language::updateOrCreate(['code' => 'en'], ['name' => 'English', 'is_active' => true]);
+        Language::firstOrCreate(['code' => 'en'], ['name' => 'English', 'is_active' => true]);
         foreach ([
             ['name' => 'Management', 'description' => 'Property leadership and administration', 'sort_order' => 1],
             ['name' => 'Front Office', 'description' => 'Reception and guest services', 'sort_order' => 2],
@@ -28,25 +27,22 @@ class ReferenceDataSeeder extends Seeder
             ['name' => 'Finance', 'description' => 'Payments and financial controls', 'sort_order' => 5],
             ['name' => 'Administration', 'description' => 'System administration', 'sort_order' => 6],
         ] as $department) {
-            Department::updateOrCreate(['name' => $department['name']], $department + ['is_active' => true]);
+            Department::firstOrCreate(['name' => $department['name']], $department + ['is_active' => true]);
         }
 
         foreach ([['Direct', 'direct'], ['Booking.com', 'booking-com'], ['Expedia', 'expedia'], ['Walk-in', 'walk-in']] as $index => [$name, $code]) {
-            ReservationSource::updateOrCreate(['name' => $name], ['code' => $code, 'sort_order' => $index + 1, 'is_active' => true]);
+            ReservationSource::firstOrCreate(['name' => $name], ['code' => $code, 'sort_order' => $index + 1, 'is_active' => true]);
         }
 
         foreach ([
             ['code' => 'cash', 'name' => 'Cash', 'sort_order' => 1],
             ['code' => 'card', 'name' => 'Card', 'sort_order' => 2],
-            ['code' => 'bank_transfer', 'name' => 'Bank transfer', 'sort_order' => 3],
+            ['code' => 'mobile_money', 'name' => 'Mobile money', 'sort_order' => 3],
+            ['code' => 'bank_transfer', 'name' => 'Bank transfer', 'sort_order' => 4],
+            ['code' => 'charge_to_room', 'name' => 'Charge to room', 'sort_order' => 5],
         ] as $method) {
-            PaymentMethod::updateOrCreate(['code' => $method['code']], $method + ['is_active' => true]);
+            PaymentMethod::firstOrCreate(['code' => $method['code']], $method + ['is_active' => true]);
         }
-
-        Installation::firstOrCreate([], [
-            'status' => 'unconfigured',
-            'base_currency_id' => $usd->getKey(),
-        ]);
 
         foreach ([
             ['reservation_confirmation', 'Reservation confirmation', 'Reservation {{ reservation_code }} confirmed', 'Hello {{ guest_name }}, your reservation {{ reservation_code }} at {{ property_name }} is confirmed.', ['in_app', 'email']],
@@ -60,7 +56,7 @@ class ReferenceDataSeeder extends Seeder
             ['notification_alert', 'Notification alert', '{{ notification_title }} · {{ property_name }}', '{{ notification_message }}', ['email']],
             ['staff_invitation', 'Staff invitation', 'You have been invited to {{ property_name }}', 'Hello {{ user_name }}, an administrator created a Lodgix staff account for you. Sign in with username {{ username }} and the password provided by your administrator. You will be asked to change your password after signing in. Sign in here: {{ login_url }}', ['email']],
         ] as [$key, $name, $subject, $body, $channels]) {
-            EmailTemplate::updateOrCreate(['key' => $key], compact('name', 'subject', 'body', 'channels') + ['is_enabled' => true]);
+            EmailTemplate::firstOrCreate(['key' => $key], compact('name', 'subject', 'body', 'channels') + ['is_enabled' => true]);
         }
     }
 }

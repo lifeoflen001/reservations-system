@@ -34,6 +34,8 @@ php artisan serve
 
 For the local database and mail configuration, update `.env` with values appropriate for your environment. Never commit `.env` or production credentials.
 
+Database safety: use `php artisan migrate` for normal schema updates. `php artisan migrate:fresh --seed` is destructive and must only be used on disposable/test databases. See [`docs/database-safety.md`](docs/database-safety.md) before running any database command that can alter schema or data.
+
 ## Useful commands
 
 ```bash

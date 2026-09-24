@@ -61,7 +61,7 @@
     <x-ui.card title="Reservations" icon="document" class="reports-table-card">
         <x-data.table caption="Reservations report"><thead><tr><th>Code</th><th>Guest</th><th>Room</th><th>Check-in</th><th>Check-out</th><th>Total amount</th><th>Status</th></tr></thead><tbody>
             @forelse($reservations as $reservation)
-                <tr><td><a class="text-link" href="{{ route('reservations.show', $reservation) }}">{{ $reservation->code }}</a></td><td>{{ $reservation->client?->full_name }}</td><td>{{ $reservation->room?->room_number }}</td><td>{{ $reservation->check_in?->format('m/d/Y') }}</td><td>{{ $reservation->check_out?->format('m/d/Y') }}</td><td>{{ $financialVisible ? $formatter->format($reservation->total_amount) : '—' }}</td><td><x-ui.badge :variant="$reservation->status->badgeVariant()">{{ $reservation->status->label() }}</x-ui.badge></td></tr>
+                <tr><td><a class="text-link" href="{{ route('reservations.show', $reservation) }}">{{ $reservation->code }}</a></td><td>{{ $reservation->client?->full_name }}</td><td>{{ $reservation->room?->room_number }}</td><td>{{ $reservation->check_in?->format('m/d/Y') }}</td><td>{{ $reservation->check_out?->format('m/d/Y') }}</td><td>{{ $financialVisible ? $formatter->format((float) $reservation->total_amount + (float) ($reservation->room_charge_amount ?? 0)) : '—' }}</td><td><x-ui.badge :variant="$reservation->status->badgeVariant()">{{ $reservation->status->label() }}</x-ui.badge></td></tr>
             @empty
                 <tr><td colspan="7"><div class="empty-state"><x-ui.icon name="chart" size="28" /><strong>No reservations in this period.</strong><span>Adjust the date range to view operational activity.</span></div></td></tr>
             @endforelse

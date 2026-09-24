@@ -3,13 +3,13 @@
 namespace App\Services;
 
 use App\Enums\ReservationStatus;
-use App\Enums\PaymentStatus;
 use App\Enums\RoomOperationalStatus;
 use App\Enums\TaskPriority;
 use App\Enums\TaskStatus;
 use App\Models\HousekeepingTask;
 use App\Models\MaintenanceTask;
 use App\Models\Payment;
+use App\Models\PosOrder;
 use App\Models\Reservation;
 use App\Models\Room;
 use App\Models\RoomBlock;
@@ -45,7 +45,8 @@ class HotelAnalyticsService
             ['label' => 'Occupancy', 'value' => ($totalSellableRooms ? round($occupiedRooms / $totalSellableRooms * 100) : 0).'%', 'hint' => $occupiedRooms.'/'.$totalSellableRooms.' Rooms', 'icon' => 'bed', 'tone' => 'info'],
         ];
         if ($includeFinancial) {
-            $metrics[] = ['label' => 'Revenue today', 'value' => $this->money($this->financials->collectedBetween($today, $dayEnd)), 'hint' => 'Collected', 'icon' => 'currency', 'tone' => 'warning'];
+            $posToday = (float) PosOrder::query()->where('status', 'completed')->whereBetween('completed_at', [$today, $dayEnd])->sum('total');
+            $metrics[] = ['label' => 'Revenue today', 'value' => $this->money($this->financials->collectedBetween($today, $dayEnd) + $posToday), 'hint' => 'Collected + POS', 'icon' => 'currency', 'tone' => 'warning'];
             $metrics[] = ['label' => 'Payments due', 'value' => $this->money($outstanding), 'hint' => $paymentContext, 'icon' => 'card', 'tone' => 'danger'];
         }
 
@@ -71,7 +72,7 @@ class HotelAnalyticsService
         $reservations = $this->reportReservationsQuery($from, $to)->paginate(TablePagination::perPage(request(), 25))->withQueryString();
         $roomNights = $this->overlappingRoomNights($from, $to);
         $availableRoomNights = $this->availableRoomNights($from, $to);
-        $revenue = $includeFinancial ? $this->financials->collectedBetween($from, $to) : 0;
+        $revenue = $includeFinancial ? $this->financials->collectedBetween($from, $to) + (float) PosOrder::query()->where('status', 'completed')->whereBetween('completed_at', [$from, $to])->sum('total') : 0;
         $sourceCounts = $this->sourceCounts($from, $to);
         $roomTypeRevenue = $includeFinancial ? $this->roomTypeRevenue($from, $to) : collect();
         $reportOutstanding = $includeFinancial ? $this->financials->outstandingBalance($this->reportReservationsBaseQuery($from, $to)) : 0;
@@ -96,6 +97,7 @@ class HotelAnalyticsService
         return $this->reportReservationsBaseQuery($from, $to)
             ->with(['client', 'room.roomType', 'source'])
             ->withSum(['payments as paid_amount' => fn (Builder $query) => $query->successful()], 'amount')
+            ->withSum(['posRoomCharges as room_charge_amount' => fn (Builder $query) => $query->where('status', 'active')], 'amount')
             ->latest('check_in')
             ->orderByDesc('reservations.id');
     }
@@ -179,11 +181,14 @@ class HotelAnalyticsService
         foreach ($reservationCounts as $key => $count) if (isset($buckets[$key])) $buckets[$key]['reservations'] = (int) $count;
 
         if ($includeFinancial) {
-            $paymentDate = $this->databaseDateExpression('transaction_date', $mode);
-            $paymentTotals = Payment::query()->successful()->whereBetween('transaction_date', [$from, $to])
-                ->selectRaw("{$paymentDate} as bucket_key, COALESCE(SUM(amount), 0) as aggregate")
-                ->groupBy('bucket_key')->pluck('aggregate', 'bucket_key');
+            $paymentTotals = $this->financials->recognizedPaymentsBetween($from, $to)
+                ->groupBy(fn (array $item) => $this->bucketKey(Carbon::instance($item['payment']->transaction_date), $mode))
+                ->map(fn (Collection $items) => (float) $items->sum('amount'));
             foreach ($paymentTotals as $key => $amount) if (isset($buckets[$key])) $buckets[$key]['revenue'] = (float) $amount;
+            $posTotals = PosOrder::query()->where('status', 'completed')->whereBetween('completed_at', [$from, $to])
+                ->selectRaw("{$this->databaseDateExpression('completed_at', $mode)} as bucket_key, COALESCE(SUM(total), 0) as aggregate")
+                ->groupBy('bucket_key')->pluck('aggregate', 'bucket_key');
+            foreach ($posTotals as $key => $amount) if (isset($buckets[$key])) $buckets[$key]['revenue'] += (float) $amount;
         }
         return ['mode' => $mode, 'items' => array_values($buckets), 'hasData' => collect($buckets)->contains(fn (array $item) => $item['revenue'] > 0 || $item['reservations'] > 0)];
     }
@@ -304,6 +309,11 @@ class HotelAnalyticsService
 
     private function roomTypeRevenue(CarbonInterface $from, CarbonInterface $to): Collection
     {
-        return Payment::query()->where('payments.status', PaymentStatus::Paid->value)->whereBetween('payments.transaction_date', [$from, $to])->join('reservations', 'reservations.id', '=', 'payments.reservation_id')->leftJoin('rooms', 'rooms.id', '=', 'reservations.room_id')->leftJoin('room_types', 'room_types.id', '=', 'rooms.room_type_id')->whereNull('reservations.deleted_at')->selectRaw("COALESCE(room_types.name, 'Room') as room_type_name, SUM(payments.amount) as aggregate")->groupBy('room_type_name')->orderByDesc('aggregate')->pluck('aggregate', 'room_type_name')->map(fn ($amount) => (float) $amount);
+        $payments = $this->financials->recognizedPaymentsBetween($from, $to);
+        $payments->each(fn (array $item) => $item['payment']->loadMissing('reservation.room.roomType'));
+        return $payments
+            ->groupBy(fn (array $item) => $item['payment']->reservation?->room?->roomType?->name ?? 'Room')
+            ->map(fn (Collection $items) => (float) $items->sum('amount'))
+            ->sortDesc();
     }
 }

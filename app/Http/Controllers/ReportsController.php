@@ -38,7 +38,8 @@ class ReportsController extends Controller
                 $checkIn = $reservation->check_in->copy()->startOfDay()->max($from->copy()->startOfDay());
                 $checkOut = $reservation->check_out->copy()->startOfDay()->min($to->copy()->startOfDay()->addDay());
                 $nights = max(0, $checkIn->diffInDays($checkOut));
-                fputcsv($handle, [$reservation->code, $reservation->client?->full_name, $reservation->room?->room_number, $reservation->room?->roomType?->name, $reservation->source?->name ?? 'Direct', $reservation->check_in?->toDateTimeString(), $reservation->check_out?->toDateTimeString(), $nights, $reservation->total_amount, $paid, max(0, (float) $reservation->total_amount - $paid), $reservation->status->label()]);
+                $totalDue = (float) $reservation->total_amount + (float) ($reservation->room_charge_amount ?? 0);
+                fputcsv($handle, [$reservation->code, $reservation->client?->full_name, $reservation->room?->room_number, $reservation->room?->roomType?->name, $reservation->source?->name ?? 'Direct', $reservation->check_in?->toDateTimeString(), $reservation->check_out?->toDateTimeString(), $nights, $totalDue, $paid, max(0, $totalDue - $paid), $reservation->status->label()]);
             }
             fclose($handle);
         }, $filename, ['Content-Type' => 'text/csv']);

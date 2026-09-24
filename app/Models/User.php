@@ -117,6 +117,16 @@ class User extends Authenticatable
         return $this->hasMany(Reservation::class, 'created_by');
     }
 
+    public function posShifts(): HasMany
+    {
+        return $this->hasMany(PosShift::class, 'cashier_id');
+    }
+
+    public function posOrders(): HasMany
+    {
+        return $this->hasMany(PosOrder::class, 'cashier_id');
+    }
+
     public function creator(): BelongsTo
     {
         return $this->belongsTo(self::class, 'created_by');

@@ -39,7 +39,7 @@ class PaymentService
                 ->where('reservation_id', $reservation->getKey())
                 ->where('status', PaymentStatus::Pending->value)
                 ->sum('amount');
-            if ($amount + $committedAmount > (float) $reservation->total_amount) {
+            if ($amount + $committedAmount > app(FinancialService::class)->totalDue($reservation)) {
                 throw new InvalidArgumentException('Payment amount cannot exceed the outstanding reservation balance.');
             }
 
@@ -94,7 +94,7 @@ class PaymentService
                     ->where('id', '!=', $payment->getKey())
                     ->whereIn('status', [PaymentStatus::Paid->value, PaymentStatus::Pending->value])
                     ->sum('amount');
-                if ($amount <= 0 || $amount + $committedExcludingPayment > (float) $reservation->total_amount) {
+                if ($amount <= 0 || $amount + $committedExcludingPayment > app(FinancialService::class)->totalDue($reservation)) {
                     throw new InvalidArgumentException('Payment amount cannot exceed the outstanding reservation balance.');
                 }
                 $data['amount'] = $amount;

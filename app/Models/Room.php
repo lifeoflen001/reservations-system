@@ -31,6 +31,8 @@ class Room extends Model
     public function category(): BelongsTo { return $this->belongsTo(RoomCategory::class, 'room_category_id'); }
     public function roomType(): BelongsTo { return $this->belongsTo(RoomType::class); }
     public function reservations(): HasMany { return $this->hasMany(Reservation::class); }
+    public function posOrders(): HasMany { return $this->hasMany(PosOrder::class); }
+    public function posRoomCharges(): HasMany { return $this->hasMany(PosRoomCharge::class); }
     public function blocks(): HasMany { return $this->hasMany(RoomBlock::class); }
     public function housekeepingTasks(): HasMany { return $this->hasMany(HousekeepingTask::class); }
     public function maintenanceTasks(): HasMany { return $this->hasMany(MaintenanceTask::class); }

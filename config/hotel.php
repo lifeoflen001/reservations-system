@@ -12,6 +12,24 @@ return [
         'tagline' => env('HOTEL_BRAND_TAGLINE', 'Hotel Management System'),
     ],
 
+    // Product metadata is kept separate from the framework/runtime versions so
+    // the About and Updates screens can describe the packaged desktop build.
+    'product' => [
+        'name' => env('HOTEL_PRODUCT_NAME', 'HotelDesk'),
+        'version' => env('HOTEL_PRODUCT_VERSION', '0.1.1'),
+        'edition' => env('HOTEL_PRODUCT_EDITION', 'Envato'),
+        'electron' => env('HOTEL_ELECTRON_VERSION', '43.1.0'),
+        'node' => env('HOTEL_NODE_VERSION', '24.18.0'),
+        'chromium' => env('HOTEL_CHROMIUM_VERSION', '150.0.7781.47'),
+        'platform' => env('HOTEL_PLATFORM', PHP_OS_FAMILY === 'Windows' ? 'win32-x64' : strtolower(PHP_OS).'-'.php_uname('m')),
+        'packaged' => filter_var(env('HOTEL_PACKAGED', true), FILTER_VALIDATE_BOOL),
+        'data_directory' => env('HOTEL_DATA_DIRECTORY'),
+        'update_server' => env('HOTEL_UPDATE_SERVER', 'HotelDesk.app'),
+        'update_url' => env('HOTEL_UPDATE_URL', 'https://hoteldesk.app/updates/wsx-hotel-management-system'),
+        'update_isolation' => env('HOTEL_UPDATE_ISOLATION', 'product-slug/edition/platform/architecture/release-channel'),
+        'architecture' => env('HOTEL_ARCHITECTURE', PHP_INT_SIZE === 8 ? 'x64' : 'x86'),
+    ],
+
     'email' => [
         // Keep RFC-reserved addresses available to automated tests, but never
         // permit them to reach a real provider in production.
@@ -30,6 +48,11 @@ return [
     ],
 
     'reservation_code_prefix' => env('HOTEL_RESERVATION_CODE_PREFIX', 'WSX'),
+
+    'pos' => [
+        'require_shift' => filter_var(env('POS_REQUIRE_SHIFT', false), FILTER_VALIDATE_BOOL),
+        'default_tax_rate' => (float) env('POS_DEFAULT_TAX_RATE', 0),
+    ],
 
     'database_backup' => [
         'binary' => env('DB_DUMP_BINARY'),
@@ -63,5 +86,11 @@ return [
         'announcements.archive', 'announcements.statistics', 'announcements.manage',
         'announcements.manage_categories', 'announcements.manage_audience', 'announcements.send_email',
         'announcements.send_browser_notification',
+        'pos.access', 'pos.sell', 'pos.view_orders', 'pos.view_all_orders', 'pos.charge_room', 'pos.discount', 'pos.void', 'pos.refund',
+        'pos.products.view', 'pos.products.manage', 'pos.categories.manage', 'pos.outlets.manage', 'pos.shifts.open', 'pos.shifts.close',
+        'pos.shifts.view_all', 'pos.reports.view', 'pos.receipts.view', 'pos.manage',
     ],
+
+    // Only explicitly verified application-owned names may be retired.
+    'retired_permissions' => [],
 ];

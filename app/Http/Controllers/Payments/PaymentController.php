@@ -45,7 +45,8 @@ class PaymentController extends Controller
             ->whereIn('status', [ReservationStatus::Pending->value, ReservationStatus::Confirmed->value, ReservationStatus::CheckedIn->value, ReservationStatus::CheckedOut->value])
             ->where(function (Builder $query): void {
                 $query->whereRaw('reservations.total_amount > (SELECT COALESCE(SUM(amount), 0) FROM payments WHERE payments.reservation_id = reservations.id AND payments.status = ?)', [PaymentStatus::Paid->value])
-                    ->orWhereExists(fn ($paymentQuery) => $paymentQuery->selectRaw('1')->from('payments')->whereColumn('payments.reservation_id', 'reservations.id'));
+                    ->orWhereExists(fn ($paymentQuery) => $paymentQuery->selectRaw('1')->from('payments')->whereColumn('payments.reservation_id', 'reservations.id'))
+                    ->orWhereExists(fn ($chargeQuery) => $chargeQuery->selectRaw('1')->from('pos_room_charges')->whereColumn('pos_room_charges.reservation_id', 'reservations.id')->where('pos_room_charges.status', 'active'));
             })
             ->with(['client', 'room.roomType'])
             ->withSum(['payments as paid_amount' => fn (Builder $query) => $query->successful()], 'amount')

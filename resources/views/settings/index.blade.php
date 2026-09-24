@@ -55,24 +55,58 @@
         @elseif($section === 'security')
             <x-ui.card title="Security" icon="key"><p class="settings-lead">Central authentication and session controls. Passwords are always hashed and never displayed or stored here.</p><form method="POST" action="{{ route('settings.security.update') }}" data-draft-form data-draft-key="settings-security">@csrf @method('PUT')<div class="settings-form-grid"><x-form.input name="password_min_length" type="number" label="Minimum password length" :value="$settings['password_min_length']" min="6" max="128" required /><x-form.input name="session_timeout" type="number" label="Session timeout (minutes)" :value="$settings['session_timeout']" min="5" max="43200" required /></div><div class="security-options"><label class="check-field"><input type="checkbox" name="password_require_mixed_case" value="1" @checked(old('password_require_mixed_case', $settings['password_require_mixed_case']))> Require mixed case</label><label class="check-field"><input type="checkbox" name="password_require_numbers" value="1" @checked(old('password_require_numbers', $settings['password_require_numbers']))> Require a number</label><label class="check-field"><input type="checkbox" name="password_require_symbols" value="1" @checked(old('password_require_symbols', $settings['password_require_symbols']))> Require a symbol</label></div><div class="settings-form-footer"><button class="ui-button ui-button--primary" type="submit"><x-ui.icon name="save" size="16" /> Save</button></div></form></x-ui.card>
         @elseif($section === 'database')
-            <x-ui.card title="Database" icon="database">
-                <p class="settings-lead">Safe operational information from the active application connection. Credentials and secrets are never exposed.</p>
-                <div class="settings-info-grid">@foreach(['Database driver'=>'driver','Database name'=>'name','Connection'=>'status','Migrations'=>'migrations','Cache driver'=>'cache_driver','Storage writable'=> 'storage_writable'] as $label => $key)<div><small>{{ $label }}</small><strong>{{ is_bool($databaseInfo[$key]) ? ($databaseInfo[$key] ? 'Yes' : 'No') : $databaseInfo[$key] }}</strong></div>@endforeach</div>
-                <div class="database-backup-panel">
-                    <div><h3>Database backup</h3><p>Create and download a complete SQL backup of the active database. Backups are stored locally so recent files remain visible here.</p></div>
-                    <a class="ui-button ui-button--primary" href="{{ route('settings.database.backup') }}"><x-ui.icon name="download" size="16" /> Download SQL backup</a>
+            <x-ui.card title="Current database" icon="database">
+                <x-slot:header><x-ui.badge variant="success">Active</x-ui.badge></x-slot:header>
+                <div class="settings-snapshot-table">
+                    <div><span>Driver</span><strong>{{ $databaseInfo['driver'] }}</strong></div>
+                    <div><span>Location</span><strong class="settings-value--break">{{ $databaseInfo['location'] }}</strong></div>
+                    @foreach($databaseCounts as $label => $count)
+                        <div><span>{{ $label }}</span><strong>{{ $count }}</strong></div>
+                    @endforeach
                 </div>
-                <div class="database-backup-history">
-                    <div class="database-backup-history__heading"><h3>Recent backups</h3><span>{{ count($backups) }} {{ Str::plural('backup', count($backups)) }}</span></div>
-                    <x-data.table caption="Recent database backups"><thead><tr><th>File</th><th>Created</th><th>Size</th><th class="table-actions">Actions</th></tr></thead><tbody>@forelse($backups as $backup)<tr><td><code>{{ $backup['name'] }}</code></td><td>{{ $backup['created_at']->format('m/d/Y, h:i A') }}</td><td>{{ number_format($backup['size'] / 1024, 1) }} KB</td><td class="table-actions"><a class="icon-button" href="{{ route('settings.database.backups.download', ['filename' => $backup['name']]) }}" aria-label="Download {{ $backup['name'] }}" data-tooltip="Download"><x-ui.icon name="download" size="17" /></a></td></tr>@empty<tr><td colspan="4"><div class="catalog-empty">No backups created yet.</div></td></tr>@endforelse</tbody></x-data.table>
+                <div class="settings-action-bar">
+                    <label class="check-field"><input type="checkbox" disabled> Create backup</label>
+                    <a class="ui-button ui-button--info" href="{{ route('settings.index', ['section' => 'general']) }}"><x-ui.icon name="settings" size="16" /> Reconfigure system</a>
                 </div>
+                <details class="settings-secondary-details">
+                    <summary>Database maintenance</summary>
+                    <h3>Database backup</h3>
+                    <p class="settings-lead">Create and download a complete SQL backup of the active database. Backups are stored locally so recent files remain visible here.</p>
+                    <p class="settings-lead">Connection: {{ $databaseInfo['status'] }} · Migrations: {{ $databaseInfo['migrations'] }} · Cache: {{ $databaseInfo['cache_driver'] }} · Storage writable: {{ $databaseInfo['storage_writable'] ? 'Yes' : 'No' }}</p>
+                    <div class="database-backup-history">
+                        <div class="database-backup-history__heading"><h3>Recent backups</h3><span>{{ count($backups) }} {{ Str::plural('backup', count($backups)) }}</span></div>
+                        <x-data.table caption="Recent database backups"><thead><tr><th>File</th><th>Created</th><th>Size</th><th class="table-actions">Actions</th></tr></thead><tbody>@forelse($backups as $backup)<tr><td><code>{{ $backup['name'] }}</code></td><td>{{ $backup['created_at']->format('m/d/Y, h:i A') }}</td><td>{{ number_format($backup['size'] / 1024, 1) }} KB</td><td class="table-actions"><a class="icon-button" href="{{ route('settings.database.backups.download', ['filename' => $backup['name']]) }}" aria-label="Download {{ $backup['name'] }}" data-tooltip="Download"><x-ui.icon name="download" size="17" /></a></td></tr>@empty<tr><td colspan="4"><div class="catalog-empty">No backups created yet.</div></td></tr>@endforelse</tbody></x-data.table>
+                    </div>
+                </details>
             </x-ui.card>
         @elseif($section === 'license')
             <x-ui.card title="License" icon="shield"><div class="settings-hero"><x-ui.icon name="shield" size="28" /><div><h2>{{ $edition }}</h2><p>One HotelDesk license covers the application and its configured integrations.</p></div></div><div class="settings-info-grid"><div><small>Edition</small><strong>{{ $edition }}</strong></div><div><small>License status</small><strong>Development</strong></div><div><small>Product version</small><strong>v{{ $version }}</strong></div></div></x-ui.card>
         @elseif($section === 'updates')
-            <x-ui.card title="Updates" icon="download"><p class="settings-lead">Current application information and a safe manual check. HotelDesk does not execute downloaded code from this page.</p><div class="settings-info-grid"><div><small>Current version</small><strong>v{{ $version }}</strong></div><div><small>Last checked</small><strong>{{ $settings['last_update_check'] ? \Carbon\Carbon::parse($settings['last_update_check'])->format('m/d/Y, h:i A') : 'Never' }}</strong></div><div><small>Update status</small><strong>Up to date</strong></div></div><form method="POST" action="{{ route('settings.updates.check') }}" class="settings-action-form">@csrf<button class="ui-button ui-button--info" type="submit"><x-ui.icon name="refresh" size="16" /> Check for updates</button></form></x-ui.card>
+            <x-ui.card title="Updates" icon="download">
+                <form id="settings-updates-form" method="POST" action="{{ route('settings.updates.update') }}" data-draft-form data-draft-key="settings-updates">
+                    @csrf @method('PUT')
+                    <x-form.input name="update_url" label="Update URL" type="url" :value="$updateInfo['url']" required field-class="form-field--full" />
+                    <label class="check-field settings-check-field"><input type="checkbox" name="updates_auto_check" value="1" @checked($updateInfo['auto_check'])> Check automatically for updates</label>
+                    <div class="settings-snapshot-table settings-snapshot-table--updates">
+                        <div><span>Current version</span><strong>{{ $updateInfo['version'] }}</strong></div>
+                        <div><span>Feed route</span><strong class="settings-value--break">{{ $updateInfo['feed_route'] }}</strong></div>
+                        <div><span>Isolation</span><strong>{{ $updateInfo['isolation'] }}</strong></div>
+                        <div><span>Status</span><strong>{{ $updateInfo['status'] }}</strong></div>
+                        <div><span>Packaged</span><strong>{{ $updateInfo['packaged'] ? 'Yes' : 'No' }}</strong></div>
+                    </div>
+                </form>
+                <div class="settings-form-footer settings-form-footer--left"><button class="ui-button ui-button--primary" type="submit" form="settings-updates-form"><x-ui.icon name="save" size="16" /> Save</button><form method="POST" action="{{ route('settings.updates.check') }}">@csrf<button class="ui-button ui-button--info" type="submit"><x-ui.icon name="refresh" size="16" /> Check for updates</button></form></div>
+            </x-ui.card>
         @else
-            <x-ui.card title="About" icon="building"><div class="settings-hero"><span class="app-logo__mark"><x-ui.icon name="building" size="24" /></span><div><h2>{{ config('hotel.brand.name') }}</h2><p>{{ config('hotel.brand.tagline') }}</p></div></div><div class="settings-info-grid"><div><small>Property</small><strong>{{ $property?->name ?? 'Not configured' }}</strong></div><div><small>Edition</small><strong>{{ $edition }}</strong></div><div><small>Version</small><strong>v{{ $version }}</strong></div><div><small>Laravel</small><strong>{{ app()->version() }}</strong></div><div><small>PHP</small><strong>{{ PHP_VERSION }}</strong></div></div></x-ui.card>
+            <x-ui.card title="{{ $aboutInfo['title'] }}" icon="building">
+                <div class="settings-hero"><span class="app-logo__mark"><x-ui.icon name="building" size="24" /></span><div><h2>{{ $aboutInfo['title'] }}</h2><p>{{ $aboutInfo['description'] }}</p></div></div>
+                <div class="settings-snapshot-table settings-snapshot-table--about">
+                    @foreach(['Version' => 'version', 'Electron' => 'electron', 'Node.js' => 'node', 'Chromium' => 'chromium', 'Platform' => 'platform', 'Edition' => 'edition', 'Data directory' => 'data_directory', 'Update server' => 'update_server'] as $label => $key)
+                        <div><span>{{ $label }}</span><strong class="settings-value--break">{{ $aboutInfo[$key] }}</strong></div>
+                    @endforeach
+                </div>
+                <p class="settings-about-footer">© {{ now()->year }} {{ $aboutInfo['name'] }} / ScriptExpert. SQLite-first architecture with optional MySQL migration, edition-isolated updates and multilingual user interface.</p>
+            </x-ui.card>
         @endif
     </div>
 </div>

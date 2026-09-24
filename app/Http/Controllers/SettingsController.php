@@ -11,8 +11,11 @@ use App\Http\Requests\Settings\UpdateSecuritySettingsRequest;
 use App\Http\Requests\Settings\UpdateWhatsAppIntegrationRequest;
 use App\Models\ApiToken;
 use App\Models\ChannelConnection;
+use App\Models\Client;
 use App\Models\IntegrationSetting;
+use App\Models\Reservation;
 use App\Models\ReservationSource;
+use App\Models\Room;
 use App\Models\WebhookEndpoint;
 use App\Services\ApiTokenService;
 use App\Services\ConfiguredEmailProvider;
@@ -51,9 +54,12 @@ class SettingsController extends Controller
             'settings' => array_replace($this->system->defaults(), $this->system->all()),
             'sources' => collect(),
             'databaseInfo' => [],
+            'databaseCounts' => [],
             'backups' => [],
             'version' => config('app.version'),
             'edition' => $this->system->get('edition', 'Pro (Development)'),
+            'updateInfo' => [],
+            'aboutInfo' => [],
             'source' => null,
             'openSourceForm' => false,
             'emailIntegration' => null,
@@ -77,7 +83,18 @@ class SettingsController extends Controller
         }
         if ($section === 'database') {
             $data['databaseInfo'] = $this->databaseInfo();
+            $data['databaseCounts'] = [
+                'Rooms' => Room::query()->count(),
+                'Reservations' => Reservation::query()->count(),
+                'Clients' => Client::query()->count(),
+            ];
             $data['backups'] = $this->backups->recent();
+        }
+        if ($section === 'updates') {
+            $data['updateInfo'] = $this->updateInfo($data['settings']);
+        }
+        if ($section === 'about') {
+            $data['aboutInfo'] = $this->aboutInfo();
         }
         if ($section === 'integrations') {
             $data['emailIntegration'] = $this->integrations->emailProvider();
@@ -218,8 +235,23 @@ class SettingsController extends Controller
     {
         abort_unless($request->user()->hasPermission('settings.manage'), 403);
         $this->system->set('last_update_check', now()->toIso8601String(), 'string', $request->user()->id);
+        $this->system->set('update_status', 'No update is ready', 'string', $request->user()->id);
 
         return back()->with('info', 'Update check completed. No secure updates are available.');
+    }
+
+    public function updateUpdates(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()->hasPermission('settings.manage'), 403);
+        $data = $request->validate([
+            'update_url' => ['required', 'url', 'max:255'],
+        ]);
+        $this->system->update([
+            'update_url' => rtrim($data['update_url'], '/'),
+            'updates_auto_check' => $request->boolean('updates_auto_check'),
+        ], $request->user()->id);
+
+        return back()->with('success', 'Update settings saved.');
     }
 
     public function downloadDatabaseBackup(Request $request): mixed
@@ -266,6 +298,54 @@ class SettingsController extends Controller
             $status = 'Unavailable';
         }
 
-        return ['driver' => DB::connection()->getDriverName(), 'name' => DB::connection()->getDatabaseName(), 'status' => $status, 'migrations' => Schema::getTables() ? 'Available' : 'Unavailable', 'storage_writable' => is_writable(storage_path()), 'cache_driver' => config('cache.default')];
+        $location = DB::connection()->getDatabaseName();
+
+        return [
+            'driver' => strtoupper((string) DB::connection()->getDriverName()),
+            'name' => $location,
+            'location' => $location,
+            'status' => $status,
+            'migrations' => Schema::getTables() ? 'Available' : 'Unavailable',
+            'storage_writable' => is_writable(storage_path()),
+            'cache_driver' => config('cache.default'),
+        ];
+    }
+
+    private function updateInfo(array $settings): array
+    {
+        $product = config('hotel.product');
+        $updateUrl = rtrim((string) ($settings['update_url'] ?? $product['update_url']), '/');
+        $platform = (string) $product['platform'];
+        $edition = strtolower((string) $product['edition']);
+
+        return [
+            'url' => $updateUrl,
+            'auto_check' => (bool) ($settings['updates_auto_check'] ?? true),
+            'version' => (string) $product['version'],
+            'feed_route' => $updateUrl.'/'.$edition.'/'.$platform.'/stable',
+            'isolation' => (string) $product['update_isolation'],
+            'status' => (string) ($settings['update_status'] ?? 'No update is ready'),
+            'packaged' => (bool) $product['packaged'],
+        ];
+    }
+
+    private function aboutInfo(): array
+    {
+        $product = config('hotel.product');
+        $databaseLocation = DB::connection()->getDatabaseName();
+
+        return [
+            'name' => (string) $product['name'],
+            'title' => (string) $product['name'].' - Complete Hotel Management System',
+            'description' => 'Professional desktop property management system',
+            'version' => (string) $product['version'],
+            'electron' => (string) $product['electron'],
+            'node' => (string) $product['node'],
+            'chromium' => (string) $product['chromium'],
+            'platform' => (string) $product['platform'],
+            'edition' => (string) $product['edition'],
+            'data_directory' => (string) ($product['data_directory'] ?: dirname((string) $databaseLocation)),
+            'update_server' => (string) $product['update_server'],
+        ];
     }
 }

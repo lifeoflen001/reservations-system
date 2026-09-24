@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use Database\Seeders\DatabaseSeeder;
 use App\Models\Role;
+use App\Models\Currency;
+use App\Models\PaymentMethod;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -43,5 +45,26 @@ class DataConsistencyDiagnosticTest extends TestCase
             config('hotel.permissions', []),
             $superAdministrator->permissions->pluck('name')->all(),
         );
+    }
+
+    public function test_database_seeders_preserve_existing_operational_values(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $currency = Currency::where('code', 'USD')->firstOrFail();
+        $currency->update(['name' => 'Property-configured US Dollar']);
+        $paymentMethod = PaymentMethod::where('code', 'cash')->firstOrFail();
+        $paymentMethod->update(['name' => 'Cash drawer']);
+        $role = Role::where('name', 'administrator')->firstOrFail();
+        $role->update(['label' => 'Property Administrator']);
+        $admin = User::where('username', 'admin')->firstOrFail();
+        $admin->update(['name' => 'Existing Property Administrator']);
+
+        $this->seed(DatabaseSeeder::class);
+
+        $this->assertSame('Property-configured US Dollar', $currency->fresh()->name);
+        $this->assertSame('Cash drawer', $paymentMethod->fresh()->name);
+        $this->assertSame('Property Administrator', $role->fresh()->label);
+        $this->assertSame('Existing Property Administrator', $admin->fresh()->name);
     }
 }

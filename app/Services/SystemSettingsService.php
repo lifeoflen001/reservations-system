@@ -86,6 +86,9 @@ class SystemSettingsService
             'password_require_symbols' => false,
             'edition' => 'Pro (Development)',
             'last_update_check' => null,
+            'update_url' => config('hotel.product.update_url'),
+            'updates_auto_check' => true,
+            'update_status' => 'No update is ready',
         ];
     }
 

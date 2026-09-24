@@ -18,6 +18,9 @@ use App\Models\HousekeepingTask;
 use App\Models\Invoice;
 use App\Models\MaintenanceTask;
 use App\Models\Payment;
+use App\Models\PosOrder;
+use App\Models\PosProduct;
+use App\Models\PosShift;
 use App\Models\Reservation;
 use App\Models\Role;
 use App\Models\Room;
@@ -30,6 +33,9 @@ use App\Policies\HousekeepingTaskPolicy;
 use App\Policies\InvoicePolicy;
 use App\Policies\MaintenanceTaskPolicy;
 use App\Policies\PaymentPolicy;
+use App\Policies\PosOrderPolicy;
+use App\Policies\PosProductPolicy;
+use App\Policies\PosShiftPolicy;
 use App\Policies\ReservationPolicy;
 use App\Policies\RolePolicy;
 use App\Policies\RoomPolicy;
@@ -40,6 +46,7 @@ use App\Services\NullBookingChannelProvider;
 use App\Services\NullPaymentGateway;
 use App\Services\NullWhatsAppProvider;
 use App\Services\WebhookService;
+use Illuminate\Console\Events\CommandStarting;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Event;
@@ -65,6 +72,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        $this->registerDatabaseSafetyGuard();
         if ($this->app->environment('production')) {
             URL::forceScheme('https');
         }
@@ -88,13 +96,55 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Task::class, TaskPolicy::class);
         Gate::policy(Announcement::class, AnnouncementPolicy::class);
         Gate::policy(Payment::class, PaymentPolicy::class);
+        Gate::policy(PosOrder::class, PosOrderPolicy::class);
+        Gate::policy(PosProduct::class, PosProductPolicy::class);
+        Gate::policy(PosShift::class, PosShiftPolicy::class);
         Gate::policy(Invoice::class, InvoicePolicy::class);
         Gate::define('room_planning.view', fn (User $user): bool => $user->hasPermission('room_planning.view'));
         Gate::define('dashboard.view', fn (User $user): bool => $user->hasPermission('dashboard.view'));
         Gate::define('reports.view', fn (User $user): bool => $user->hasPermission('reports.view'));
         Gate::define('reports.export', fn (User $user): bool => $user->hasPermission('reports.export'));
+        foreach (['pos.access', 'pos.sell', 'pos.charge_room', 'pos.discount', 'pos.void', 'pos.refund', 'pos.products.view', 'pos.products.manage', 'pos.categories.manage', 'pos.outlets.manage', 'pos.shifts.open', 'pos.shifts.close', 'pos.shifts.view_all', 'pos.reports.view', 'pos.receipts.view', 'pos.manage'] as $permission) {
+            Gate::define($permission, fn (User $user) => $user->hasPermission($permission));
+        }
         Gate::before(function (User $user): ?bool {
             return $user->roleName() === 'super_administrator' ? true : null;
+        });
+    }
+
+    private function registerDatabaseSafetyGuard(): void
+    {
+        Event::listen(CommandStarting::class, function (CommandStarting $event): void {
+            $destructiveCommands = [
+                'db:wipe',
+                'migrate:fresh',
+                'migrate:refresh',
+                'migrate:reset',
+                'migrate:rollback',
+                'schema:drop',
+            ];
+
+            if (! in_array($event->command, $destructiveCommands, true)) {
+                return;
+            }
+
+            $connection = (string) config('database.default');
+            $database = strtolower((string) config("database.connections.{$connection}.database"));
+            $testingDatabase = app()->environment('testing') && $connection === 'sqlite' && $database === ':memory:';
+            $disposableOverride = filter_var(env('DB_ALLOW_DESTRUCTIVE_COMMANDS', false), FILTER_VALIDATE_BOOL)
+                && $connection === 'sqlite'
+                && ($database === ':memory:' || str_contains($database, 'test') || str_contains($database, 'tmp') || str_contains($database, 'audit'))
+                && ! app()->environment(['production', 'staging'])
+                && ! str_contains($database, 'reservations_db')
+                && ! str_contains($database, 'production')
+                && ! str_contains($database, 'staging');
+
+            if (! $testingDatabase && ! $disposableOverride) {
+                throw new \RuntimeException(sprintf(
+                    'Blocked destructive database command [%s]. Use php artisan migrate for normal schema updates. Set DB_ALLOW_DESTRUCTIVE_COMMANDS=true only after verifying that the database is disposable and the destructive action is explicitly approved.',
+                    $event->command,
+                ));
+            }
         });
     }
 

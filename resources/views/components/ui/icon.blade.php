@@ -22,6 +22,7 @@
         @case('broom') <path d="m14 4 6 6M13 5l-8 8 6 6 8-8M5 19l-2 2M3 16l5 5" /> @break
         @case('wrench') <path d="M14.7 6.3a5 5 0 0 0-6.4 6.4L3 18l3 3 5.3-5.3a5 5 0 0 0 6.4-6.4L15 12l-3-3 2.7-2.7Z" /> @break
         @case('card') <rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 10h18M7 15h3" /> @break
+        @case('phone') <rect x="7" y="2.5" width="10" height="19" rx="2" /><path d="M10 5h4M11 18.5h2" /> @break
         @case('currency') <circle cx="12" cy="12" r="9" /><path d="M14.5 9.5c-.5-.7-1.3-1-2.5-1-1.4 0-2.5.7-2.5 1.7 0 2.5 5 1.1 5 3.7 0 1-1.1 1.7-2.5 1.7-1.2 0-2-.3-2.5-1M12 7v10" /> @break
         @case('document') <path d="M6 3h8l4 4v14H6V3Z" /><path d="M14 3v5h5M9 12h6M9 16h6" /> @break
         @case('chart') <path d="M4 19V5M4 19h17M8 15l3-4 3 2 5-6" /> @break

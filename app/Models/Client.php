@@ -18,6 +18,8 @@ class Client extends Model
 
     public function reservations(): HasMany { return $this->hasMany(Reservation::class); }
     public function payments(): HasMany { return $this->hasMany(Payment::class); }
+    public function posOrders(): HasMany { return $this->hasMany(PosOrder::class); }
+    public function posRoomCharges(): HasMany { return $this->hasMany(PosRoomCharge::class); }
     public function tasks(): HasMany { return $this->hasMany(Task::class); }
 
     public function creator(): BelongsTo { return $this->belongsTo(User::class, 'created_by'); }
