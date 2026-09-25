@@ -1,6 +1,6 @@
 @extends('layouts.app')
 @section('content')
-<x-page-header title="Finance reports" subtitle="Ledger-backed account and expenditure summaries."><a class="ui-button ui-button--secondary" href="{{ route('finance.transactions') }}">Account statement</a></x-page-header>
+<x-page-header title="Finance reports" subtitle="Ledger-backed account and expenditure summaries."><a class="ui-button ui-button--secondary" href="{{ route('finance.transactions') }}">Account statement</a>@include('finance.partials.export', ['report' => 'monthly-summary'])</x-page-header>
 @include('finance.partials.nav')
 @php($totalFunds = $accounts->sum('current_balance'))
 <x-kpi-grid :items="[['label' => 'Available funds', 'value' => $formatter->format($totalFunds), 'icon' => 'currency', 'tone' => 'success'], ['label' => 'Active accounts', 'value' => $accounts->count(), 'icon' => 'building', 'tone' => 'info'], ['label' => 'Expense records', 'value' => $expenses->count(), 'icon' => 'document', 'tone' => 'warning', 'href' => route('finance.expenses')]]" />

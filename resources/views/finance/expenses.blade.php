@@ -1,6 +1,6 @@
 @extends('layouts.app')
 @section('content')
-<x-page-header title="Expenses" subtitle="Submit expenditure for approval before it affects the finance ledger."><button type="button" class="ui-button ui-button--primary" data-modal-open="expense-form"><x-ui.icon name="plus" size="16" /> Submit expense</button></x-page-header>
+<x-page-header title="Expenses" subtitle="Submit expenditure for approval before it affects the finance ledger."><button type="button" class="ui-button ui-button--primary" data-modal-open="expense-form"><x-ui.icon name="plus" size="16" /> Submit expense</button>@include('finance.partials.export', ['report' => 'expenses'])</x-page-header>
 @include('finance.partials.nav')
 <section class="ui-card"><x-data.table caption="Hotel expenses"><thead><tr><th>Expense #</th><th>Date</th><th>Category</th><th>Payee</th><th>Department</th><th>Account</th><th>Amount</th><th>Reference</th><th>Status</th><th>Actions</th></tr></thead><tbody>
 @forelse($expenses as $expense)

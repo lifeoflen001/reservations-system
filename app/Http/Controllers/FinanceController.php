@@ -11,6 +11,7 @@ use App\Models\FinancialTransaction;
 use App\Models\FinanceReconciliation;
 use App\Models\FundTransfer;
 use App\Services\FinanceService;
+use App\Services\FinanceExportService;
 use App\Services\PropertySettingsService;
 use App\Support\CurrencyFormatter;
 use App\Support\TablePagination;
@@ -22,7 +23,7 @@ use Illuminate\Support\Facades\Storage;
 
 class FinanceController extends Controller
 {
-    public function __construct(private readonly FinanceService $finance) {}
+    public function __construct(private readonly FinanceService $finance, private readonly FinanceExportService $exports) {}
 
     public function overview(Request $request, CurrencyFormatter $formatter)
     {
@@ -53,7 +54,7 @@ class FinanceController extends Controller
         $pendingReconciliations = FinanceReconciliation::query()->where('status', 'pending')->count();
         $pendingApprovals = Expense::query()->where('status', 'pending_approval')->count();
         $cashVariance = DailyCashClose::query()->where('variance', '<>', 0)->latest('close_date')->first();
-        return view('finance.overview', ['accounts' => $accounts, 'formatter' => $formatter, 'moneyIn' => $moneyIn, 'moneyOut' => $moneyOut, 'net' => round($moneyIn - $moneyOut, 2), 'recent' => FinancialTransaction::with(['account', 'creator'])->whereIn('status', ['posted', 'reversed'])->latest('transaction_date')->limit(12)->get(), 'outstanding' => app(\App\Services\FinancialService::class)->outstandingBalance(), 'cashFlow' => $cashFlow, 'lastMovements' => $lastMovements, 'pendingReconciliations' => $pendingReconciliations, 'pendingApprovals' => $pendingApprovals, 'cashVariance' => $cashVariance, 'period' => $period, 'flowFrom' => $flowStart->toDateString(), 'flowTo' => $flowEnd->toDateString()]);
+        return view('finance.overview', ['accounts' => $accounts, 'formatter' => $formatter, 'moneyIn' => $moneyIn, 'moneyOut' => $moneyOut, 'net' => round($moneyIn - $moneyOut, 2), 'recent' => FinancialTransaction::with(['account', 'creator'])->whereIn('status', ['posted', 'reversed'])->latest('transaction_date')->limit(8)->get(), 'outstanding' => app(\App\Services\FinancialService::class)->outstandingBalance(), 'cashFlow' => $cashFlow, 'lastMovements' => $lastMovements, 'pendingReconciliations' => $pendingReconciliations, 'pendingApprovals' => $pendingApprovals, 'cashVariance' => $cashVariance, 'period' => $period, 'flowFrom' => $flowStart->toDateString(), 'flowTo' => $flowEnd->toDateString()]);
     }
 
     public function transactions(Request $request, CurrencyFormatter $formatter)
@@ -157,36 +158,30 @@ class FinanceController extends Controller
     public function export(Request $request, string $report)
     {
         $this->allow('finance.reports.export');
-        abort_unless(in_array($report, ['transactions', 'expenses', 'accounts', 'cash-flow', 'reconciliation', 'petty-cash', 'daily-cash', 'monthly-summary'], true), 404);
-        $rows = $this->exportRows($request, $report);
+        abort_unless(in_array($report, FinanceExportService::REPORTS, true), 404);
         $format = $request->string('format', 'csv')->toString();
-        $filename = 'finance-'.$report.'-'.now()->format('Ymd-His');
+        abort_unless(in_array($format, ['csv', 'pdf', 'print'], true), 422);
+        $this->exports->audit($request, $report, $format);
+        $headers = $this->exports->headers($report);
+        $rows = $this->exports->rows($request, $report);
+        $filename = $this->exports->filename($request, $report, $format);
+        $logoPath = public_path('assets/branding/lodgix-mark.png');
+        $logoData = is_file($logoPath) ? 'data:image/png;base64,'.base64_encode((string) file_get_contents($logoPath)) : null;
         if ($format === 'pdf') {
             abort_unless(class_exists(\Dompdf\Dompdf::class), 503, 'PDF export is not available.');
-            $html = view('finance.exports.document', ['title' => str_replace('-', ' ', ucfirst($report)), 'rows' => $rows])->render();
+            $materialized = $rows->take(10000)->values()->all();
+            $html = view('finance.exports.document', ['title' => str_replace('-', ' ', ucfirst($report)), 'headers' => $headers, 'rows' => $materialized, 'generatedBy' => $request->user()?->display_name ?? 'System', 'from' => $request->input('from'), 'to' => $request->input('to'), 'logoData' => $logoData])->render();
             $pdf = new \Dompdf\Dompdf(['isRemoteEnabled' => false, 'isHtml5ParserEnabled' => true]);
             $pdf->loadHtml($html, 'UTF-8'); $pdf->setPaper('A4', 'landscape'); $pdf->render();
-            return response($pdf->output(), 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="'.$filename.'.pdf"']);
+            return response($pdf->output(), 200, ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="'.$filename.'"']);
         }
-        if ($format === 'print') return response($this->renderExport($report, $rows));
-        return response()->streamDownload(function () use ($rows): void {
+        if ($format === 'print') return response(view('finance.exports.document', ['title' => str_replace('-', ' ', ucfirst($report)), 'headers' => $headers, 'rows' => $rows->take(10000)->values()->all(), 'generatedBy' => $request->user()?->display_name ?? 'System', 'from' => $request->input('from'), 'to' => $request->input('to'), 'logoData' => $logoData])->render());
+        return response()->streamDownload(function () use ($rows, $headers): void {
             $handle = fopen('php://output', 'w');
-            if ($rows) fputcsv($handle, array_keys($rows[0]));
-            foreach ($rows as $row) fputcsv($handle, array_values($row));
+            fputcsv($handle, $headers);
+            foreach ($rows as $row) fputcsv($handle, $row);
             fclose($handle);
-        }, $filename.'.csv', ['Content-Type' => 'text/csv']);
-    }
-
-    private function exportRows(Request $request, string $report): array
-    {
-        if ($report === 'expenses') return Expense::query()->with(['account', 'category', 'department', 'creator'])->whereIn('status', ['paid', 'posted'])->latest('expense_date')->limit(5000)->get()->map(fn (Expense $expense) => ['expense' => $expense->expense_number, 'date' => $expense->expense_date?->toDateTimeString(), 'category' => $expense->category?->name, 'department' => $expense->department?->name, 'account' => $expense->account?->name, 'amount' => $expense->amount, 'status' => $expense->status, 'created_by' => $expense->creator?->display_name])->all();
-        if ($report === 'accounts') return $this->accountCollection()->map(fn (FinancialAccount $account) => ['account' => $account->name, 'code' => $account->code, 'type' => $account->type, 'currency' => $account->currency, 'balance' => $account->current_balance, 'status' => $account->is_active ? 'active' : 'inactive'])->all();
-        return FinancialTransaction::query()->with(['account', 'creator'])->whereIn('status', ['posted', 'reversed'])->when($request->filled('from'), fn ($q) => $q->whereDate('transaction_date', '>=', $request->date('from')))->when($request->filled('to'), fn ($q) => $q->whereDate('transaction_date', '<=', $request->date('to')))->latest('transaction_date')->limit(10000)->get()->map(fn (FinancialTransaction $transaction) => ['transaction' => $transaction->transaction_number, 'date' => $transaction->transaction_date?->toDateTimeString(), 'type' => $transaction->transaction_type, 'description' => $transaction->description, 'account' => $transaction->account?->name, 'money_in' => $transaction->direction === 'credit' ? $transaction->amount : 0, 'money_out' => $transaction->direction === 'debit' ? $transaction->amount : 0, 'reference' => $transaction->reference, 'status' => $transaction->status, 'created_by' => $transaction->creator?->display_name])->all();
-    }
-
-    private function renderExport(string $report, array $rows): string
-    {
-        return view('finance.exports.document', ['title' => str_replace('-', ' ', ucfirst($report)), 'rows' => $rows])->render();
+        }, $filename, ['Content-Type' => 'text/csv']);
     }
 
     public function pettyCash(CurrencyFormatter $formatter)
