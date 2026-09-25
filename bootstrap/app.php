@@ -27,6 +27,10 @@ return Application::configure(basePath: dirname(__DIR__))
         // process. Trust its forwarded headers so Laravel preserves the
         // original HTTPS scheme for redirects, cookies and CSRF sessions.
         $middleware->trustProxies(at: env('TRUSTED_PROXIES', '*'));
+        // Provider callbacks authenticate with their signed webhook headers,
+        // not a browser session token. Keep them outside Laravel's CSRF check
+        // so real gateway deliveries reach signature verification.
+        $middleware->validateCsrfTokens(except: ['webhooks/*']);
         $middleware->web(append: [UsePropertySettings::class]);
         $middleware->alias([
             'installation.complete' => EnsureInstallationComplete::class,
