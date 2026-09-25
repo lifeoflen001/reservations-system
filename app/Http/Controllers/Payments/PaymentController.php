@@ -22,6 +22,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 
@@ -35,7 +36,7 @@ class PaymentController extends Controller
     {
         Gate::authorize('viewAny', Payment::class);
         $payments = $this->filteredQuery($request)
-            ->with(['invoice', 'reservation.client', 'reservation.room.roomType', 'creator'])
+            ->with(['invoice', 'refunds', 'reservation.client', 'reservation.room.roomType', 'creator'])
             ->latest('transaction_date')
             ->orderByDesc('payments.id')
             ->paginate(TablePagination::perPage($request, 15))
@@ -49,13 +50,13 @@ class PaymentController extends Controller
                     ->orWhereExists(fn ($chargeQuery) => $chargeQuery->selectRaw('1')->from('pos_room_charges')->whereColumn('pos_room_charges.reservation_id', 'reservations.id')->where('pos_room_charges.status', 'active'));
             })
             ->with(['client', 'room.roomType'])
-            ->withSum(['payments as paid_amount' => fn (Builder $query) => $query->successful()], 'amount')
+            ->withSum(['payments as paid_amount' => fn (Builder $query) => $query->successful()], DB::raw("payments.amount - COALESCE((SELECT SUM(payment_refunds.amount) FROM payment_refunds WHERE payment_refunds.payment_id = payments.id AND payment_refunds.status = 'posted'), 0)"))
             ->orderByDesc('check_in')
             ->limit(300)
             ->get();
         $selectedReservation = $request->filled('reservation') ? $reservationOptions->firstWhere('id', $request->integer('reservation')) : null;
         $openPayment = $request->filled('edit') ? Payment::with(['invoice', 'reservation.client', 'reservation.room.roomType'])->find($request->integer('edit')) : null;
-        $invoice = $request->filled('invoice') ? Invoice::with(['payment.client', 'payment.reservation.room.roomType', 'payment.creator'])->find($request->integer('invoice')) : null;
+        $invoice = $request->filled('invoice') ? Invoice::with(['payment.refunds', 'payment.client', 'payment.reservation.room.roomType', 'payment.creator'])->find($request->integer('invoice')) : null;
 
         return view('payments.index', [
             'payments' => $payments,
@@ -103,6 +104,18 @@ class PaymentController extends Controller
             return back()->with('error', $exception->getMessage());
         }
         return redirect()->route('payments.index')->with('success', 'Payment voided successfully.');
+    }
+
+    public function refund(Request $request, Payment $payment): RedirectResponse
+    {
+        Gate::authorize('refund', $payment);
+        $data = $request->validate(['amount' => ['required', 'numeric', 'gt:0', 'decimal:0,2'], 'method' => ['required', 'string', 'max:60'], 'reason' => ['required', 'string', 'max:2000']]);
+        try {
+            $this->payments->refund($payment, $data, $request->user());
+        } catch (InvalidArgumentException $exception) {
+            return back()->withInput()->with('error', $exception->getMessage());
+        }
+        return redirect()->route('payments.index')->with('success', 'Payment refund posted and linked to the original payment.');
     }
 
     public function destroy(Request $request, Payment $payment): RedirectResponse

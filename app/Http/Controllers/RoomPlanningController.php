@@ -17,6 +17,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Collection;
 
 class RoomPlanningController extends Controller
@@ -77,7 +78,7 @@ class RoomPlanningController extends Controller
                 });
             })
             ->with('client:id,first_name,middle_name,last_name')
-            ->when($canViewFinancials, fn ($query) => $query->withSum(['payments as paid_amount' => fn ($paymentQuery) => $paymentQuery->successful()], 'amount'))
+            ->when($canViewFinancials, fn ($query) => $query->withSum(['payments as paid_amount' => fn ($paymentQuery) => $paymentQuery->successful()], DB::raw("payments.amount - COALESCE((SELECT SUM(payment_refunds.amount) FROM payment_refunds WHERE payment_refunds.payment_id = payments.id AND payment_refunds.status = 'posted'), 0)")))
             ->orderBy('check_in')
             ->get()
             ->groupBy('room_id');

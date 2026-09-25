@@ -20,6 +20,7 @@ use App\Support\TablePagination;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use LogicException;
 use Throwable;
@@ -36,7 +37,7 @@ class ReservationController extends Controller
         Gate::authorize('viewAny', Reservation::class);
         $reservations = $this->filteredQuery($request)
             ->with(['client', 'room.roomType', 'source', 'creator'])
-            ->withSum(['payments as paid_amount' => fn (Builder $query) => $query->successful()], 'amount')
+            ->withSum(['payments as paid_amount' => fn (Builder $query) => $query->successful()], DB::raw("payments.amount - COALESCE((SELECT SUM(payment_refunds.amount) FROM payment_refunds WHERE payment_refunds.payment_id = payments.id AND payment_refunds.status = 'posted'), 0)"))
             ->withExists('payments')
             ->latest('check_in')
             ->orderByDesc('reservations.id')
@@ -153,7 +154,7 @@ class ReservationController extends Controller
     public function export(Request $request)
     {
         Gate::authorize('export', Reservation::class);
-        $query = $this->filteredQuery($request)->with(['client', 'room.roomType', 'source'])->withSum(['payments as paid_amount' => fn (Builder $query) => $query->successful()], 'amount');
+        $query = $this->filteredQuery($request)->with(['client', 'room.roomType', 'source'])->withSum(['payments as paid_amount' => fn (Builder $query) => $query->successful()], DB::raw("payments.amount - COALESCE((SELECT SUM(payment_refunds.amount) FROM payment_refunds WHERE payment_refunds.payment_id = payments.id AND payment_refunds.status = 'posted'), 0)"));
         return response()->streamDownload(function () use ($query) {
             $handle = fopen('php://output', 'w');
             fputcsv($handle, ['Reservation code', 'Guest name', 'Guest email', 'Room', 'Room type', 'Check-in', 'Check-out', 'Source', 'Nightly rate', 'Total', 'Paid', 'Balance', 'Status']);

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use Database\Seeders\DatabaseSeeder;
+use App\Models\Department;
 use App\Models\Role;
 use App\Models\Currency;
 use App\Models\PaymentMethod;
@@ -66,5 +67,24 @@ class DataConsistencyDiagnosticTest extends TestCase
         $this->assertSame('Cash drawer', $paymentMethod->fresh()->name);
         $this->assertSame('Property Administrator', $role->fresh()->label);
         $this->assertSame('Existing Property Administrator', $admin->fresh()->name);
+    }
+
+    public function test_default_staff_catalog_stays_compact_without_removing_legacy_records(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $this->assertEqualsCanonicalizing(
+            ['Management', 'Front Office', 'Housekeeping', 'Maintenance', 'Finance'],
+            Department::where('is_active', true)->pluck('name')->all(),
+        );
+        $this->assertEqualsCanonicalizing(
+            ['Super Administrator', 'Administrator', 'Manager', 'Front Office', 'Operations', 'Finance / Accounts', 'Accountant', 'Finance Manager'],
+            Role::where('is_active', true)->pluck('label')->all(),
+        );
+        $this->assertDatabaseMissing('departments', ['name' => 'Administration', 'is_active' => true]);
+        $this->assertDatabaseMissing('roles', ['name' => 'maintenance', 'is_active' => true]);
+        $this->assertDatabaseMissing('roles', ['name' => 'cashier', 'is_active' => true]);
+        $this->assertTrue(Role::where('name', 'front_desk')->firstOrFail()->permissions()->where('name', 'pos.sell')->exists());
+        $this->assertTrue(Role::where('name', 'housekeeper')->firstOrFail()->permissions()->where('name', 'maintenance.update')->exists());
     }
 }

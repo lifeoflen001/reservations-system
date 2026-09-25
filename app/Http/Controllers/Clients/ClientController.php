@@ -14,6 +14,7 @@ use App\Support\TablePagination;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\DB;
 use LogicException;
 
 class ClientController extends Controller
@@ -26,7 +27,7 @@ class ClientController extends Controller
         $eligible = [ReservationStatus::CheckedIn->value, ReservationStatus::CheckedOut->value];
         $scope = (string) $request->string('scope', 'all');
         $now = now();
-        $query = Client::query()->withCount(['reservations as stay_count' => fn (Builder $q) => $q->whereIn('status', $eligible)])->withSum(['payments as total_spent' => fn (Builder $q) => $q->successful()], 'amount')
+        $query = Client::query()->withCount(['reservations as stay_count' => fn (Builder $q) => $q->whereIn('status', $eligible)])->withSum(['payments as total_spent' => fn (Builder $q) => $q->successful()], DB::raw("payments.amount - COALESCE((SELECT SUM(payment_refunds.amount) FROM payment_refunds WHERE payment_refunds.payment_id = payments.id AND payment_refunds.status = 'posted'), 0)"))
             ->when($request->filled('search'), function (Builder $q) use ($request) { $search = '%'.(string) $request->string('search').'%'; $q->where(fn ($q) => $q->where('first_name', 'like', $search)->orWhere('middle_name', 'like', $search)->orWhere('last_name', 'like', $search)->orWhere('email', 'like', $search)->orWhere('phone', 'like', $search)->orWhere('country', 'like', $search)->orWhere('city', 'like', $search)->when(auth()->user()->hasPermission('clients.view_sensitive'), fn ($q) => $q->orWhere('document_number', 'like', $search))); })
             ->when($request->filled('status') && (string) $request->string('status') !== 'all', fn (Builder $q) => $q->where('is_active', $request->string('status') === 'active'));
         $query->when($scope === 'in_house', fn (Builder $q) => $q->whereHas('reservations', fn (Builder $reservation) => $reservation->where('status', ReservationStatus::CheckedIn->value)))
@@ -37,7 +38,7 @@ class ClientController extends Controller
         if ($sort[0] === 'last_name') $query->orderBy('last_name', 'asc')->orderBy('first_name', 'asc'); else $query->orderBy($sort[0], $sort[1]);
         $query->orderBy('clients.id');
         $clients = $query->paginate(TablePagination::perPage($request, 15))->withQueryString();
-        $openClient = $request->filled('client') ? Client::with(['reservations.room.roomType', 'reservations.source', 'reservations.payments', 'payments'])->withSum(['payments as total_spent' => fn (Builder $q) => $q->successful()], 'amount')->find($request->integer('client')) : null;
+        $openClient = $request->filled('client') ? Client::with(['reservations.room.roomType', 'reservations.source', 'reservations.payments', 'payments'])->withSum(['payments as total_spent' => fn (Builder $q) => $q->successful()], DB::raw("payments.amount - COALESCE((SELECT SUM(payment_refunds.amount) FROM payment_refunds WHERE payment_refunds.payment_id = payments.id AND payment_refunds.status = 'posted'), 0)"))->find($request->integer('client')) : null;
         $editClient = $request->filled('edit') ? Client::find($request->integer('edit')) : null;
         $duplicateMatches = session('duplicate_matches') ? Client::whereIn('id', session('duplicate_matches'))->get() : collect();
         return view('clients.index', compact('clients', 'openClient', 'editClient', 'duplicateMatches', 'formatter') + ['openNew' => $request->boolean('new'), 'kpis' => $metricsService->clients()]);

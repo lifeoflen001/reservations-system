@@ -6,6 +6,7 @@ use App\Enums\PaymentStatus;
 use App\Events\PaymentReceived;
 use App\Events\PaymentVoided;
 use App\Models\Payment;
+use App\Models\PaymentRefund;
 use App\Models\Reservation;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -146,6 +147,27 @@ class PaymentService
         event(new PaymentVoided($payment));
 
         return $payment;
+    }
+
+    public function refund(Payment $payment, array $attributes, User $actor): PaymentRefund
+    {
+        return DB::transaction(function () use ($payment, $attributes, $actor): PaymentRefund {
+            $payment = Payment::query()->whereKey($payment->getKey())->lockForUpdate()->firstOrFail();
+            if ($payment->status !== PaymentStatus::Paid) throw new InvalidArgumentException('Only paid guest payments can be refunded.');
+            $amount = round((float) ($attributes['amount'] ?? 0), 2);
+            $refunded = (float) $payment->refunds()->where('status', 'posted')->sum('amount');
+            if ($amount <= 0 || round($refunded + $amount, 2) > (float) $payment->amount) throw new InvalidArgumentException('Refund amount exceeds the remaining refundable payment balance.');
+            $account = app(FinanceService::class)->accountForMethod((string) $attributes['method']);
+            if (! $account) throw new InvalidArgumentException('No active finance account is configured for this refund method.');
+            $refund = $payment->refunds()->create(['account_id' => $account->getKey(), 'amount' => $amount, 'method' => (string) $attributes['method'], 'refund_reference' => 'REF-'.$payment->invoice_number.'-'.str_pad((string) ($payment->refunds()->count() + 1), 2, '0', STR_PAD_LEFT), 'reason' => $attributes['reason'], 'status' => 'posted', 'refunded_by' => $actor->getKey(), 'refunded_at' => $attributes['refunded_at'] ?? now()]);
+            $ledger = app(FinanceService::class)->postPaymentRefund($refund, $actor->getKey());
+            $refund->update(['ledger_transaction_id' => $ledger->getKey()]);
+            if (round($refunded + $amount, 2) >= (float) $payment->amount) {
+                $payment->update(['status' => PaymentStatus::Refunded, 'updated_by' => $actor->getKey()]);
+                $payment->invoice?->update(['status' => PaymentStatus::Refunded->value, 'updated_by' => $actor->getKey()]);
+            }
+            return $refund->fresh(['payment', 'account', 'refunder', 'ledgerTransaction']);
+        });
     }
 
     private function nextInvoiceNumber(): string

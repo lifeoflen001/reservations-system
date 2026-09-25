@@ -11,6 +11,9 @@ use App\Models\PosCategory;
 use App\Models\PosOrder;
 use App\Models\PosOutlet;
 use App\Models\PosProduct;
+use App\Models\Expense;
+use App\Models\FinancialAccount;
+use App\Models\FinancialTransaction;
 use App\Models\Reservation;
 use App\Models\Room;
 use App\Models\RoomCategory;
@@ -22,6 +25,7 @@ use App\Services\PaymentService;
 use App\Services\PosOrderService;
 use App\Services\PosReportService;
 use App\Services\PosShiftService;
+use App\Services\FinanceService;
 use Carbon\Carbon;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -49,7 +53,7 @@ class PosMySqlIntegrationTest extends TestCase
 
     public function test_mysql_schema_constraints_decimal_math_and_idempotent_stock_checkout(): void
     {
-        foreach (['pos_orders', 'pos_order_items', 'pos_payments', 'pos_room_charges', 'pos_shifts'] as $table) {
+        foreach (['pos_orders', 'pos_order_items', 'pos_payments', 'pos_room_charges', 'pos_shifts', 'payment_refunds'] as $table) {
             $this->assertTrue(Schema::hasTable($table), $table.' is missing after incremental migrations.');
         }
 
@@ -175,6 +179,77 @@ class PosMySqlIntegrationTest extends TestCase
         $this->assertSame(2.0, (float) $closed->cash_sales);
         $this->assertSame(12.0, (float) $closed->expected_cash);
         $this->assertSame($shift->id, $shifted->shift_id);
+    }
+
+    public function test_mysql_finance_workflows_use_decimal_ledger_and_database_idempotency(): void
+    {
+        [$reservation] = $this->inHouseReservation(100);
+        $cash = FinancialAccount::where('code', 'cash')->firstOrFail();
+        $finance = app(FinanceService::class);
+        $expense = $finance->createExpense(['account_id' => $cash->id, 'amount' => 12.50, 'expense_date' => now(), 'description' => 'MySQL finance lifecycle'], $this->admin->id);
+        $this->assertSame('pending_approval', $expense->status);
+        $this->assertSame(0, FinancialTransaction::where('source_type', Expense::class)->where('source_id', $expense->id)->count());
+        $finance->approveExpense($expense, $this->admin->id);
+        $finance->payExpense($expense, $this->admin->id);
+        $finance->reverseExpense($expense, $this->admin->id, 'MySQL reversal');
+        $this->assertSame(2, FinancialTransaction::where('source_type', Expense::class)->where('source_id', $expense->id)->count());
+        $this->assertSame(0.0, $finance->balance($cash));
+
+        $payment = app(PaymentService::class)->post($reservation, ['amount' => 20, 'method' => 'cash'], $this->admin->id);
+        $finance->postPayment($payment, $this->admin->id);
+        $finance->postPayment($payment, $this->admin->id);
+        $this->assertSame(1, FinancialTransaction::where('source_type', get_class($payment))->where('source_id', $payment->id)->count());
+        $refund = app(PaymentService::class)->refund($payment, ['amount' => 5, 'method' => 'cash', 'reason' => 'MySQL partial refund'], $this->admin);
+        $this->assertSame('5.00', (string) $refund->amount);
+        $this->assertSame(15.0, app(FinancialService::class)->paidAmount($reservation));
+        $this->assertSame(1, FinancialTransaction::where('source_type', get_class($refund))->where('source_id', $refund->id)->count());
+
+        $cardPayment = app(PaymentService::class)->post($reservation, ['amount' => 10, 'method' => 'card'], $this->admin->id);
+        $mobilePayment = app(PaymentService::class)->post($reservation, ['amount' => 10, 'method' => 'mobile_money'], $this->admin->id);
+        $this->assertSame(1, FinancialTransaction::where('source_type', get_class($cardPayment))->where('source_id', $cardPayment->id)->count());
+        $this->assertSame(1, FinancialTransaction::where('source_type', get_class($mobilePayment))->where('source_id', $mobilePayment->id)->count());
+
+        $pettyCash = FinancialAccount::where('code', 'petty_cash')->firstOrFail();
+        $finance->postOpeningBalance($pettyCash, 50, $this->admin->id);
+        $pettyExpense = $finance->createExpense(['account_id' => $pettyCash->id, 'amount' => 4.25, 'expense_date' => now(), 'description' => 'Petty cash test'], $this->admin->id);
+        $finance->approveExpense($pettyExpense, $this->admin->id);
+        $finance->payExpense($pettyExpense, $this->admin->id);
+        $this->assertSame(45.75, $finance->balance($pettyCash));
+        $finance->reverseExpense($pettyExpense, $this->admin->id, 'Petty cash correction');
+        $this->assertSame(50.0, $finance->balance($pettyCash));
+
+        $revenueCount = FinancialTransaction::where('transaction_type', 'guest_payment')->count();
+        $expenseCount = FinancialTransaction::where('transaction_type', 'expense')->count();
+        $finance->createTransfer(['from_account_id' => $cash->id, 'to_account_id' => FinancialAccount::where('code', 'bank')->value('id'), 'amount' => 5, 'transfer_date' => now(), 'description' => 'Cash to bank'], $this->admin->id);
+        $this->assertSame($revenueCount, FinancialTransaction::where('transaction_type', 'guest_payment')->count());
+        $this->assertSame($expenseCount, FinancialTransaction::where('transaction_type', 'expense')->count());
+    }
+
+    public function test_mysql_financial_reconciliation_scenario_keeps_cash_bank_and_revenue_separate(): void
+    {
+        [$reservation] = $this->inHouseReservation(100);
+        $cash = FinancialAccount::where('code', 'cash')->firstOrFail();
+        $bank = FinancialAccount::where('code', 'bank')->firstOrFail();
+        $finance = app(FinanceService::class);
+        $finance->postOpeningBalance($cash, 50, $this->admin->id);
+
+        $product = $this->product('Reconciliation POS item', 'MYSQL-RECON-POS', 5, 10);
+        $posOrder = app(PosOrderService::class)->checkout(['outlet_id' => $this->outlet->id, 'items' => [['product_id' => $product->id, 'quantity' => 1]], 'payments' => [['method' => 'cash', 'amount' => 5]], 'idempotency_key' => 'mysql-reconciliation-pos'], $this->admin);
+        $guestPayment = app(PaymentService::class)->post($reservation, ['amount' => 20, 'method' => 'cash'], $this->admin->id);
+        $expense = $finance->createExpense(['account_id' => $cash->id, 'amount' => 10, 'expense_date' => now(), 'description' => 'Reconciliation expense'], $this->admin->id);
+        $finance->approveExpense($expense, $this->admin->id);
+        $finance->payExpense($expense, $this->admin->id);
+        app(PaymentService::class)->refund($guestPayment, ['amount' => 5, 'method' => 'cash', 'reason' => 'Reconciliation refund'], $this->admin);
+        $finance->createTransfer(['from_account_id' => $cash->id, 'to_account_id' => $bank->id, 'amount' => 5, 'transfer_date' => now(), 'description' => 'Reconciliation cash to bank'], $this->admin->id);
+
+        $this->assertSame(55.0, $finance->balance($cash));
+        $this->assertSame(5.0, $finance->balance($bank));
+        $this->assertSame(15.0, app(FinancialService::class)->paidAmount($reservation));
+        $this->assertSame(85.0, app(FinancialService::class)->balance($reservation));
+        $this->assertSame(1, FinancialTransaction::where('transaction_type', 'pos_sale')->where('source_id', $posOrder->payments()->value('id'))->count());
+        $this->assertSame(1, FinancialTransaction::where('transaction_type', 'guest_payment')->where('source_id', $guestPayment->id)->count());
+        $this->assertSame(1, FinancialTransaction::where('transaction_type', 'guest_refund')->where('source_id', $guestPayment->refunds()->value('id'))->count());
+        $this->assertSame(2, FinancialTransaction::where('transaction_type', 'transfer')->where('source_id', '>', 0)->count());
     }
 
     private function product(string $name, string $sku, float $price, float $stock, float $tax = 0): PosProduct

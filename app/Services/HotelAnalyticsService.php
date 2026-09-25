@@ -96,7 +96,7 @@ class HotelAnalyticsService
     {
         return $this->reportReservationsBaseQuery($from, $to)
             ->with(['client', 'room.roomType', 'source'])
-            ->withSum(['payments as paid_amount' => fn (Builder $query) => $query->successful()], 'amount')
+            ->withSum(['payments as paid_amount' => fn (Builder $query) => $query->successful()], DB::raw("payments.amount - COALESCE((SELECT SUM(payment_refunds.amount) FROM payment_refunds WHERE payment_refunds.payment_id = payments.id AND payment_refunds.status = 'posted'), 0)"))
             ->withSum(['posRoomCharges as room_charge_amount' => fn (Builder $query) => $query->where('status', 'active')], 'amount')
             ->latest('check_in')
             ->orderByDesc('reservations.id');

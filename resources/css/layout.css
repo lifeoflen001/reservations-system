@@ -98,7 +98,7 @@ kbd { border: 1px solid var(--border); border-radius: 3px; color: var(--text-mut
 .dev-notice strong { color: var(--text-secondary); font-size: 14px; }
 .dev-notice span { font-size: 14px; }
 .dev-notice small { margin-top: 5px; color: var(--text-secondary); }
-.login-promo { position: relative; display: flex; align-items: center; overflow: hidden; background-color: #202b44; background-image: linear-gradient(115deg, rgb(25 38 61 / 88%) 0%, rgb(25 38 61 / 67%) 46%, rgb(25 38 61 / 34%) 100%), url('/assets/branding/mbvl.webp'); background-position: center; background-size: cover; color: #fff; padding: 48px 7vw; }
+.login-promo { position: relative; display: flex; align-items: center; overflow: hidden; background-color: #202b44; background-image: linear-gradient(115deg, rgb(25 38 61 / 88%) 0%, rgb(25 38 61 / 67%) 46%, rgb(25 38 61 / 34%) 100%), url('../../public/assets/branding/mbvl.webp'); background-position: center; background-size: cover; color: #fff; padding: 48px 7vw; }
 .login-promo::after { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, rgb(15 24 42 / 20%), transparent 70%); content: ''; }
 .login-promo > * { position: relative; z-index: 1; }
 .promo-content { width: min(100%, 900px); }

@@ -25,10 +25,13 @@ class ReferenceDataSeeder extends Seeder
             ['name' => 'Housekeeping', 'description' => 'Room preparation and cleaning', 'sort_order' => 3],
             ['name' => 'Maintenance', 'description' => 'Repairs and facilities', 'sort_order' => 4],
             ['name' => 'Finance', 'description' => 'Payments and financial controls', 'sort_order' => 5],
-            ['name' => 'Administration', 'description' => 'System administration', 'sort_order' => 6],
         ] as $department) {
             Department::firstOrCreate(['name' => $department['name']], $department + ['is_active' => true]);
         }
+
+        // Keep legacy records recoverable for populated installations, but do
+        // not continue showing an unused default department after reseeding.
+        Department::query()->where('name', 'Administration')->whereDoesntHave('users')->whereDoesntHave('tasks')->update(['is_active' => false]);
 
         foreach ([['Direct', 'direct'], ['Booking.com', 'booking-com'], ['Expedia', 'expedia'], ['Walk-in', 'walk-in']] as $index => [$name, $code]) {
             ReservationSource::firstOrCreate(['name' => $name], ['code' => $code, 'sort_order' => $index + 1, 'is_active' => true]);

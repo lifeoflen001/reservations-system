@@ -20,11 +20,12 @@ class FinancialService
         if ($reservation instanceof Reservation && $reservation->relationLoaded('payments')) {
             return (float) $reservation->payments
                 ->filter(fn (Payment $payment) => $payment->status?->countsTowardsPaid())
-                ->sum('amount');
+                ->sum(fn (Payment $payment) => (float) $payment->amount - (float) $payment->refunds->where('status', 'posted')->sum('amount'));
         }
 
         $id = $reservation instanceof Reservation ? $reservation->getKey() : $reservation;
-        return (float) Payment::query()->where('reservation_id', $id)->successful()->sum('amount');
+        $refunds = \App\Models\PaymentRefund::query()->select('payment_id')->where('status', 'posted')->selectRaw('SUM(amount) as refunded_amount')->groupBy('payment_id');
+        return (float) Payment::query()->where('reservation_id', $id)->successful()->leftJoinSub($refunds, 'refund_totals', fn ($join) => $join->on('payments.id', '=', 'refund_totals.payment_id'))->selectRaw('COALESCE(SUM(payments.amount - COALESCE(refund_totals.refunded_amount, 0)), 0) as paid_amount')->value('paid_amount');
     }
 
     public function balance(Reservation|int $reservation): float
@@ -59,9 +60,10 @@ class FinancialService
 
     public function outstandingBalance(?Builder $reservations = null): float
     {
-        $paid = Payment::query()->successful()
+        $refunds = \App\Models\PaymentRefund::query()->select('payment_id')->where('status', 'posted')->selectRaw('SUM(amount) as refunded_amount')->groupBy('payment_id');
+        $paid = Payment::query()->successful()->leftJoinSub($refunds, 'refund_totals', fn ($join) => $join->on('payments.id', '=', 'refund_totals.payment_id'))
             ->select('reservation_id')
-            ->selectRaw('SUM(amount) as paid_amount')
+            ->selectRaw('SUM(payments.amount - COALESCE(refund_totals.refunded_amount, 0)) as paid_amount')
             ->groupBy('reservation_id');
         $charges = PosRoomCharge::query()->where('status', 'active')->select('reservation_id')->selectRaw('SUM(amount) as room_charge_amount')->groupBy('reservation_id');
         $query = ($reservations ? clone $reservations : Reservation::query())
@@ -96,14 +98,14 @@ class FinancialService
 
         return Payment::query()->successful()
             ->when($clientId, fn (Builder $query) => $query->where('client_id', $clientId))
-            ->with('reservation:id,total_amount,room_id')
+            ->with(['reservation:id,total_amount,room_id', 'refunds'])
             ->orderBy('reservation_id')
             ->orderBy('transaction_date')
             ->orderBy('id')
             ->get()
             ->map(function (Payment $payment) use (&$remaining, $fromDate, $toDate): ?array {
                 $reservationId = $payment->reservation_id;
-                $amount = (float) $payment->amount;
+                $amount = max(0, (float) $payment->amount - (float) $payment->refunds->where('status', 'posted')->sum('amount'));
                 if ($reservationId !== null) {
                     if (! array_key_exists($reservationId, $remaining)) {
                         $remaining[$reservationId] = (float) ($payment->reservation?->total_amount ?? 0);

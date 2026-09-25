@@ -6,6 +6,7 @@ use App\Enums\PaymentStatus;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Payment extends Model
@@ -26,6 +27,7 @@ class Payment extends Model
     public function updater(): BelongsTo { return $this->belongsTo(User::class, 'updated_by'); }
     public function voider(): BelongsTo { return $this->belongsTo(User::class, 'voided_by'); }
     public function invoice(): HasOne { return $this->hasOne(Invoice::class); }
+    public function refunds(): HasMany { return $this->hasMany(PaymentRefund::class); }
 
     public function scopeSuccessful(Builder $query): Builder
     {

@@ -68,9 +68,9 @@ class StaffController extends Controller
         return view('staff.index', [
             'staff' => $staff,
             'roles' => Role::where('is_active', true)->orderBy('label')->get(),
-            'allRoles' => Role::withCount('users')->withCount('permissions')->with('permissions')->orderBy('is_system', 'desc')->orderBy('label')->get(),
+            'allRoles' => Role::withCount('users')->withCount('permissions')->with('permissions')->where(fn ($query) => $query->where('is_active', true)->orWhereHas('users'))->orderBy('is_system', 'desc')->orderBy('label')->get(),
             'departments' => Department::where('is_active', true)->orderBy('sort_order')->orderBy('name')->get(),
-            'allDepartments' => Department::withCount('users')->orderBy('sort_order')->orderBy('name')->get(),
+            'allDepartments' => Department::withCount('users')->where(fn ($query) => $query->where('is_active', true)->orWhereHas('users')->orWhereHas('tasks'))->orderBy('sort_order')->orderBy('name')->get(),
             'languages' => Language::where('is_active', true)->orderBy('name')->get(),
             'permissions' => $permissions,
             'openNew' => $request->boolean('new'), 'openStaff' => $openStaff,

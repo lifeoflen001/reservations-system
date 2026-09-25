@@ -7,6 +7,7 @@ use App\Models\FinancialAccount;
 use App\Models\FinancialTransaction;
 use App\Models\FundTransfer;
 use App\Models\Payment;
+use App\Models\PaymentRefund;
 use App\Models\PosOrder;
 use App\Models\PosPayment;
 use App\Models\PosRefund;
@@ -19,14 +20,14 @@ class FinanceService
     public function balance(FinancialAccount|int $account): float
     {
         $id = $account instanceof FinancialAccount ? $account->getKey() : $account;
-        $row = FinancialTransaction::query()->where('account_id', $id)->where('status', 'posted')
+        $row = FinancialTransaction::query()->where('account_id', $id)->whereIn('status', ['posted', 'reversed'])
             ->selectRaw("COALESCE(SUM(CASE WHEN direction = 'credit' THEN amount ELSE -amount END), 0) as balance")->first();
         return round((float) ($row->balance ?? 0), 2);
     }
 
     public function balances(): Builder
     {
-        return FinancialAccount::query()->where('is_active', true)->withSum(['transactions as credits' => fn (Builder $q) => $q->where('status', 'posted')->where('direction', 'credit')], 'amount')->withSum(['transactions as debits' => fn (Builder $q) => $q->where('status', 'posted')->where('direction', 'debit')], 'amount');
+        return FinancialAccount::query()->where('is_active', true)->withSum(['transactions as credits' => fn (Builder $q) => $q->whereIn('status', ['posted', 'reversed'])->where('direction', 'credit')], 'amount')->withSum(['transactions as debits' => fn (Builder $q) => $q->whereIn('status', ['posted', 'reversed'])->where('direction', 'debit')], 'amount');
     }
 
     public function postPayment(Payment $payment, ?int $actorId = null): ?FinancialTransaction
@@ -71,11 +72,73 @@ class FinanceService
         return DB::transaction(function () use ($data, $actorId): Expense {
             $account = FinancialAccount::query()->whereKey($data['account_id'])->where('is_active', true)->lockForUpdate()->firstOrFail();
             $amount = $this->amount($data['amount'] ?? 0);
-            $expense = Expense::create(['expense_number' => $this->nextNumber('expense', 'EXP-'), 'category_id' => $data['category_id'] ?? null, 'account_id' => $account->getKey(), 'department_id' => $data['department_id'] ?? null, 'amount' => $amount, 'currency' => $account->currency, 'payment_method' => $data['payment_method'] ?? null, 'payee' => $data['payee'] ?? null, 'reference' => $data['reference'] ?? null, 'description' => $data['description'], 'attachment_path' => $data['attachment_path'] ?? null, 'expense_date' => $data['expense_date'] ?? now(), 'status' => 'posted', 'created_by' => $actorId, 'paid_at' => $data['expense_date'] ?? now()]);
-            $ledger = $this->postOnce($account, 'expense', 'debit', $amount, $expense->reference ?: $expense->expense_number, $expense->description, $expense->expense_date, Expense::class, $expense->getKey(), $actorId, ['expense_id' => $expense->getKey()]);
-            $expense->update(['ledger_transaction_id' => $ledger->getKey()]);
+            $expense = Expense::create(['expense_number' => $this->nextNumber('expense', 'EXP-'), 'category_id' => $data['category_id'] ?? null, 'account_id' => $account->getKey(), 'department_id' => $data['department_id'] ?? null, 'amount' => $amount, 'currency' => $account->currency, 'payment_method' => $data['payment_method'] ?? null, 'payee' => $data['payee'] ?? null, 'reference' => $data['reference'] ?? null, 'description' => $data['description'], 'attachment_path' => $data['attachment_path'] ?? null, 'attachment_type' => $data['attachment_type'] ?? null, 'expense_date' => $data['expense_date'] ?? now(), 'status' => $data['status'] ?? 'pending_approval', 'created_by' => $actorId, 'submitted_at' => ($data['status'] ?? 'pending_approval') === 'pending_approval' ? now() : null]);
             return $expense->fresh(['account', 'category', 'department', 'creator']);
         });
+    }
+
+    public function approveExpense(Expense|int $expense, int $actorId): Expense
+    {
+        return DB::transaction(function () use ($expense, $actorId): Expense {
+            $expense = Expense::query()->whereKey($expense instanceof Expense ? $expense->getKey() : $expense)->lockForUpdate()->firstOrFail();
+            if ($expense->status !== 'pending_approval') throw new InvalidArgumentException('Only expenses pending approval can be approved.');
+            $expense->update(['status' => 'approved', 'approved_by' => $actorId, 'approved_at' => now(), 'rejected_by' => null, 'rejected_at' => null, 'rejection_reason' => null]);
+            return $expense->fresh(['account', 'category', 'department', 'creator', 'approver']);
+        });
+    }
+
+    public function submitExpense(Expense|int $expense, int $actorId): Expense
+    {
+        return DB::transaction(function () use ($expense, $actorId): Expense {
+            $expense = Expense::query()->whereKey($expense instanceof Expense ? $expense->getKey() : $expense)->lockForUpdate()->firstOrFail();
+            if ($expense->status !== 'draft') throw new InvalidArgumentException('Only draft expenses can be submitted for approval.');
+            $expense->update(['status' => 'pending_approval', 'submitted_at' => now()]);
+            return $expense->fresh(['creator', 'account']);
+        });
+    }
+
+    public function rejectExpense(Expense|int $expense, int $actorId, string $reason): Expense
+    {
+        return DB::transaction(function () use ($expense, $actorId, $reason): Expense {
+            $expense = Expense::query()->whereKey($expense instanceof Expense ? $expense->getKey() : $expense)->lockForUpdate()->firstOrFail();
+            if (! in_array($expense->status, ['pending_approval', 'approved'], true)) throw new InvalidArgumentException('Only pending or approved expenses can be rejected.');
+            if (trim($reason) === '') throw new InvalidArgumentException('A rejection reason is required.');
+            $expense->update(['status' => 'rejected', 'rejected_by' => $actorId, 'rejected_at' => now(), 'rejection_reason' => $reason]);
+            return $expense->fresh(['rejector']);
+        });
+    }
+
+    public function payExpense(Expense|int $expense, int $actorId): Expense
+    {
+        return DB::transaction(function () use ($expense, $actorId): Expense {
+            $expense = Expense::query()->whereKey($expense instanceof Expense ? $expense->getKey() : $expense)->lockForUpdate()->firstOrFail();
+            if (! in_array($expense->status, ['approved'], true)) throw new InvalidArgumentException('Only approved expenses can be paid.');
+            $account = FinancialAccount::query()->whereKey($expense->account_id)->where('is_active', true)->lockForUpdate()->firstOrFail();
+            $ledger = $this->postOnce($account, 'expense', 'debit', (float) $expense->amount, $expense->reference ?: $expense->expense_number, $expense->description, $expense->expense_date, Expense::class, $expense->getKey(), $actorId, ['expense_id' => $expense->getKey()]);
+            $expense->update(['status' => 'paid', 'paid_at' => now(), 'ledger_transaction_id' => $ledger->getKey()]);
+            return $expense->fresh(['account', 'ledgerTransaction', 'approver']);
+        });
+    }
+
+    public function reverseExpense(Expense|int $expense, int $actorId, string $reason): Expense
+    {
+        return DB::transaction(function () use ($expense, $actorId, $reason): Expense {
+            $expense = Expense::query()->whereKey($expense instanceof Expense ? $expense->getKey() : $expense)->lockForUpdate()->firstOrFail();
+            if ($expense->status !== 'paid' || ! $expense->ledger_transaction_id) throw new InvalidArgumentException('Only paid expenses with a ledger entry can be reversed.');
+            if (trim($reason) === '') throw new InvalidArgumentException('A reversal reason is required.');
+            $original = FinancialTransaction::query()->whereKey($expense->ledger_transaction_id)->lockForUpdate()->firstOrFail();
+            if ($original->status !== 'posted') throw new InvalidArgumentException('This expense ledger entry has already been reversed.');
+            $reversal = $this->postOnce(FinancialAccount::findOrFail($original->account_id), 'expense_reversal', 'credit', (float) $original->amount, $expense->expense_number, $reason, now(), Expense::class, $expense->getKey(), $actorId, ['expense_id' => $expense->getKey(), 'reverses' => $original->transaction_number]);
+            $original->update(['status' => 'reversed', 'reversed_at' => now(), 'reversal_transaction_id' => $reversal->getKey()]);
+            $expense->update(['status' => 'reversed', 'reversed_by' => $actorId, 'reversed_at' => now(), 'reversal_reason' => $reason, 'reversal_transaction_id' => $reversal->getKey()]);
+            return $expense->fresh(['account', 'ledgerTransaction', 'reverser']);
+        });
+    }
+
+    public function postPaymentRefund(PaymentRefund $refund, ?int $actorId = null): FinancialTransaction
+    {
+        $account = FinancialAccount::query()->whereKey($refund->account_id)->where('is_active', true)->firstOrFail();
+        return $this->postOnce($account, 'guest_refund', 'debit', (float) $refund->amount, $refund->refund_reference, $refund->reason, $refund->refunded_at, PaymentRefund::class, $refund->getKey(), $actorId ?: $refund->refunded_by, ['payment_id' => $refund->payment_id, 'refund_id' => $refund->getKey()]);
     }
 
     public function createTransfer(array $data, int $actorId): FundTransfer
@@ -111,7 +174,14 @@ class FinanceService
             $existing = FinancialTransaction::query()->where('source_type', $sourceType)->where('source_id', $sourceId)->where('transaction_type', $type)->where('direction', $direction)->where('status', 'posted')->first();
             if ($existing) return $existing;
         }
-        return FinancialTransaction::create(['transaction_number' => $this->nextNumber('transaction', 'FIN-'), 'account_id' => $account->getKey(), 'transaction_type' => $type, 'direction' => $direction, 'amount' => $this->amount($amount), 'currency' => $account->currency, 'reference' => $reference, 'description' => $description, 'transaction_date' => $date ?: now(), 'source_type' => $sourceType, 'source_id' => $sourceId, 'created_by' => $actorId, 'status' => 'posted', 'metadata' => $metadata]);
+        try {
+            return FinancialTransaction::create(['transaction_number' => $this->nextNumber('transaction', 'FIN-'), 'account_id' => $account->getKey(), 'transaction_type' => $type, 'direction' => $direction, 'amount' => $this->amount($amount), 'currency' => $account->currency, 'reference' => $reference, 'description' => $description, 'transaction_date' => $date ?: now(), 'source_type' => $sourceType, 'source_id' => $sourceId, 'created_by' => $actorId, 'status' => 'posted', 'metadata' => $metadata]);
+        } catch (\Illuminate\Database\QueryException $exception) {
+            if ($sourceType && $sourceId && $type !== 'transfer') {
+                return FinancialTransaction::query()->where('source_type', $sourceType)->where('source_id', $sourceId)->where('transaction_type', $type)->where('direction', $direction)->where('status', 'posted')->firstOrFail();
+            }
+            throw $exception;
+        }
     }
 
     private function nextNumber(string $key, string $prefix): string

@@ -7,12 +7,15 @@ use App\Events\PaymentReceived;
 use App\Models\Client;
 use App\Models\Floor;
 use App\Models\PaymentMethod;
+use App\Models\FinancialTransaction;
+use App\Models\FinancialAccount;
 use App\Models\Reservation;
 use App\Models\Room;
 use App\Models\RoomCategory;
 use App\Models\RoomType;
 use App\Models\User;
 use App\Services\PaymentService;
+use App\Support\CurrencyFormatter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Event;
@@ -64,8 +67,33 @@ class PaymentsTest extends TestCase
         Event::assertDispatchedTimes(PaymentReceived::class, 1);
     }
 
+    public function test_partial_and_full_refunds_reduce_folio_and_post_money_out_once(): void
+    {
+        [$reservation, $user] = $this->reservation();
+        $payment = app(PaymentService::class)->post($reservation, ['amount' => 100, 'method' => 'cash', 'transaction_date' => now()], $user->id);
+
+        $refund = app(PaymentService::class)->refund($payment, ['amount' => 20, 'method' => 'cash', 'reason' => 'Guest correction'], $user);
+        $this->assertSame('20.00', (string) $refund->amount);
+        $this->assertSame(PaymentStatus::Paid, $payment->fresh()->status);
+        $this->assertSame(80.0, $reservation->fresh()->paidAmount());
+
+        app(PaymentService::class)->refund($payment, ['amount' => 80, 'method' => 'cash', 'reason' => 'Guest cancellation'], $user);
+        $this->assertSame(PaymentStatus::Refunded, $payment->fresh()->status);
+        $this->assertSame(0.0, $reservation->fresh()->paidAmount());
+        $this->assertSame(2, FinancialTransaction::where('source_type', \App\Models\PaymentRefund::class)->count());
+        $this->assertSame(300.0, $reservation->fresh()->balance());
+        $invoiceHtml = view('invoices.partials.document', ['invoice' => $payment->invoice->load(['payment.refunds', 'payment.reservation.room.roomType', 'payment.client']), 'formatter' => app(CurrencyFormatter::class), 'property' => null])->render();
+        $this->assertStringContainsString('Payment refund', $invoiceHtml);
+        $this->assertStringContainsString($refund->refund_reference, $invoiceHtml);
+
+        $this->expectException(InvalidArgumentException::class);
+        app(PaymentService::class)->refund($payment, ['amount' => 1, 'method' => 'cash', 'reason' => 'Over refund'], $user);
+    }
+
     private function reservation(): array
     {
+        FinancialAccount::create(['name' => 'Cash', 'code' => 'cash', 'type' => 'cash', 'currency' => 'USD', 'is_active' => true]);
+        FinancialAccount::create(['name' => 'Card Clearing', 'code' => 'card_clearing', 'type' => 'card_clearing', 'currency' => 'USD', 'is_active' => true]);
         PaymentMethod::create(['code' => 'cash', 'name' => 'Cash', 'is_active' => true, 'sort_order' => 1]);
         PaymentMethod::create(['code' => 'card', 'name' => 'Card', 'is_active' => true, 'sort_order' => 2]);
         $user = User::create(['name' => 'Finance User', 'username' => 'finance', 'email' => 'finance@example.test', 'password' => Hash::make('secret')]);
