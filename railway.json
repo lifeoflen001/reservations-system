@@ -6,8 +6,7 @@
   },
   "deploy": {
     "preDeployCommand": [
-      "php artisan migrate --force",
-      "php artisan db:seed --class=RbacSeeder --force"
+      "php artisan migrate --force && php artisan db:seed --class=RbacSeeder --force"
     ],
     "healthcheckPath": "/login",
     "healthcheckTimeout": 100,
