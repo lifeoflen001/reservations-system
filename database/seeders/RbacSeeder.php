@@ -35,6 +35,18 @@ class RbacSeeder extends Seeder
             $role->permissions()->syncWithoutDetaching($permissions->only($template['permissions'])->pluck('id'));
         }
 
+        // Imported finance-officer roles are administrator-created roles, so
+        // preserve every existing permission while ensuring they can open the
+        // Finance workspace and its read/reconciliation surfaces.
+        $financeOfficer = Role::query()->where('name', 'finance_officer')->first();
+        if ($financeOfficer && ! $financeOfficer->is_system) {
+            $financeOfficer->permissions()->syncWithoutDetaching($permissions->only([
+                'finance.view', 'finance.accounts.view', 'finance.payments.view',
+                'finance.expenses.view', 'finance.petty_cash.manage',
+                'finance.reconcile', 'finance.reports.view',
+            ])->pluck('id'));
+        }
+
         // Rename only untouched application defaults. Custom administrator
         // labels remain unchanged.
         Role::query()->where('name', 'front_desk')->where('is_system', true)->whereIn('label', ['Front Desk / Reception', 'Front Office'])->update(['label' => 'Front Office']);
