@@ -24,14 +24,36 @@ class FinanceController extends Controller
 {
     public function __construct(private readonly FinanceService $finance) {}
 
-    public function overview(CurrencyFormatter $formatter)
+    public function overview(Request $request, CurrencyFormatter $formatter)
     {
         $this->allow('finance.view');
         $accounts = $this->accountCollection();
         $today = now()->startOfDay();
         $moneyIn = FinancialTransaction::query()->where('direction', 'credit')->whereIn('status', ['posted', 'reversed'])->whereBetween('transaction_date', [$today, $today->copy()->endOfDay()])->sum('amount');
         $moneyOut = FinancialTransaction::query()->where('direction', 'debit')->whereIn('status', ['posted', 'reversed'])->whereBetween('transaction_date', [$today, $today->copy()->endOfDay()])->sum('amount');
-        return view('finance.overview', ['accounts' => $accounts, 'formatter' => $formatter, 'moneyIn' => $moneyIn, 'moneyOut' => $moneyOut, 'net' => round($moneyIn - $moneyOut, 2), 'recent' => FinancialTransaction::with(['account', 'creator'])->whereIn('status', ['posted', 'reversed'])->latest('transaction_date')->limit(12)->get(), 'outstanding' => app(\App\Services\FinancialService::class)->outstandingBalance()]);
+        $period = in_array($request->input('period'), ['today', '7', '30', 'custom'], true) ? $request->input('period') : '30';
+        $flowStart = match ($period) {
+            'today' => now()->startOfDay(),
+            '7' => now()->subDays(6)->startOfDay(),
+            'custom' => $request->date('from')?->startOfDay() ?? now()->subDays(29)->startOfDay(),
+            default => now()->subDays(29)->startOfDay(),
+        };
+        $flowEnd = $period === 'custom' && $request->date('to') ? $request->date('to')->endOfDay() : now()->endOfDay();
+        if ($flowEnd->lt($flowStart)) [$flowStart, $flowEnd] = [$flowEnd->copy()->startOfDay(), $flowStart->copy()->endOfDay()];
+        $flowDays = min(90, max(1, $flowStart->diffInDays($flowEnd) + 1));
+        $flowRows = FinancialTransaction::query()->whereIn('status', ['posted', 'reversed'])->whereBetween('transaction_date', [$flowStart, $flowEnd])->get(['transaction_date', 'direction', 'amount']);
+        $cashFlow = collect(range(0, $flowDays - 1))->map(function (int $offset) use ($flowRows, $flowStart): array {
+            $date = $flowStart->copy()->addDays($offset);
+            $rows = $flowRows->filter(fn (FinancialTransaction $row) => $row->transaction_date?->isSameDay($date));
+            $in = round((float) $rows->where('direction', 'credit')->sum('amount'), 2);
+            $out = round((float) $rows->where('direction', 'debit')->sum('amount'), 2);
+            return ['date' => $date->format('M j'), 'money_in' => $in, 'money_out' => $out, 'net' => round($in - $out, 2)];
+        });
+        $lastMovements = FinancialTransaction::query()->whereIn('status', ['posted', 'reversed'])->whereIn('account_id', $accounts->pluck('id'))->latest('transaction_date')->get(['account_id', 'transaction_date'])->groupBy('account_id')->map(fn ($rows) => $rows->first()->transaction_date);
+        $pendingReconciliations = FinanceReconciliation::query()->where('status', 'pending')->count();
+        $pendingApprovals = Expense::query()->where('status', 'pending_approval')->count();
+        $cashVariance = DailyCashClose::query()->where('variance', '<>', 0)->latest('close_date')->first();
+        return view('finance.overview', ['accounts' => $accounts, 'formatter' => $formatter, 'moneyIn' => $moneyIn, 'moneyOut' => $moneyOut, 'net' => round($moneyIn - $moneyOut, 2), 'recent' => FinancialTransaction::with(['account', 'creator'])->whereIn('status', ['posted', 'reversed'])->latest('transaction_date')->limit(12)->get(), 'outstanding' => app(\App\Services\FinancialService::class)->outstandingBalance(), 'cashFlow' => $cashFlow, 'lastMovements' => $lastMovements, 'pendingReconciliations' => $pendingReconciliations, 'pendingApprovals' => $pendingApprovals, 'cashVariance' => $cashVariance, 'period' => $period, 'flowFrom' => $flowStart->toDateString(), 'flowTo' => $flowEnd->toDateString()]);
     }
 
     public function transactions(Request $request, CurrencyFormatter $formatter)
@@ -172,7 +194,14 @@ class FinanceController extends Controller
         $this->allow('finance.petty_cash.manage');
         $account = FinancialAccount::query()->where('code', 'petty_cash')->firstOrFail();
         $transactions = $account->transactions()->whereIn('status', ['posted', 'reversed'])->latest('transaction_date')->paginate(TablePagination::perPage(request(), 20))->withQueryString();
-        return view('finance.petty-cash', ['account' => $account, 'transactions' => $transactions, 'balance' => $this->finance->balance($account), 'formatter' => $formatter, 'closes' => DailyCashClose::where('account_id', $account->id)->latest('close_date')->limit(10)->get()]);
+        $dayStart = now()->startOfDay();
+        $dayEnd = now()->endOfDay();
+        $dayTransactions = $account->transactions()->whereIn('status', ['posted', 'reversed'])->whereBetween('transaction_date', [$dayStart, $dayEnd]);
+        $cashInToday = (float) (clone $dayTransactions)->where('direction', 'credit')->sum('amount');
+        $cashOutToday = (float) (clone $dayTransactions)->where('direction', 'debit')->sum('amount');
+        $openingCash = (float) $account->transactions()->whereIn('status', ['posted', 'reversed'])->where('transaction_date', '<', $dayStart)->selectRaw("COALESCE(SUM(CASE WHEN direction = 'credit' THEN amount ELSE -amount END), 0) as balance")->value('balance');
+        $lastClose = DailyCashClose::where('account_id', $account->id)->latest('close_date')->first();
+        return view('finance.petty-cash', ['account' => $account, 'transactions' => $transactions, 'balance' => $this->finance->balance($account), 'formatter' => $formatter, 'closes' => DailyCashClose::where('account_id', $account->id)->latest('close_date')->limit(10)->get(), 'cashInToday' => round($cashInToday, 2), 'cashOutToday' => round($cashOutToday, 2), 'openingCash' => round($openingCash, 2), 'expectedCash' => round($openingCash + $cashInToday - $cashOutToday, 2), 'lastClose' => $lastClose]);
     }
 
     public function reconciliation(CurrencyFormatter $formatter)

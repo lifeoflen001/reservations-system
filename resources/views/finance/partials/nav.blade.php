@@ -1,4 +1,4 @@
-<nav class="ui-tabs page-tabs" aria-label="Finance sections">
+<nav class="ui-tabs page-tabs finance-tabs" aria-label="Finance sections">
     <a class="ui-tab {{ request()->routeIs('finance.overview') ? 'is-active' : '' }}" href="{{ route('finance.overview') }}">Overview</a>
     <a class="ui-tab {{ request()->routeIs('finance.transactions') ? 'is-active' : '' }}" href="{{ route('finance.transactions') }}">Transactions</a>
     <a class="ui-tab {{ request()->routeIs('finance.expenses*') ? 'is-active' : '' }}" href="{{ route('finance.expenses') }}">Expenses</a>

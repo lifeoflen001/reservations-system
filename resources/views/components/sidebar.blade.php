@@ -15,16 +15,13 @@
         'Operations' => [
             ['label' => 'Clients', 'route' => 'clients.*', 'icon' => 'users'],
             ['label' => 'Rooms', 'route' => 'rooms.*', 'icon' => 'bed'],
-            ['label' => 'Tasks', 'route' => 'tasks.*', 'icon' => 'check-square'],
             ['label' => 'Housekeeping', 'route' => 'housekeeping.*', 'icon' => 'broom'],
             ['label' => 'Maintenance', 'route' => 'maintenance.*', 'icon' => 'wrench'],
-            ['label' => 'POS', 'route' => 'pos.*', 'href' => 'pos.terminal', 'icon' => 'card'],
         ],
         'Management' => [
-            ['label' => 'Announcements', 'route' => 'announcements.*', 'icon' => 'bell'],
             ['label' => 'Staff', 'route' => 'staff.*', 'icon' => 'users'],
             ['label' => 'Payments', 'route' => 'payments.*', 'icon' => 'card'],
-            ['label' => 'Finance', 'route' => 'finance.*', 'icon' => 'currency'],
+            ['label' => 'Finance', 'route' => 'finance.*', 'href' => 'finance.overview', 'icon' => 'currency'],
             ['label' => 'Reports', 'route' => 'reports.*', 'icon' => 'chart'],
         ],
         'System' => [
@@ -37,10 +34,8 @@
 @endphp
 
 <aside class="sidebar" data-sidebar aria-label="Primary navigation">
-    <div class="sidebar__brand">
-        <x-app-logo />
-    </div>
-    <button class="sidebar__close" type="button" data-sidebar-close aria-label="Close navigation" data-tooltip="Close navigation"><x-ui.icon name="plus" size="20" /></button>
+
+    <button class="sidebar__close" type="button" data-sidebar-close aria-label="Close navigation"><x-ui.icon name="plus" size="20" /></button>
 
     <nav class="sidebar__nav">
         @foreach ($groups as $group => $items)
@@ -52,11 +47,8 @@
                         'Room Planning' => Gate::allows('room_planning.view'),
                         'Clients' => Gate::allows('viewAny', Client::class),
                         'Rooms' => Gate::allows('viewAny', Room::class),
-                        'Tasks' => Gate::allows('viewAny', \App\Models\Task::class),
                         'Housekeeping' => Gate::allows('viewAny', HousekeepingTask::class),
                         'Maintenance' => Gate::allows('viewAny', MaintenanceTask::class),
-                        'POS' => auth()->user()->hasPermission('pos.access') || auth()->user()->hasPermission('pos.sell'),
-                        'Announcements' => auth()->user()->hasPermission('announcements.view') || auth()->user()->hasPermission('announcements.manage'),
                         'Staff' => Gate::allows('viewAny', User::class),
                         'Payments' => auth()->user()->hasPermission('payments.view') || auth()->user()->hasPermission('payments.manage'),
                         'Finance' => auth()->user()->hasPermission('finance.view'),
@@ -72,7 +64,7 @@
                     @foreach ($visibleItems as $item)
                         @php($active = request()->routeIs($item['route']))
                         @php($hrefRoute = $item['href'] ?? str_replace('.*', '.index', $item['route']))
-                        <a class="nav-item {{ $active ? 'is-active' : '' }}" href="{{ Route::has($hrefRoute) ? route($hrefRoute) : '#' }}" aria-label="{{ $item['label'] }}" @if($active) aria-current="page" @endif data-tooltip="{{ $item['label'] }}">
+                        <a class="nav-item {{ $active ? 'is-active' : '' }}" href="{{ Route::has($hrefRoute) ? route($hrefRoute) : '#' }}" aria-label="{{ $item['label'] }}" title="{{ $item['label'] }}" @if($active) aria-current="page" @endif data-tooltip="{{ $item['label'] }}">
                             <x-ui.icon :name="$item['icon']" size="19" />
                             <span>{{ $item['label'] }}</span>
                         </a>
@@ -83,7 +75,7 @@
     </nav>
 
     <div class="sidebar__footer">
-        <div class="edition-row"><span>Edition</span><x-ui.badge variant="brand">{{ $edition }}</x-ui.badge></div>
+       <!-- <div class="edition-row"><span>Edition</span><x-ui.badge variant="brand">{{ $edition }}</x-ui.badge></div> -->
         <small>v{{ config('app.version', '43.1.0') }}</small>
     </div>
 </aside>
