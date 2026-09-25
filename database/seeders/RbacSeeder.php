@@ -10,6 +10,7 @@ class RbacSeeder extends Seeder
 {
     public function run(): void
     {
+        $this->call(FinanceReferenceSeeder::class);
         $permissions = collect(config('hotel.permissions', []))->mapWithKeys(fn (string $name) => [
             $name => Permission::firstOrCreate(['name' => $name], ['label' => str($name)->replace('.', ' ')->headline()]),
         ]);
@@ -26,7 +27,7 @@ class RbacSeeder extends Seeder
             'front_desk' => ['label' => 'Front Desk / Reception', 'permissions' => ['dashboard.view', 'clients.view', 'clients.create', 'clients.update', 'reservations.view', 'reservations.create', 'reservations.update', 'reservations.checkin', 'reservations.checkout', 'room_planning.view', 'rooms.view', 'tasks.view', 'tasks.create', 'tasks.update', 'tasks.comment', 'payments.view', 'payments.create', 'invoices.view', 'invoices.print']],
             'housekeeper' => ['label' => 'Housekeeper', 'permissions' => ['dashboard.view', 'rooms.view', 'housekeeping.view', 'housekeeping.complete', 'tasks.view', 'tasks.comment', 'tasks.complete', 'tasks.track_time']],
             'maintenance' => ['label' => 'Maintenance', 'permissions' => ['dashboard.view', 'rooms.view', 'maintenance.view', 'maintenance.create', 'maintenance.update', 'maintenance.complete', 'tasks.view', 'tasks.comment', 'tasks.complete', 'tasks.track_time']],
-            'finance' => ['label' => 'Finance / Accounts', 'permissions' => ['dashboard.view', 'clients.view', 'reservations.view', 'payments.view', 'payments.create', 'payments.update', 'payments.void', 'payments.print', 'payments.export', 'invoices.view', 'invoices.print', 'invoices.download', 'reports.view', 'reports.export']],
+            'finance' => ['label' => 'Finance / Accounts', 'permissions' => ['dashboard.view', 'clients.view', 'reservations.view', 'payments.view', 'payments.create', 'payments.update', 'payments.void', 'payments.print', 'payments.export', 'invoices.view', 'invoices.print', 'invoices.download', 'reports.view', 'reports.export', 'finance.view', 'finance.accounts.view', 'finance.accounts.manage', 'finance.payments.view', 'finance.payments.create', 'finance.expenses.view', 'finance.expenses.create', 'finance.transfers.create', 'finance.petty_cash.manage', 'finance.reconcile', 'finance.reports.view']],
             'cashier' => ['label' => 'POS Cashier', 'permissions' => ['dashboard.view', 'pos.access', 'pos.sell', 'pos.view_orders', 'pos.charge_room', 'pos.products.view', 'pos.categories.manage', 'pos.shifts.open', 'pos.shifts.close', 'pos.receipts.view']],
         ];
         foreach ($templates as $name => $template) {

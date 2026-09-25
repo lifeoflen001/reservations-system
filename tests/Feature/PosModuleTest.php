@@ -61,6 +61,7 @@ class PosModuleTest extends TestCase
         $response->assertOk()->assertJsonPath('order.total', 30000);
         $order = PosOrder::firstOrFail();
         $this->assertSame(8.0, (float) $this->product->fresh()->stock_quantity);
+        $this->assertDatabaseHas('financial_transactions', ['source_type' => \App\Models\PosPayment::class, 'transaction_type' => 'pos_sale', 'direction' => 'credit', 'amount' => 30000]);
         $this->actingAs($this->admin)->get(route('pos.receipts.show', $order))->assertOk()->assertSee($order->order_number);
         $this->actingAs($this->admin)->get(route('pos.receipts.download', $order))->assertOk()->assertHeader('Content-Type', 'application/pdf')->assertHeader('Content-Disposition', 'attachment; filename="'.$order->order_number.'.pdf"');
         $this->actingAs($this->admin)->postJson(route('pos.checkout'), [
@@ -90,6 +91,7 @@ class PosModuleTest extends TestCase
         $this->assertSame(115000.0, app(FinancialService::class)->totalDue($reservation));
         $this->assertSame(115000.0, app(FinancialService::class)->balance($reservation));
         $this->assertDatabaseHas('pos_room_charges', ['order_id' => $order->id, 'reservation_id' => $reservation->id, 'status' => 'active', 'amount' => 15000]);
+        $this->assertDatabaseMissing('financial_transactions', ['source_type' => \App\Models\PosPayment::class, 'source_id' => $order->payments()->value('id')]);
 
         $this->actingAs($this->admin)->post(route('pos.orders.void', $order), ['reason' => 'Duplicate test sale'])->assertRedirect();
         $this->assertSame(100000.0, app(FinancialService::class)->totalDue($reservation));

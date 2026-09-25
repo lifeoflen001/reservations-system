@@ -52,6 +52,7 @@ class StaffController extends Controller
             ->when($request->filled('role_id') && $request->input('role_id') !== 'all', fn ($q) => $q->where('role_id', $request->integer('role_id')))
             ->when($request->filled('department_id') && $request->input('department_id') !== 'all', fn ($q) => $q->where('department_id', $request->integer('department_id')))
             ->when(in_array($request->input('status'), ['active', 'inactive'], true), fn ($q) => $q->where('is_active', $request->input('status') === 'active'))
+            ->when($request->input('activity') === 'recent', fn ($q) => $q->whereNotNull('last_login_at')->where('last_login_at', '>=', now()->subDay()))
             ->orderBy($sortColumn, $sortDirection)->orderBy('id')
             ->paginate(TablePagination::perPage($request, 15))->withQueryString();
 

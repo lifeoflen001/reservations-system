@@ -137,6 +137,22 @@ class MiniDashboardMetricsTest extends TestCase
         $this->assertSame(1, $this->metric($metrics, 'Departures today')['value']);
     }
 
+    public function test_mini_dashboard_cards_are_navigable(): void
+    {
+        foreach ([
+            app(MiniDashboardMetricsService::class)->staff(),
+            app(MiniDashboardMetricsService::class)->housekeeping(),
+            app(MiniDashboardMetricsService::class)->maintenance(),
+            app(MiniDashboardMetricsService::class)->payments(),
+            app(MiniDashboardMetricsService::class)->clients(),
+            app(MiniDashboardMetricsService::class)->reservations(),
+        ] as $metrics) {
+            foreach ($metrics as $metric) {
+                $this->assertNotEmpty($metric['href'] ?? null, $metric['label'].' should link to its filtered table.');
+            }
+        }
+    }
+
     private function metric(array $metrics, string $label): array
     {
         return collect($metrics)->firstWhere('label', $label);

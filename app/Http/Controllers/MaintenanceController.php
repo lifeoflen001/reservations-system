@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\TaskStatus;
+use App\Enums\TaskPriority;
 use App\Http\Requests\Maintenance\StoreMaintenanceTaskRequest;
 use App\Models\MaintenanceTask;
 use App\Models\Department;
@@ -22,7 +23,8 @@ class MaintenanceController extends Controller
     public function index(Request $request, MiniDashboardMetricsService $metricsService)
     {
         Gate::authorize('viewAny', MaintenanceTask::class);
-        $tasks = MaintenanceTask::with(['room', 'assignee'])->when($request->filled('status') && (string) $request->string('status') !== 'all', fn ($q) => $q->where('status', (string) $request->string('status')))->when($request->boolean('overdue'), function ($q) {
+        $status = (string) $request->string('status', 'all');
+        $tasks = MaintenanceTask::with(['room', 'assignee'])->when($status === 'open', fn ($q) => $q->whereNotIn('status', [TaskStatus::Completed->value, TaskStatus::Cancelled->value]))->when($status !== '' && ! in_array($status, ['all', 'open'], true), fn ($q) => $q->where('status', $status))->when($request->input('priority') === 'attention', fn ($q) => $q->whereIn('priority', [TaskPriority::High->value, TaskPriority::Urgent->value])->whereNotIn('status', [TaskStatus::Completed->value, TaskStatus::Cancelled->value]))->when($request->boolean('overdue'), function ($q) {
             $q->whereNotIn('status', [TaskStatus::Completed->value, TaskStatus::Cancelled->value])->whereNotNull('due_at')->where('due_at', '<', now(app(PropertySettingsService::class)->timezone()));
         })->orderByRaw('due_at is null')->orderBy('due_at')->latest()->orderByDesc('maintenance_tasks.id')->paginate(TablePagination::perPage($request, 25))->withQueryString();
         $maintenanceDepartmentId = Department::where('name', 'Maintenance')->value('id');

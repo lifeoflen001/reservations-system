@@ -45,7 +45,8 @@ class TaskController extends Controller
                 ->orWhereHas('assignees', fn ($assignee) => $assignee->where('name', 'like', $like)->orWhere('first_name', 'like', $like)->orWhere('last_name', 'like', $like))
                 ->orWhereHas('department', fn ($department) => $department->where('name', 'like', $like));
         });
-        $query->when($request->filled('status') && $request->input('status') !== 'all', fn ($q) => $q->where('status', $request->input('status')))
+        $query->when($request->input('status') === 'workload', fn ($q) => $q->whereIn('status', [TaskStatus::New->value, TaskStatus::Pending->value, TaskStatus::InProgress->value, TaskStatus::OnHold->value]))
+            ->when($request->filled('status') && ! in_array($request->input('status'), ['all', 'workload'], true), fn ($q) => $q->where('status', $request->input('status')))
             ->when($request->filled('priority') && $request->input('priority') !== 'all', fn ($q) => $q->where('priority', $request->input('priority')))
             ->when($request->filled('department_id') && $request->input('department_id') !== 'all', fn ($q) => $q->where('department_id', $request->integer('department_id')))
             ->when($request->filled('assignee_id') && $request->input('assignee_id') !== 'all', fn ($q) => $q->whereHas('assignees', fn ($assignee) => $assignee->whereKey($request->integer('assignee_id'))))

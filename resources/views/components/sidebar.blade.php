@@ -24,6 +24,7 @@
             ['label' => 'Announcements', 'route' => 'announcements.*', 'icon' => 'bell'],
             ['label' => 'Staff', 'route' => 'staff.*', 'icon' => 'users'],
             ['label' => 'Payments', 'route' => 'payments.*', 'icon' => 'card'],
+            ['label' => 'Finance', 'route' => 'finance.*', 'icon' => 'currency'],
             ['label' => 'Reports', 'route' => 'reports.*', 'icon' => 'chart'],
         ],
         'System' => [
@@ -58,6 +59,7 @@
                         'Announcements' => auth()->user()->hasPermission('announcements.view') || auth()->user()->hasPermission('announcements.manage'),
                         'Staff' => Gate::allows('viewAny', User::class),
                         'Payments' => auth()->user()->hasPermission('payments.view') || auth()->user()->hasPermission('payments.manage'),
+                        'Finance' => auth()->user()->hasPermission('finance.view'),
                         'Reports' => auth()->user()->hasPermission('reports.view') || auth()->user()->hasPermission('reports.manage'),
                         'Settings' => auth()->user()->hasPermission('settings.view') || auth()->user()->hasPermission('settings.manage'),
                         default => false,

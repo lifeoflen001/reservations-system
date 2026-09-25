@@ -24,6 +24,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             ReferenceDataSeeder::class,
             RbacSeeder::class,
+            FinanceReferenceSeeder::class,
             RoomCatalogSeeder::class,
         ]);
         if (app()->environment('local')) {

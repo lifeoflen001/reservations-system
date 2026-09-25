@@ -104,7 +104,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('dashboard.view', fn (User $user): bool => $user->hasPermission('dashboard.view'));
         Gate::define('reports.view', fn (User $user): bool => $user->hasPermission('reports.view'));
         Gate::define('reports.export', fn (User $user): bool => $user->hasPermission('reports.export'));
-        foreach (['pos.access', 'pos.sell', 'pos.charge_room', 'pos.discount', 'pos.void', 'pos.refund', 'pos.products.view', 'pos.products.manage', 'pos.categories.manage', 'pos.outlets.manage', 'pos.shifts.open', 'pos.shifts.close', 'pos.shifts.view_all', 'pos.reports.view', 'pos.receipts.view', 'pos.manage'] as $permission) {
+        foreach (['pos.access', 'pos.sell', 'pos.charge_room', 'pos.discount', 'pos.void', 'pos.refund', 'pos.products.view', 'pos.products.manage', 'pos.categories.manage', 'pos.outlets.manage', 'pos.shifts.open', 'pos.shifts.close', 'pos.shifts.view_all', 'pos.reports.view', 'pos.receipts.view', 'pos.manage', 'finance.view', 'finance.accounts.view', 'finance.accounts.manage', 'finance.payments.view', 'finance.payments.create', 'finance.expenses.view', 'finance.expenses.create', 'finance.expenses.approve', 'finance.transfers.create', 'finance.transfers.approve', 'finance.petty_cash.manage', 'finance.bank.manage', 'finance.reconcile', 'finance.refunds', 'finance.adjustments', 'finance.reports.view'] as $permission) {
             Gate::define($permission, fn (User $user) => $user->hasPermission($permission));
         }
         Gate::before(function (User $user): ?bool {

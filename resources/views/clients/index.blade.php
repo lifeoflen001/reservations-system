@@ -12,6 +12,7 @@
 
 <form class="filter-toolbar reservation-filters" method="GET" action="{{ route('clients.index') }}">
     <x-form.input name="search" value="{{ request('search') }}" placeholder="Search" aria-label="Search clients" />
+    <x-form.select name="scope" aria-label="Filter client segment"><option value="all">All client segments</option><option value="in_house" @selected(request('scope','all') === 'in_house')>In-house guests</option><option value="upcoming" @selected(request('scope') === 'upcoming')>Upcoming guests</option><option value="returning" @selected(request('scope') === 'returning')>Returning guests</option></x-form.select>
     <x-form.select name="status" aria-label="Filter by status"><option value="all">All</option><option value="active" @selected(request('status','all') === 'active')>Active</option><option value="inactive" @selected(request('status') === 'inactive')>Inactive</option></x-form.select>
     <x-form.select name="sort" aria-label="Sort clients"><option value="created" @selected(request('sort','created') === 'created')>Newest first</option><option value="name" @selected(request('sort') === 'name')>Name</option><option value="stays" @selected(request('sort') === 'stays')>Most stays</option><option value="spent" @selected(request('sort') === 'spent')>Highest spend</option></x-form.select>
     <button class="ui-button ui-button--info" type="submit"><x-ui.icon name="filter" size="16" /> Filter</button><a class="ui-button ui-button--secondary" href="{{ route('clients.index') }}">Reset</a>

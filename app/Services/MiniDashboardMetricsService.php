@@ -39,10 +39,10 @@ class MiniDashboardMetricsService
         $recent = (int) ($summary->recent ?? 0);
 
         return [
-            $this->card('Total staff', $total, 'users', 'info', "Across {$departments} active departments"),
-            $this->card('Active staff', $active, 'check', 'success', ($total - $active).' inactive'),
-            $this->card('Departments', $departments, 'building', 'info', 'Operational departments'),
-            $this->card('Recently active', $recent, 'history', 'warning', 'Logged in during the last 24 hours'),
+            $this->card('Total staff', $total, 'users', 'info', "Across {$departments} active departments", route('staff.index', ['tab' => 'staff'])),
+            $this->card('Active staff', $active, 'check', 'success', ($total - $active).' inactive', route('staff.index', ['tab' => 'staff', 'status' => 'active'])),
+            $this->card('Departments', $departments, 'building', 'info', 'Operational departments', route('staff.index', ['tab' => 'departments'])),
+            $this->card('Recently active', $recent, 'history', 'warning', 'Logged in during the last 24 hours', route('staff.index', ['tab' => 'staff', 'activity' => 'recent'])),
         ];
     }
 
@@ -61,10 +61,10 @@ class MiniDashboardMetricsService
         $total = (int) ($summary->active ?? 0) + $completedToday;
 
         return [
-            $this->card('Total tasks', $total, 'broom', 'info', 'Current operational workload'),
-            $this->card('Pending cleaning', $pending, 'history', 'warning', 'Rooms waiting', route('housekeeping.index', ['status' => 'pending'])),
+            $this->card('Total tasks', $total, 'broom', 'info', 'Current operational workload', route('housekeeping.index', ['status' => 'workload'])),
+            $this->card('Pending cleaning', $pending, 'history', 'warning', 'Rooms waiting', route('housekeeping.index', ['status' => 'waiting'])),
             $this->card('In progress', $inProgress, 'broom', 'info', 'Being serviced', route('housekeeping.index', ['status' => 'in_progress'])),
-            $this->card('Completed today', $completedToday, 'check', 'success', 'Rooms prepared'),
+            $this->card('Completed today', $completedToday, 'check', 'success', 'Rooms prepared', route('housekeeping.index', ['status' => 'completed_today'])),
         ];
     }
 
@@ -82,9 +82,9 @@ class MiniDashboardMetricsService
         $overdue = (int) ($summary->overdue ?? 0);
 
         return [
-            $this->card('Open issues', $openCount, 'wrench', 'info', 'Not completed or cancelled'),
+            $this->card('Open issues', $openCount, 'wrench', 'info', 'Not completed or cancelled', route('maintenance.index', ['status' => 'open'])),
             $this->card('In progress', $inProgress, 'wrench', 'warning', 'Current repair work', route('maintenance.index', ['status' => 'in_progress'])),
-            $this->card('High priority', $highPriority, 'alert', 'warning', 'Requires attention'),
+            $this->card('High priority', $highPriority, 'alert', 'warning', 'Requires attention', route('maintenance.index', ['priority' => 'attention'])),
             $this->card('Overdue', $overdue, 'alert', 'danger', 'Past due and still open', route('maintenance.index', ['overdue' => 1])),
         ];
     }
@@ -101,10 +101,10 @@ class MiniDashboardMetricsService
         $outstanding = $this->financials->outstandingBalance();
 
         return [
-            $this->card('Total collected', $this->currency->format($summary->total_collected ?? 0), 'currency', 'success', 'All successful payments'),
-            $this->card("Today's payments", $this->currency->format($summary->today_amount ?? 0), 'card', 'info', ((int) ($summary->today_transactions ?? 0)).' transactions'),
-            $this->card('Outstanding', $this->currency->format($outstanding), 'alert', 'danger', 'Open reservation balances'),
-            $this->card('Transactions', (int) ($summary->transactions ?? 0), 'document', 'info', $pending.' pending'),
+            $this->card('Total collected', $this->currency->format($summary->total_collected ?? 0), 'currency', 'success', 'All successful payments', route('payments.index', ['status' => 'paid'])),
+            $this->card("Today's payments", $this->currency->format($summary->today_amount ?? 0), 'card', 'info', ((int) ($summary->today_transactions ?? 0)).' transactions', route('payments.index', ['status' => 'paid', 'date' => 'today'])),
+            $this->card('Outstanding', $this->currency->format($outstanding), 'alert', 'danger', 'Open reservation balances', route('reservations.index', ['balance' => 'outstanding'])),
+            $this->card('Transactions', (int) ($summary->transactions ?? 0), 'document', 'info', $pending.' pending', route('payments.index', ['status' => 'paid'])),
         ];
     }
 
@@ -122,10 +122,10 @@ class MiniDashboardMetricsService
         $returning = Client::query()->whereIn('id', Reservation::query()->select('client_id')->whereNotNull('client_id')->whereIn('status', $qualifying)->groupBy('client_id')->havingRaw('COUNT(*) > 1'))->count();
 
         return [
-            $this->card('Total clients', $total, 'users', 'info', 'Guest profiles'),
-            $this->card('In-house guests', $inHouse, 'bed', 'success', 'Currently checked in'),
-            $this->card('Upcoming guests', $upcoming, 'calendar', 'warning', 'Future pending or confirmed stays'),
-            $this->card('Returning guests', $returning, 'history', 'info', 'Clients with 2 or more stays'),
+            $this->card('Total clients', $total, 'users', 'info', 'Guest profiles', route('clients.index')),
+            $this->card('In-house guests', $inHouse, 'bed', 'success', 'Currently checked in', route('clients.index', ['scope' => 'in_house'])),
+            $this->card('Upcoming guests', $upcoming, 'calendar', 'warning', 'Future pending or confirmed stays', route('clients.index', ['scope' => 'upcoming'])),
+            $this->card('Returning guests', $returning, 'history', 'info', 'Clients with 2 or more stays', route('clients.index', ['scope' => 'returning'])),
         ];
     }
 
@@ -143,10 +143,10 @@ class MiniDashboardMetricsService
         )->first();
 
         return [
-            $this->card('Total reservations', (int) ($summary->total ?? 0), 'calendar', 'info', 'Current valid bookings'),
-            $this->card('Arrivals today', (int) ($summary->arrivals ?? 0), 'arrow-right', 'warning', 'Expected arrivals today', route('reservations.index', ['from' => $this->now()->toDateString(), 'to' => $this->now()->toDateString()])),
-            $this->card('In-house', (int) ($summary->in_house ?? 0), 'bed', 'success', 'Guests currently staying'),
-            $this->card('Departures today', (int) ($summary->departures ?? 0), 'logout', 'info', 'Expected check-outs today'),
+            $this->card('Total reservations', (int) ($summary->total ?? 0), 'calendar', 'info', 'Current valid bookings', route('reservations.index', ['status' => 'active'])),
+            $this->card('Arrivals today', (int) ($summary->arrivals ?? 0), 'arrow-right', 'warning', 'Expected arrivals today', route('reservations.index', ['date' => 'arrivals_today'])),
+            $this->card('In-house', (int) ($summary->in_house ?? 0), 'bed', 'success', 'Guests currently staying', route('reservations.index', ['status' => 'checked_in'])),
+            $this->card('Departures today', (int) ($summary->departures ?? 0), 'logout', 'info', 'Expected check-outs today', route('reservations.index', ['date' => 'departures_today'])),
         ];
     }
 

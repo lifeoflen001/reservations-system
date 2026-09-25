@@ -14,7 +14,7 @@ use InvalidArgumentException;
 
 class PaymentService
 {
-    public function __construct(private readonly FinancialService $financials) {}
+    public function __construct(private readonly FinancialService $financials, private readonly FinanceService $finance) {}
 
     public function post(Reservation|int $reservation, array $attributes, ?int $createdBy = null): Payment
     {
@@ -65,6 +65,7 @@ class PaymentService
                 'status' => $status->value,
                 'created_by' => $createdBy,
             ]);
+            $this->finance->postPayment($payment, $createdBy);
 
             return $payment->load(['invoice', 'reservation.client', 'reservation.room.roomType', 'creator']);
         });
@@ -113,6 +114,7 @@ class PaymentService
 
         if ($wasPending && $payment->status === PaymentStatus::Paid) {
             event(new PaymentReceived($payment));
+            $this->finance->postPayment($payment, $actor->getKey());
         }
 
         return $payment;
@@ -140,6 +142,7 @@ class PaymentService
 
             return $payment->fresh(['invoice', 'reservation.client', 'creator', 'voider']);
         });
+        $this->finance->reverseSource(Payment::class, $payment->getKey(), $actor->getKey(), 'Payment voided: '.$reason);
         event(new PaymentVoided($payment));
 
         return $payment;

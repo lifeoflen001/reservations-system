@@ -18,6 +18,8 @@ use InvalidArgumentException;
 
 class PosOrderService
 {
+    public function __construct(private readonly FinanceService $finance) {}
+
     public function checkout(array $data, User $actor): PosOrder
     {
         return DB::transaction(function () use ($data, $actor): PosOrder {
@@ -66,6 +68,7 @@ class PosOrderService
                 $order->roomCharge()->create(['reservation_id' => $reservation->getKey(), 'client_id' => $reservation->client_id, 'room_id' => $reservation->room_id, 'amount' => $total, 'status' => 'active', 'posted_at' => now()]);
             }
             PosAudit::create(['event' => 'sale.completed', 'actor_id' => $actor->getKey(), 'order_id' => $order->getKey(), 'shift_id' => $shift?->getKey(), 'metadata' => ['total' => $total, 'payment_methods' => collect($payments)->pluck('method')->all()]]);
+            $this->finance->postPosOrder($order->fresh(['payments']), $actor->getKey());
             return $order->load(['items', 'payments', 'roomCharge', 'outlet', 'client', 'reservation.room']);
         });
     }
@@ -73,13 +76,14 @@ class PosOrderService
     public function void(PosOrder $order, User $actor, string $reason): PosOrder
     {
         return DB::transaction(function () use ($order, $actor, $reason): PosOrder {
-            $order = PosOrder::query()->with(['items.product', 'roomCharge'])->whereKey($order->getKey())->lockForUpdate()->firstOrFail();
+            $order = PosOrder::query()->with(['items.product', 'roomCharge', 'payments'])->whereKey($order->getKey())->lockForUpdate()->firstOrFail();
             if ($order->status === 'voided') throw new InvalidArgumentException('This transaction has already been voided.');
             if ($order->status !== 'completed') throw new InvalidArgumentException('Only completed sales can be voided.');
             $order->update(['status' => 'voided', 'voided_by' => $actor->getKey(), 'voided_at' => now(), 'void_reason' => $reason]);
             $order->payments()->update(['status' => 'voided']);
             $this->restoreStock($order);
             if ($order->roomCharge) $order->roomCharge->update(['status' => 'voided', 'voided_by' => $actor->getKey(), 'voided_at' => now(), 'void_reason' => $reason]);
+            foreach ($order->payments as $payment) $this->finance->reverseSource(PosPayment::class, $payment->getKey(), $actor->getKey(), 'POS sale voided: '.$reason);
             PosAudit::create(['event' => 'sale.voided', 'actor_id' => $actor->getKey(), 'order_id' => $order->getKey(), 'metadata' => ['reason' => $reason]]);
             return $order->fresh(['items', 'payments', 'roomCharge', 'outlet', 'cashier']);
         });
@@ -93,7 +97,8 @@ class PosOrderService
             $refunded = (float) $order->refunds->sum('amount');
             $amount = round($amount, 2);
             if ($amount <= 0 || $amount > (float) $order->total - $refunded) throw new InvalidArgumentException('Refund amount exceeds the remaining refundable balance.');
-            $order->refunds()->create(['amount' => $amount, 'reason' => $reason, 'refunded_by' => $actor->getKey(), 'approved_by' => $actor->hasPermission('pos.manage') ? $actor->getKey() : null, 'refunded_at' => now()]);
+            $refund = $order->refunds()->create(['amount' => $amount, 'reason' => $reason, 'refunded_by' => $actor->getKey(), 'approved_by' => $actor->hasPermission('pos.manage') ? $actor->getKey() : null, 'refunded_at' => now()]);
+            $this->finance->postPosRefund($order, $refund, $actor->getKey());
             if (round($amount + $refunded, 2) >= (float) $order->total) {
                 $order->update(['status' => 'refunded']);
                 $this->restoreStock($order);

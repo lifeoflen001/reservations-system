@@ -39,15 +39,15 @@ class HotelAnalyticsService
         $paymentContext = $includeFinancial ? 'Outstanding' : null;
 
         $metrics = [
-            ['label' => 'Reservations today', 'value' => (string) $reservationsToday, 'hint' => 'New bookings', 'icon' => 'calendar', 'tone' => 'info'],
-            ['label' => 'Check-ins today', 'value' => (string) $arrivalsToday, 'hint' => 'Arrivals', 'icon' => 'check', 'tone' => 'success'],
-            ['label' => 'Check-outs today', 'value' => (string) $departuresToday, 'hint' => 'Departures', 'icon' => 'arrow-right', 'tone' => 'danger'],
-            ['label' => 'Occupancy', 'value' => ($totalSellableRooms ? round($occupiedRooms / $totalSellableRooms * 100) : 0).'%', 'hint' => $occupiedRooms.'/'.$totalSellableRooms.' Rooms', 'icon' => 'bed', 'tone' => 'info'],
+            ['label' => 'Reservations today', 'value' => (string) $reservationsToday, 'hint' => 'New bookings', 'icon' => 'calendar', 'tone' => 'info', 'href' => route('reservations.index', ['date' => 'created_today'])],
+            ['label' => 'Check-ins today', 'value' => (string) $arrivalsToday, 'hint' => 'Arrivals', 'icon' => 'check', 'tone' => 'success', 'href' => route('reservations.index', ['date' => 'arrivals_today'])],
+            ['label' => 'Check-outs today', 'value' => (string) $departuresToday, 'hint' => 'Departures', 'icon' => 'arrow-right', 'tone' => 'danger', 'href' => route('reservations.index', ['date' => 'departures_today'])],
+            ['label' => 'Occupancy', 'value' => ($totalSellableRooms ? round($occupiedRooms / $totalSellableRooms * 100) : 0).'%', 'hint' => $occupiedRooms.'/'.$totalSellableRooms.' Rooms', 'icon' => 'bed', 'tone' => 'info', 'href' => route('rooms.index', ['status' => 'occupied'])],
         ];
         if ($includeFinancial) {
             $posToday = (float) PosOrder::query()->where('status', 'completed')->whereBetween('completed_at', [$today, $dayEnd])->sum('total');
-            $metrics[] = ['label' => 'Revenue today', 'value' => $this->money($this->financials->collectedBetween($today, $dayEnd) + $posToday), 'hint' => 'Collected + POS', 'icon' => 'currency', 'tone' => 'warning'];
-            $metrics[] = ['label' => 'Payments due', 'value' => $this->money($outstanding), 'hint' => $paymentContext, 'icon' => 'card', 'tone' => 'danger'];
+            $metrics[] = ['label' => 'Revenue today', 'value' => $this->money($this->financials->collectedBetween($today, $dayEnd) + $posToday), 'hint' => 'Collected + POS', 'icon' => 'currency', 'tone' => 'warning', 'href' => route('payments.index', ['status' => 'paid', 'date' => 'today'])];
+            $metrics[] = ['label' => 'Payments due', 'value' => $this->money($outstanding), 'hint' => $paymentContext, 'icon' => 'card', 'tone' => 'danger', 'href' => route('reservations.index', ['balance' => 'outstanding'])];
         }
 
         $chartRange = $this->dashboardRange($range, $from, $to);

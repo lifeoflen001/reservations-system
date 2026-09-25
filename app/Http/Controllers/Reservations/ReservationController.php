@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Reservations;
 
 use App\Enums\ReservationStatus;
+use App\Enums\PaymentStatus;
 use App\Exceptions\RoomUnavailableException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Reservations\StoreReservationRequest;
@@ -166,6 +167,8 @@ class ReservationController extends Controller
 
     private function filteredQuery(Request $request): Builder
     {
+        $status = (string) $request->string('status', 'all');
+        $date = (string) $request->string('date');
         return Reservation::query()
             ->when($request->filled('search'), function (Builder $query) use ($request) {
                 $search = trim((string) $request->string('search'));
@@ -175,7 +178,15 @@ class ReservationController extends Controller
                         ->orWhereHas('room', fn (Builder $room) => $room->where('room_number', 'like', "%{$search}%"));
                 });
             })
-            ->when($request->filled('status') && (string) $request->string('status') !== 'all', fn (Builder $query) => $query->where('status', (string) $request->string('status')))
+            ->when($status === 'active', fn (Builder $query) => $query->whereIn('status', [ReservationStatus::Pending->value, ReservationStatus::Confirmed->value, ReservationStatus::CheckedIn->value, ReservationStatus::CheckedOut->value]))
+            ->when($status !== '' && ! in_array($status, ['all', 'active'], true), fn (Builder $query) => $query->where('status', $status))
+            ->when($request->input('balance') === 'outstanding', function (Builder $query): void {
+                $query->whereIn('status', [ReservationStatus::Pending->value, ReservationStatus::Confirmed->value, ReservationStatus::CheckedIn->value, ReservationStatus::CheckedOut->value])
+                    ->whereRaw('(reservations.total_amount + COALESCE((SELECT SUM(amount) FROM pos_room_charges WHERE pos_room_charges.reservation_id = reservations.id AND pos_room_charges.status = ?), 0)) > (SELECT COALESCE(SUM(amount), 0) FROM payments WHERE payments.reservation_id = reservations.id AND payments.status = ?)', ['active', PaymentStatus::Paid->value]);
+            })
+            ->when($date === 'created_today', fn (Builder $query) => $query->whereDate('created_at', now()->toDateString()))
+            ->when($date === 'arrivals_today', fn (Builder $query) => $query->whereIn('status', [ReservationStatus::Pending->value, ReservationStatus::Confirmed->value, ReservationStatus::CheckedIn->value])->whereDate('check_in', now()->toDateString()))
+            ->when($date === 'departures_today', fn (Builder $query) => $query->whereIn('status', [ReservationStatus::Pending->value, ReservationStatus::Confirmed->value, ReservationStatus::CheckedIn->value, ReservationStatus::CheckedOut->value])->whereDate('check_out', now()->toDateString()))
             ->when($request->filled('from'), fn (Builder $query) => $query->whereDate('check_in', '>=', $request->date('from')))
             ->when($request->filled('to'), fn (Builder $query) => $query->whereDate('check_in', '<=', $request->date('to')));
     }

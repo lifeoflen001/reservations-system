@@ -36,10 +36,10 @@
 
     <div class="metric-grid {{ !$financialVisible ? 'metric-grid--operational' : '' }}">
         @foreach ($metrics as $metric)
-            <article class="metric-card">
+            @if(!empty($metric['href']))<a class="metric-card mini-kpi-card mini-kpi-card--link" href="{{ $metric['href'] }}" aria-label="{{ $metric['label'] }}: {{ $metric['value'] }}">@else<article class="metric-card">@endif
                 <div class="metric-card__icon metric-card__icon--{{ $metric['tone'] }}"><x-ui.icon :name="$metric['icon']" size="20" /></div>
                 <div><span>{{ $metric['label'] }}</span><strong>{{ $metric['value'] }}</strong><small>{{ $metric['hint'] }}</small></div>
-            </article>
+            @if(!empty($metric['href']))</a>@else</article>@endif
         @endforeach
     </div>
 

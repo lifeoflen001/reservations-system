@@ -71,6 +71,7 @@ return [
         'housekeeping.view', 'housekeeping.manage', 'housekeeping.create', 'housekeeping.update', 'housekeeping.delete', 'housekeeping.complete',
         'maintenance.view', 'maintenance.manage', 'maintenance.create', 'maintenance.update', 'maintenance.delete', 'maintenance.complete',
         'payments.view', 'payments.create', 'payments.update', 'payments.void', 'payments.refund', 'payments.delete', 'payments.print', 'payments.export',
+        'finance.view', 'finance.accounts.view', 'finance.accounts.manage', 'finance.payments.view', 'finance.payments.create', 'finance.expenses.view', 'finance.expenses.create', 'finance.expenses.approve', 'finance.transfers.create', 'finance.transfers.approve', 'finance.petty_cash.manage', 'finance.bank.manage', 'finance.reconcile', 'finance.refunds', 'finance.adjustments', 'finance.reports.view',
         'invoices.view', 'invoices.print', 'invoices.download',
         'reports.view', 'reports.export',
         'staff.view', 'staff.create', 'staff.update', 'staff.disable', 'staff.reset_password', 'staff.manage',

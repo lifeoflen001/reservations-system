@@ -149,6 +149,7 @@ class PaymentController extends Controller
             })
             ->when($request->filled('status') && $request->string('status')->toString() !== 'all', fn (Builder $query) => $query->where('status', $request->string('status')->toString()))
             ->when($request->filled('method') && $request->string('method')->toString() !== 'all', fn (Builder $query) => $query->where('method', $request->string('method')->toString()))
+            ->when($request->input('date') === 'today', fn (Builder $query) => $query->whereDate('transaction_date', now()->toDateString()))
             ->when($request->filled('from'), fn (Builder $query) => $query->whereDate('transaction_date', '>=', $request->date('from')))
             ->when($request->filled('to'), fn (Builder $query) => $query->whereDate('transaction_date', '<=', $request->date('to')));
     }

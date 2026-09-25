@@ -16,7 +16,9 @@
     @if ($errors->any())<x-feedback.alert type="danger" class="page-feedback">{{ $errors->first() }}</x-feedback.alert>@endif
     <form class="filter-toolbar reservation-filters" method="GET" action="{{ route('reservations.index') }}">
         <x-form.input name="search" value="{{ request('search') }}" placeholder="Search" aria-label="Search reservations" field-class="reservation-filter-search" />
-        <x-form.select name="status" aria-label="Filter by status"><option value="all">All</option>@foreach ($statuses as $status)<option value="{{ $status->value }}" @selected(request('status', 'all') === $status->value)>{{ $status->label() }}</option>@endforeach</x-form.select>
+        <x-form.select name="status" aria-label="Filter by status"><option value="all">All</option><option value="active" @selected(request('status', 'all') === 'active')>Current reservations</option>@foreach ($statuses as $status)<option value="{{ $status->value }}" @selected(request('status', 'all') === $status->value)>{{ $status->label() }}</option>@endforeach</x-form.select>
+        <x-form.select name="date" aria-label="Filter by operational date"><option value="all">All dates</option><option value="created_today" @selected(request('date') === 'created_today')>Created today</option><option value="arrivals_today" @selected(request('date') === 'arrivals_today')>Arrivals today</option><option value="departures_today" @selected(request('date') === 'departures_today')>Departures today</option></x-form.select>
+        <x-form.select name="balance" aria-label="Filter by balance"><option value="all">All balances</option><option value="outstanding" @selected(request('balance') === 'outstanding')>Outstanding balance</option></x-form.select>
         <x-form.input name="from" type="date" value="{{ request('from') }}" aria-label="From date" />
         <x-form.input name="to" type="date" value="{{ request('to') }}" aria-label="To date" />
         <button class="ui-button ui-button--info" type="submit"><x-ui.icon name="filter" size="16" /> Filter</button>
