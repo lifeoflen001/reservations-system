@@ -9,8 +9,6 @@
         ['label' => 'Operations', 'route' => 'public.operations'],
         ['label' => 'POS', 'route' => 'public.pos'],
         ['label' => 'Finance', 'route' => 'public.finance'],
-        ['label' => 'Security', 'route' => 'public.security'],
-        ['label' => 'Integrations', 'route' => 'public.integrations'],
     ];
 @endphp
 
