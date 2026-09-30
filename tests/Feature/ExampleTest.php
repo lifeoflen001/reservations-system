@@ -10,10 +10,10 @@ class ExampleTest extends TestCase
     /**
      * A basic test example.
      */
-    public function test_the_application_returns_a_successful_response(): void
+    public function test_the_public_landing_page_returns_a_successful_response(): void
     {
         $response = $this->get('/');
 
-        $response->assertRedirectToRoute('login');
+        $response->assertOk()->assertSee('Lodgix');
     }
 }

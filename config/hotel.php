@@ -9,7 +9,19 @@ return [
 
     'brand' => [
         'name' => env('HOTEL_BRAND_NAME', 'Lodgix'),
+        // Public branding is kept separate from internal product metadata so
+        // the public site can evolve without renaming historical records or
+        // changing the authenticated PMS vocabulary.
+        'product_name' => env('HOTEL_PUBLIC_PRODUCT_NAME', 'Lodgix'),
+        'short_name' => env('HOTEL_PUBLIC_SHORT_NAME', 'Lodgix'),
         'tagline' => env('HOTEL_BRAND_TAGLINE', 'Hotel Management System'),
+        'logo_light' => env('HOTEL_PUBLIC_LOGO_LIGHT', 'assets/images/landing/lodgix-wordmark.webp'),
+        'logo_dark' => env('HOTEL_PUBLIC_LOGO_DARK', 'assets/images/landing/lodgix-wordmark.webp'),
+        'mark' => env('HOTEL_PUBLIC_MARK', 'assets/branding/lodgix-mark.png'),
+        'favicon' => env('HOTEL_PUBLIC_FAVICON', 'favicon.ico'),
+        'apple_touch_icon' => env('HOTEL_PUBLIC_APPLE_TOUCH_ICON', 'apple-touch-icon.png'),
+        'support_email' => env('HOTEL_SUPPORT_EMAIL'),
+        'support_url' => env('HOTEL_SUPPORT_URL'),
     ],
 
     // Product metadata is kept separate from the framework/runtime versions so

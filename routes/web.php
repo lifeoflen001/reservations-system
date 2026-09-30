@@ -13,6 +13,7 @@ use App\Http\Controllers\OperationalDataTransferController;
 use App\Http\Controllers\Payments\InvoiceController;
 use App\Http\Controllers\Payments\PaymentController;
 use App\Http\Controllers\PosController;
+use App\Http\Controllers\PublicMetadataController;
 use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\Reservations\ReservationController;
 use App\Http\Controllers\RoomPlanningController;
@@ -31,12 +32,17 @@ use App\Http\Middleware\EnsureActiveUser;
 use App\Http\Middleware\EnsureInstallationComplete;
 use App\Http\Middleware\EnsureInstallationIncomplete;
 use App\Http\Middleware\EnsurePasswordChanged;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return Auth::check() ? redirect()->route('dashboard') : redirect()->route('login');
-})->name('home');
+Route::view('/', 'public.home')->name('public.home');
+Route::view('/product', 'public.product')->name('public.product');
+Route::view('/operations', 'public.operations')->name('public.operations');
+Route::view('/pos', 'public.pos')->name('public.pos');
+Route::view('/finance', 'public.finance')->name('public.finance');
+Route::view('/security', 'public.security')->name('public.security');
+Route::view('/integrations', 'public.integrations')->name('public.integrations');
+Route::get('/sitemap.xml', [PublicMetadataController::class, 'sitemap'])->name('sitemap');
+Route::get('/robots.txt', [PublicMetadataController::class, 'robots'])->name('robots');
 
 Route::middleware(EnsureInstallationIncomplete::class)->prefix('setup')->name('setup.')->group(function () {
     Route::get('/', [SetupController::class, 'index'])->name('index');
@@ -139,7 +145,7 @@ Route::middleware(['auth', EnsureActiveUser::class, EnsureInstallationComplete::
     Route::post('/payments/{payment}/void', [PaymentController::class, 'void'])->name('payments.void');
     Route::post('/payments/{payment}/refund', [PaymentController::class, 'refund'])->name('payments.refund');
     Route::resource('payments', PaymentController::class)->only(['index', 'store', 'update', 'destroy']);
-    Route::get('/finance', [FinanceController::class, 'overview'])->name('finance.overview');
+    Route::get('/finance/overview', [FinanceController::class, 'overview'])->name('finance.overview');
     Route::get('/finance/transactions', [FinanceController::class, 'transactions'])->name('finance.transactions');
     Route::get('/finance/expenses', [FinanceController::class, 'expenses'])->name('finance.expenses');
     Route::post('/finance/expenses', [FinanceController::class, 'expenseStore'])->name('finance.expenses.store');
@@ -160,7 +166,7 @@ Route::middleware(['auth', EnsureActiveUser::class, EnsureInstallationComplete::
     Route::get('/invoices/{invoice}/download', [InvoiceController::class, 'download'])->name('invoices.download');
     Route::get('/reports', [ReportsController::class, 'index'])->name('reports.index');
     Route::get('/reports/export', [ReportsController::class, 'export'])->name('reports.export');
-    Route::get('/pos', [PosController::class, 'terminal'])->name('pos.terminal');
+    Route::get('/pos/terminal', [PosController::class, 'terminal'])->name('pos.terminal');
     Route::get('/pos/products/search', [PosController::class, 'productSearch'])->name('pos.products.search');
     Route::get('/pos/guests/search', [PosController::class, 'guestSearch'])->name('pos.guests.search');
     Route::post('/pos/checkout', [PosController::class, 'checkout'])->name('pos.checkout');

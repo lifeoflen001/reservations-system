@@ -11,6 +11,12 @@ class UsePropertySettings
 {
     public function handle(Request $request, Closure $next): Response
     {
+        // The public landing page is intentionally static/config-driven. Do
+        // not read property records just to render marketing content.
+        if ($request->routeIs('public.*', 'sitemap', 'robots')) {
+            return $next($request);
+        }
+
         $settings = app(PropertySettingsService::class);
         $timezone = $settings->timezone();
         $locale = $settings->locale();
