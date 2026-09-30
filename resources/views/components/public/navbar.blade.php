@@ -1,9 +1,7 @@
 @php
     $publicBrand = config('hotel.brand');
     $logoPath = (string) ($publicBrand['logo_light'] ?? 'assets/branding/lodgix.png');
-    $markPath = (string) ($publicBrand['mark'] ?? 'assets/branding/lodgix-mark.png');
     $logoAvailable = file_exists(public_path(ltrim($logoPath, '/')));
-    $markAvailable = file_exists(public_path(ltrim($markPath, '/')));
     $ctaRoute = auth()->check() ? route('dashboard') : route('login');
     $ctaLabel = auth()->check() ? 'Open Dashboard' : 'Sign In';
     $navigation = [
@@ -20,9 +18,6 @@
     <x-public.container>
         <nav class="public-navbar__inner" aria-label="Public navigation">
             <a class="public-brand" href="{{ url('/') }}" aria-label="{{ $publicBrand['product_name'] }} home">
-                <span class="public-brand__mark">
-                    @if($markAvailable)<img src="{{ asset($markPath) }}" alt="">@else<x-ui.icon name="building" size="22" />@endif
-                </span>
                 @if($logoAvailable)
                     <img class="public-brand__wordmark" src="{{ asset($logoPath) }}" alt="{{ $publicBrand['product_name'] }}">
                 @else
