@@ -21,7 +21,7 @@ class ProfileSettingsTest extends TestCase
         $this->seed(DatabaseSeeder::class);
         $admin = User::firstOrFail();
 
-        $file = UploadedFile::fake()->createWithContent('profile-picture.png', file_get_contents(base_path('public/assets/images/majesticlogo.png')));
+        $file = UploadedFile::fake()->image('profile-picture.png', 256, 256);
 
         $this->actingAs($admin)->post(route('profile.avatar.update'), [
             '_method' => 'PUT',

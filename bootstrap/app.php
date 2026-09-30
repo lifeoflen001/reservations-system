@@ -3,6 +3,7 @@
 use App\Http\Middleware\ConfiguredSessionSecurity;
 use App\Http\Middleware\EnsureInstallationComplete;
 use App\Http\Middleware\EnsureInstallationIncomplete;
+use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\UsePropertySettings;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Application;
@@ -23,6 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command('announcements:sync')->everyMinute();
     })
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->append(SecurityHeaders::class);
         // Railway terminates TLS before forwarding requests to the PHP
         // process. Trust its forwarded headers so Laravel preserves the
         // original HTTPS scheme for redirects, cookies and CSRF sessions.
