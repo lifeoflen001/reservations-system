@@ -16,6 +16,7 @@ use App\Http\Controllers\PosController;
 use App\Http\Controllers\PublicMetadataController;
 use App\Http\Controllers\PublicContactController;
 use App\Http\Controllers\ContactEnquiryController;
+use App\Http\Controllers\WebsiteController;
 use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\Reservations\ReservationController;
 use App\Http\Controllers\RoomPlanningController;
@@ -76,6 +77,30 @@ Route::middleware(['auth', EnsureActiveUser::class, EnsureInstallationComplete::
     Route::get('/management/contact-enquiries', [ContactEnquiryController::class, 'index'])->middleware('can:contact_enquiries.view')->name('contact-enquiries.index');
     Route::get('/management/contact-enquiries/{contactEnquiry}', [ContactEnquiryController::class, 'show'])->middleware('can:contact_enquiries.view')->name('contact-enquiries.show');
     Route::patch('/management/contact-enquiries/{contactEnquiry}/status', [ContactEnquiryController::class, 'updateStatus'])->middleware('can:contact_enquiries.manage')->name('contact-enquiries.status');
+    Route::prefix('admin/website')->name('website.')->group(function () {
+        Route::get('/', [WebsiteController::class, 'dashboard'])->middleware('can:website.view')->name('dashboard');
+        Route::get('/pages', [WebsiteController::class, 'pages'])->middleware('can:website.pages.manage')->name('pages.index');
+        Route::get('/pages/{websitePage}/edit', [WebsiteController::class, 'edit'])->middleware('can:website.pages.manage')->name('pages.edit');
+        Route::patch('/pages/{websitePage}', [WebsiteController::class, 'update'])->middleware('can:website.pages.manage')->name('pages.update');
+        Route::post('/pages/{websitePage}/publish', [WebsiteController::class, 'publish'])->middleware('can:website.pages.publish')->name('pages.publish');
+        Route::get('/pages/{websitePage}/preview', [WebsiteController::class, 'preview'])->middleware('can:website.pages.manage')->name('pages.preview');
+        Route::get('/pages/{websitePage}/revisions', [WebsiteController::class, 'revisions'])->middleware('can:website.pages.manage')->name('pages.revisions');
+        Route::post('/pages/{websitePage}/revisions/{websiteRevision}/restore', [WebsiteController::class, 'restoreRevision'])->middleware('can:website.pages.manage')->name('pages.revisions.restore');
+        Route::post('/pages/{websitePage}/sections/{websiteSection}/{direction}', [WebsiteController::class, 'moveSection'])->whereIn('direction', ['up', 'down'])->middleware('can:website.pages.manage')->name('pages.sections.move');
+        Route::get('/media', [WebsiteController::class, 'media'])->middleware('can:website.media.manage')->name('media');
+        Route::post('/media', [WebsiteController::class, 'uploadMedia'])->middleware('can:website.media.manage')->name('media.upload');
+        Route::delete('/media/{websiteMedia}', [WebsiteController::class, 'archiveMedia'])->middleware('can:website.media.manage')->name('media.archive');
+        Route::get('/navigation', [WebsiteController::class, 'navigation'])->middleware('can:website.navigation.manage')->name('navigation');
+        Route::patch('/navigation', [WebsiteController::class, 'updateNavigation'])->middleware('can:website.navigation.manage')->name('navigation.update');
+        Route::get('/pricing', [WebsiteController::class, 'pricing'])->middleware('can:website.pricing.manage')->name('pricing');
+        Route::patch('/pricing/{websitePricingPlan}', [WebsiteController::class, 'updatePricing'])->middleware('can:website.pricing.manage')->name('pricing.update');
+        Route::get('/seo', [WebsiteController::class, 'seo'])->middleware('can:website.seo.manage')->name('seo');
+        Route::get('/settings', [WebsiteController::class, 'settings'])->middleware('can:website.settings.manage')->name('settings');
+        Route::patch('/settings', [WebsiteController::class, 'updateSettings'])->middleware('can:website.settings.manage')->name('settings.update');
+        Route::get('/enquiries', [ContactEnquiryController::class, 'index'])->middleware('can:website.enquiries.view')->name('enquiries');
+        Route::get('/enquiries/{contactEnquiry}', [ContactEnquiryController::class, 'show'])->middleware('can:website.enquiries.view')->name('enquiries.show');
+        Route::patch('/enquiries/{contactEnquiry}/status', [ContactEnquiryController::class, 'updateStatus'])->middleware('can:website.enquiries.manage')->name('enquiries.status');
+    });
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
     Route::get('/search', [SearchController::class, 'index'])->name('search');
 

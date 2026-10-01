@@ -65,7 +65,7 @@ $pages = [
 ],
 ],
 ];
-$page = $pages[$pageKey];
+$page = app(\App\Services\PublicWebsiteContentService::class)->mergeMarketingPage($pageKey, $pages[$pageKey]);
 $pageTitle = $page['title'];
 $pageDescription = $page['description'];
 $structuredData = json_encode(['@context' => 'https://schema.org', '@type' => 'SoftwareApplication', 'name' => config('hotel.brand.product_name', 'Lodgix'), 'applicationCategory' => 'BusinessApplication', 'operatingSystem' => 'Web', 'description' => $pageDescription, 'url' => url('/'.$pageKey)], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);

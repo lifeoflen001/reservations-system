@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Payment;
 use App\Models\Reservation;
+use App\Models\ContactEnquiry;
 use App\Models\User;
 use App\Notifications\HotelDatabaseNotification;
 use Illuminate\Support\Collection;
@@ -42,6 +43,27 @@ class HotelNotificationService
             'entity_type' => Payment::class, 'entity_id' => $payment->id, 'action_url' => route('payments.index', ['invoice' => $payment->invoice?->id]),
         ];
         $this->notifyUsers($this->usersWithPermission('payments.view'), $payload);
+    }
+
+    public function contactEnquiry(ContactEnquiry $enquiry): void
+    {
+        $users = User::query()->with(['notificationPreferences', 'role.permissions'])->where('is_active', true)->get()
+            ->filter(fn (User $user) => $user->hasPermission('website.enquiries.view') || $user->hasPermission('contact_enquiries.view'));
+
+        foreach ($users as $user) {
+            $route = $user->hasPermission('website.enquiries.view')
+                ? 'website.enquiries.show'
+                : 'contact-enquiries.show';
+            $this->notifyUsers(collect([$user]), [
+                'title' => 'New website enquiry',
+                'message' => $enquiry->name.' · '.str($enquiry->enquiry_type)->replace('_', ' ')->title(),
+                'severity' => 'info',
+                'category' => 'operational',
+                'entity_type' => ContactEnquiry::class,
+                'entity_id' => $enquiry->id,
+                'action_url' => route($route, $enquiry),
+            ]);
+        }
     }
 
     private function usersWithPermission(string $permission): Collection

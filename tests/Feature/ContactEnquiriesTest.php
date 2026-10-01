@@ -119,6 +119,45 @@ class ContactEnquiriesTest extends TestCase
         $this->assertDatabaseHas('contact_enquiries', ['id' => $enquiry->id, 'status' => 'closed']);
     }
 
+    public function test_public_submission_is_visible_in_the_website_cms_inbox(): void
+    {
+        Queue::fake();
+        config()->set('hotel.contact.email', null);
+        $admin = $this->userWithPermissions(['website.enquiries.view']);
+
+        $this->post(route('public.contact.submit'), $this->validPayload([
+            'name' => 'Website Inbox Guest',
+            'email' => 'website-inbox@example.test',
+        ]))->assertRedirect(route('public.contact'));
+
+        $enquiry = ContactEnquiry::query()->where('email', 'website-inbox@example.test')->firstOrFail();
+
+        $this->actingAs($admin)
+            ->get(route('website.enquiries'))
+            ->assertOk()
+            ->assertSee('Website Inbox Guest')
+            ->assertSee($enquiry->email);
+    }
+
+    public function test_public_submission_creates_an_in_app_notification_for_enquiry_managers(): void
+    {
+        config()->set('hotel.contact.email', null);
+        $admin = $this->userWithPermissions(['website.enquiries.view', 'notifications.view']);
+
+        $this->post(route('public.contact.submit'), $this->validPayload([
+            'name' => 'Notification Guest',
+            'email' => 'notification@example.test',
+        ]))->assertRedirect(route('public.contact'));
+
+        $notification = $admin->fresh()->unreadNotifications()->first();
+
+        $this->assertNotNull($notification);
+        $this->assertSame('New website enquiry', $notification->data['title']);
+        $this->assertSame(ContactEnquiry::class, $notification->data['entity_type']);
+        $this->assertStringContainsString('Notification Guest', $notification->data['message']);
+        $this->assertStringContainsString('/admin/website/enquiries/', $notification->data['action_url']);
+    }
+
     public function test_users_without_enquiry_permission_cannot_access_the_management_inbox(): void
     {
         $user = $this->userWithPermissions([]);

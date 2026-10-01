@@ -2,6 +2,9 @@
     $publicBrand = config('hotel.brand');
     $markPath = (string) ($publicBrand['mark'] ?? 'assets/branding/lodgix-mark.png');
     $markAvailable = file_exists(public_path(ltrim($markPath, '/')));
+    $websiteContent = app(\App\Services\PublicWebsiteContentService::class);
+    $footerDescription = $websiteContent->setting('footer_description', $publicBrand['product_name'].' connects reservations, rooms, hotel operations, staff, POS, finance and reporting in one workspace.');
+    $copyright = $websiteContent->setting('copyright', '© '.now()->year.' '.$publicBrand['product_name']);
 @endphp
 
 <footer class="public-footer">
@@ -12,7 +15,7 @@
                     <span class="public-brand__mark">@if($markAvailable)<img src="{{ asset($markPath) }}" alt="">@else<x-ui.icon name="building" size="20" />@endif</span>
                     <span class="public-brand__text">{{ $publicBrand['product_name'] }}</span>
                 </a>
-                <p>{{ $publicBrand['product_name'] }} connects reservations, rooms, hotel operations, staff, POS, finance and reporting in one workspace.</p>
+                <p>{{ $footerDescription }}</p>
             </div>
             <div>
                 <h2>Product</h2>
@@ -34,7 +37,7 @@
             </div>
         </div>
         <div class="public-footer__bottom">
-            <span>© {{ now()->year }} {{ $publicBrand['product_name'] }}</span>
+            <span>{{ $copyright }}</span>
         </div>
     </x-public.container>
 </footer>

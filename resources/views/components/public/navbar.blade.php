@@ -4,6 +4,12 @@
     $logoAvailable = file_exists(public_path(ltrim($logoPath, '/')));
     $ctaRoute = auth()->check() ? route('dashboard') : route('login');
     $ctaLabel = auth()->check() ? 'Open Dashboard' : 'Sign In';
+    $publicNavigation = app(\App\Services\PublicWebsiteContentService::class)->navigation();
+    $navigationByDestination = collect($publicNavigation)->keyBy('destination');
+    $productNavigation = $navigationByDestination->get('public.product');
+    $pricingNavigation = $navigationByDestination->get('public.pricing');
+    $contactNavigation = $navigationByDestination->get('public.contact');
+    $solutionsNavigation = $navigationByDestination->get('solutions');
     $solutions = [
         ['label' => 'Operations', 'route' => 'public.operations', 'description' => 'Reservations, rooms and teams'],
         ['label' => 'POS', 'route' => 'public.pos', 'description' => 'Outlet sales and guest charges'],
@@ -26,21 +32,29 @@
             </a>
 
             <div class="public-navbar__links" data-public-desktop-links>
-                <a href="{{ route('public.product') }}" @class(['is-active' => request()->routeIs('public.product')]) @if(request()->routeIs('public.product')) aria-current="page" @endif>Product</a>
-                <div class="public-solutions" data-public-solutions>
-                    <button class="public-solutions__trigger {{ $solutionsActive ? 'is-active' : '' }}" type="button" data-solutions-toggle aria-expanded="false" aria-controls="public-solutions-menu" aria-haspopup="true">
-                        Solutions <x-ui.icon name="chevron-down" size="15" />
-                    </button>
-                    <div class="public-solutions__menu" id="public-solutions-menu" data-solutions-menu hidden>
-                        @foreach($solutions as $item)
-                            <a href="{{ route($item['route']) }}" @class(['is-active' => request()->routeIs($item['route'])]) @if(request()->routeIs($item['route'])) aria-current="page" @endif>
-                                <strong>{{ $item['label'] }}</strong><small>{{ $item['description'] }}</small>
-                            </a>
-                        @endforeach
+                @if(!$publicNavigation || $productNavigation)
+                    <a href="{{ $productNavigation['url'] ?? route('public.product') }}" @class(['is-active' => request()->routeIs('public.product')]) @if(request()->routeIs('public.product')) aria-current="page" @endif>{{ $productNavigation['label'] ?? 'Product' }}</a>
+                @endif
+                @if(!$publicNavigation || $solutionsNavigation)
+                    <div class="public-solutions" data-public-solutions>
+                        <button class="public-solutions__trigger {{ $solutionsActive ? 'is-active' : '' }}" type="button" data-solutions-toggle aria-expanded="false" aria-controls="public-solutions-menu" aria-haspopup="true">
+                            {{ $solutionsNavigation['label'] ?? 'Solutions' }} <x-ui.icon name="chevron-down" size="15" />
+                        </button>
+                        <div class="public-solutions__menu" id="public-solutions-menu" data-solutions-menu hidden>
+                            @foreach($solutions as $item)
+                                <a href="{{ route($item['route']) }}" @class(['is-active' => request()->routeIs($item['route'])]) @if(request()->routeIs($item['route'])) aria-current="page" @endif>
+                                    <strong>{{ $item['label'] }}</strong><small>{{ $item['description'] }}</small>
+                                </a>
+                            @endforeach
+                        </div>
                     </div>
-                </div>
-                <a href="{{ route('public.pricing') }}" @class(['is-active' => request()->routeIs('public.pricing')]) @if(request()->routeIs('public.pricing')) aria-current="page" @endif>Pricing</a>
-                <a href="{{ route('public.contact') }}" @class(['is-active' => request()->routeIs('public.contact')]) @if(request()->routeIs('public.contact')) aria-current="page" @endif>Contact</a>
+                @endif
+                @if(!$publicNavigation || $pricingNavigation)
+                    <a href="{{ $pricingNavigation['url'] ?? route('public.pricing') }}" @class(['is-active' => request()->routeIs('public.pricing')]) @if(request()->routeIs('public.pricing')) aria-current="page" @endif>{{ $pricingNavigation['label'] ?? 'Pricing' }}</a>
+                @endif
+                @if(!$publicNavigation || $contactNavigation)
+                    <a href="{{ $contactNavigation['url'] ?? route('public.contact') }}" @class(['is-active' => request()->routeIs('public.contact')]) @if(request()->routeIs('public.contact')) aria-current="page" @endif>{{ $contactNavigation['label'] ?? 'Contact' }}</a>
+                @endif
             </div>
 
             <div class="public-navbar__actions">

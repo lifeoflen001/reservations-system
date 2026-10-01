@@ -1,8 +1,12 @@
 @extends('layouts.app')
 @section('content')
+@php($websiteContext = request()->routeIs('website.enquiries*'))
+@php($enquiryIndexRoute = $websiteContext ? 'website.enquiries' : 'contact-enquiries.index')
+@php($enquiryStatusRoute = $websiteContext ? 'website.enquiries.status' : 'contact-enquiries.status')
 <x-page-header title="Website enquiry" subtitle="Received {{ $contactEnquiry->created_at?->format('Y-m-d H:i') }}">
-    <a class="ui-button ui-button--secondary" href="{{ route('contact-enquiries.index') }}">Back to enquiries</a>
+    <a class="ui-button ui-button--secondary" href="{{ route($enquiryIndexRoute) }}">Back to enquiries</a>
 </x-page-header>
+@if($websiteContext) @include('website.partials.nav') @endif
 @if(session('success'))<x-feedback.alert type="success">{{ session('success') }}</x-feedback.alert>@endif
 <section class="ui-card">
     <dl class="settings-summary-grid">
@@ -17,13 +21,15 @@
     </dl>
     <div class="public-enquiry-message"><h2>Message</h2><p>{{ $contactEnquiry->message }}</p></div>
     @can('contact_enquiries.manage')
-        <form method="POST" action="{{ route('contact-enquiries.status', $contactEnquiry) }}" class="settings-form-grid">
+        <form method="POST" action="{{ route($enquiryStatusRoute, $contactEnquiry) }}" class="settings-form-grid">
             @csrf @method('PATCH')
             <x-form.select name="status" label="Update status" required>
                 @foreach(\App\Models\ContactEnquiry::STATUSES as $status)<option value="{{ $status }}" @selected(old('status', $contactEnquiry->status) === $status)>{{ ucfirst($status) }}</option>@endforeach
             </x-form.select>
+            <x-form.textarea name="internal_notes" label="Internal notes" rows="3">{{ old('internal_notes', $contactEnquiry->internal_notes) }}</x-form.textarea>
             <button class="ui-button ui-button--primary" type="submit">Save status</button>
         </form>
     @endcan
 </section>
+@if($websiteContext) @include('website.partials.close') @endif
 @endsection

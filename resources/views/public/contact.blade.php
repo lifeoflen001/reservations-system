@@ -1,12 +1,14 @@
+@php($contactCms = app(\App\Services\PublicWebsiteContentService::class)->page('contact'))
+@php($contactHero = $contactCms['sections']['hero'] ?? [])
 @extends('layouts.public', [
-    'title' => 'Contact Lodgix — Hotel Management System Enquiries',
-    'description' => 'Contact Lodgix about pricing, implementation, integrations or hotel-management requirements for your independent hotel or lodge.',
+    'title' => $contactCms['page']->seo_title ?? 'Contact Lodgix — Hotel Management System Enquiries',
+    'description' => $contactCms['page']->seo_description ?? 'Contact Lodgix about pricing, implementation, integrations or hotel-management requirements for your independent hotel or lodge.',
     'canonical' => route('public.contact'),
 ])
 
 @section('content')
 <div class="public-page public-page--contact">
-    <x-public.page-hero eyebrow="Lodgix enquiries" heading="Let’s talk about your hotel." description="Tell us what you operate and what you want Lodgix to handle." layout="centered" class="public-page-hero--compact" />
+        <x-public.page-hero :eyebrow="$contactHero['eyebrow'] ?? 'Lodgix enquiries'" :heading="$contactHero['heading'] ?? 'Let’s talk about your hotel.'" :description="$contactHero['description'] ?? 'Tell us what you operate and what you want Lodgix to handle.'" layout="centered" class="public-page-hero--compact" />
 
     <x-public.section class="public-contact-section">
         <div class="public-contact-grid">

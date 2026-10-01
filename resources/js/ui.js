@@ -1266,6 +1266,75 @@ document.addEventListener('DOMContentLoaded', () => {
         const button = form.querySelector('button[type="submit"]');
         if (button) { button.disabled = true; button.dataset.originalText = button.textContent; button.textContent = 'Processing…'; }
     }));
+    document.querySelectorAll('[data-website-media-upload]').forEach((form) => {
+        const fileInput = form.querySelector('input[type="file"]');
+        const preview = form.querySelector('[data-website-media-preview]');
+        const previewImage = preview?.querySelector('img');
+        const fileLabel = form.querySelector('[data-website-media-file]');
+        const progress = form.querySelector('[data-website-upload-progress]');
+        const status = form.querySelector('[data-website-upload-status]');
+        const percent = form.querySelector('[data-website-upload-percent]');
+        const bar = form.querySelector('[data-website-upload-bar]');
+        const barShell = form.querySelector('[role="progressbar"]');
+        const button = form.querySelector('button[type="submit"]');
+        let previewUrl = null;
+
+        const updateProgress = (value, message) => {
+            const safeValue = Math.max(0, Math.min(100, Math.round(value)));
+            if (bar) bar.style.width = `${safeValue}%`;
+            if (percent) percent.textContent = `${safeValue}%`;
+            if (barShell) barShell.setAttribute('aria-valuenow', String(safeValue));
+            if (status && message) status.textContent = message;
+        };
+
+        fileInput?.addEventListener('change', () => {
+            const file = fileInput.files?.[0];
+            if (!file) return;
+            if (previewUrl) URL.revokeObjectURL(previewUrl);
+            previewUrl = URL.createObjectURL(file);
+            if (previewImage) { previewImage.src = previewUrl; previewImage.alt = file.name; }
+            if (preview) preview.hidden = false;
+            if (fileLabel) fileLabel.textContent = file.name;
+        });
+
+        form.addEventListener('submit', (event) => {
+            event.preventDefault();
+            const file = fileInput?.files?.[0];
+            if (!file || !progress) return;
+
+            progress.hidden = false;
+            progress.classList.remove('is-error', 'is-success');
+            if (button) { button.disabled = true; button.textContent = 'Uploading…'; }
+            updateProgress(0, 'Preparing image…');
+
+            const request = new XMLHttpRequest();
+            request.open('POST', form.action, true);
+            request.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+            const csrf = form.querySelector('input[name="_token"]')?.value;
+            if (csrf) request.setRequestHeader('X-CSRF-TOKEN', csrf);
+            request.upload.addEventListener('progress', (uploadEvent) => {
+                if (uploadEvent.lengthComputable) updateProgress((uploadEvent.loaded / uploadEvent.total) * 100, 'Uploading image…');
+                else updateProgress(60, 'Uploading image…');
+            });
+            request.addEventListener('load', () => {
+                if (request.status >= 200 && request.status < 400) {
+                    updateProgress(100, 'Upload complete. Refreshing library…');
+                    progress.classList.add('is-success');
+                    window.setTimeout(() => window.location.assign(request.responseURL || window.location.href), 350);
+                    return;
+                }
+                progress.classList.add('is-error');
+                updateProgress(0, 'Upload failed. Check the file and try again.');
+                if (button) { button.disabled = false; button.textContent = 'Upload media'; }
+            });
+            request.addEventListener('error', () => {
+                progress.classList.add('is-error');
+                updateProgress(0, 'Upload failed. Check your connection and try again.');
+                if (button) { button.disabled = false; button.textContent = 'Upload media'; }
+            });
+            request.send(new FormData(form));
+        });
+    });
     document.querySelectorAll('[data-live-clock]').forEach((clock) => {
         const timezone = clock.dataset.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
         const tick = () => { clock.textContent = new Intl.DateTimeFormat(undefined, { month: 'short', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: timezone }).format(new Date()); };

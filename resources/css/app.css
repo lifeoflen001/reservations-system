@@ -4,6 +4,7 @@
 @import './layout.css';
 @import './components.css';
 @import './announcements.css';
+@import './website.css';
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';

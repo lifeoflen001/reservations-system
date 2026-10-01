@@ -28,6 +28,9 @@
             ['label' => 'Finance', 'route' => 'finance.*', 'href' => 'finance.overview', 'icon' => 'currency'],
             ['label' => 'Reports', 'route' => 'reports.*', 'icon' => 'chart'],
         ],
+        'Website' => [
+            ['label' => 'Website', 'route' => 'website.*', 'href' => 'website.dashboard', 'icon' => 'document'],
+        ],
         'System' => [
             ['label' => 'Settings', 'route' => 'settings.*', 'icon' => 'settings'],
         ],
@@ -63,6 +66,7 @@
                         'Payments' => auth()->user()->hasPermission('payments.view') || auth()->user()->hasPermission('payments.manage'),
                         'Finance' => auth()->user()->hasPermission('finance.view'),
                         'Reports' => auth()->user()->hasPermission('reports.view') || auth()->user()->hasPermission('reports.manage'),
+                        'Website' => auth()->user()->hasPermission('website.view'),
                         'Settings' => auth()->user()->hasPermission('settings.view') || auth()->user()->hasPermission('settings.manage'),
                         default => false,
                     };

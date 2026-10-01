@@ -21,12 +21,16 @@ $structuredData = json_encode([
 'name' => config('hotel.brand.product_name', 'Lodgix'), 'applicationCategory' => 'BusinessApplication',
 'operatingSystem' => 'Web', 'description' => $description, 'url' => url('/'),
 ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+$homeCms = app(\App\Services\PublicWebsiteContentService::class)->page('home');
+$homeHero = $homeCms['sections']['hero'] ?? [];
+$homeCapabilities = $homeCms['sections']['capabilities'] ?? [];
+$homeCta = $homeCms['sections']['final_cta'] ?? [];
+$description = $homeHero['description'] ?? $description;
+$capabilities = $homeCapabilities['items'] ?? $capabilities;
 @endphp
 
 @push('structured-data')<script type="application/ld+json">
-    {
-        !!$structuredData!!
-    }
+    {!! $structuredData !!}
 </script>@endpush
 
 @section('content')
@@ -34,8 +38,8 @@ $structuredData = json_encode([
     <x-public.container>
         <div class="public-home-hero__grid">
             <div class="public-home-hero__copy">
-                <x-public.eyebrow>Complete hotel operations platform</x-public.eyebrow>
-                <h1>Run the daily hotel operation from one clear workspace.</h1>
+                <x-public.eyebrow>{{ $homeHero['eyebrow'] ?? 'Complete hotel operations platform' }}</x-public.eyebrow>
+                <h1>{{ $homeHero['heading'] ?? 'Run the daily hotel operation from one clear workspace.' }}</h1>
                 <p>{{ $description }}</p>
                 <div class="public-home-hero__actions">
                     <x-public.button :href="route('public.product')" variant="primary">Explore the platform <x-ui.icon name="arrow-right" size="16" /></x-public.button>
@@ -71,7 +75,7 @@ $structuredData = json_encode([
 </x-public.section>
 
 <x-public.section class="public-section--muted public-home-capabilities">
-    <x-public.section-heading align="center" eyebrow="Explore Lodgix" heading="The working tools behind the front desk." description="Choose a product area to see how the pieces fit together." />
+    <x-public.section-heading align="center" eyebrow="Explore Lodgix" :heading="$homeCapabilities['heading'] ?? 'The working tools behind the front desk.'" :description="$homeCapabilities['description'] ?? 'Choose a product area to see how the pieces fit together.'" />
     <div class="public-home-capabilities__grid">
         @foreach($capabilities as $capability)
         <a class="public-capability-card public-capability-card--link" href="{{ route($capability['route']) }}"><span class="public-capability-card__icon"><x-ui.icon :name="$capability['icon']" size="19" /></span><span class="public-capability-card__copy"><strong>{{ $capability['title'] }}</strong><small>{{ $capability['description'] }}</small></span><x-ui.icon name="arrow-right" size="16" class="public-capability-card__arrow" /></a>
@@ -94,9 +98,9 @@ $structuredData = json_encode([
 </x-public.section>
 
 <x-public.section theme="dark" class="public-final-cta public-home-cta">
-    <div class="public-final-cta__content"><x-public.eyebrow>Bring it together</x-public.eyebrow>
-        <h2>Give every hotel team a clearer operating view.</h2>
-        <p>Reservations, rooms, operations, POS, finance and reporting — in one Lodgix workspace.</p>
+    <div class="public-final-cta__content"><x-public.eyebrow>{{ $homeCta['eyebrow'] ?? 'Bring it together' }}</x-public.eyebrow>
+        <h2>{{ $homeCta['heading'] ?? 'Give every hotel team a clearer operating view.' }}</h2>
+        <p>{{ $homeCta['description'] ?? 'Reservations, rooms, operations, POS, finance and reporting — in one Lodgix workspace.' }}</p>
         <div class="public-final-cta__actions"><x-public.button :href="auth()->check() ? route('dashboard') : route('login')" variant="primary">{{ auth()->check() ? 'Open Dashboard' : 'Sign In' }} <x-ui.icon name="arrow-right" size="16" /></x-public.button><x-public.button :href="route('public.product')" variant="dark">Explore the platform</x-public.button></div>
     </div>
 </x-public.section>
