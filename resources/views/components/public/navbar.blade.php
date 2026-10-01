@@ -4,12 +4,14 @@
     $logoAvailable = file_exists(public_path(ltrim($logoPath, '/')));
     $ctaRoute = auth()->check() ? route('dashboard') : route('login');
     $ctaLabel = auth()->check() ? 'Open Dashboard' : 'Sign In';
-    $navigation = [
-        ['label' => 'Product', 'route' => 'public.product'],
-        ['label' => 'Operations', 'route' => 'public.operations'],
-        ['label' => 'POS', 'route' => 'public.pos'],
-        ['label' => 'Finance', 'route' => 'public.finance'],
+    $solutions = [
+        ['label' => 'Operations', 'route' => 'public.operations', 'description' => 'Reservations, rooms and teams'],
+        ['label' => 'POS', 'route' => 'public.pos', 'description' => 'Outlet sales and guest charges'],
+        ['label' => 'Finance', 'route' => 'public.finance', 'description' => 'Payments, accounts and reporting'],
+        ['label' => 'Security', 'route' => 'public.security', 'description' => 'Roles, permissions and controls'],
+        ['label' => 'Integrations', 'route' => 'public.integrations', 'description' => 'Connections and operational updates'],
     ];
+    $solutionsActive = request()->routeIs('public.operations', 'public.pos', 'public.finance', 'public.security', 'public.integrations');
 @endphp
 
 <header class="public-navbar" data-public-navbar>
@@ -24,9 +26,21 @@
             </a>
 
             <div class="public-navbar__links" data-public-desktop-links>
-                @foreach($navigation as $item)
-                    <a href="{{ route($item['route']) }}" @class(['is-active' => request()->routeIs($item['route'])]) @if(request()->routeIs($item['route'])) aria-current="page" @endif>{{ $item['label'] }}</a>
-                @endforeach
+                <a href="{{ route('public.product') }}" @class(['is-active' => request()->routeIs('public.product')]) @if(request()->routeIs('public.product')) aria-current="page" @endif>Product</a>
+                <div class="public-solutions" data-public-solutions>
+                    <button class="public-solutions__trigger {{ $solutionsActive ? 'is-active' : '' }}" type="button" data-solutions-toggle aria-expanded="false" aria-controls="public-solutions-menu" aria-haspopup="true">
+                        Solutions <x-ui.icon name="chevron-down" size="15" />
+                    </button>
+                    <div class="public-solutions__menu" id="public-solutions-menu" data-solutions-menu hidden>
+                        @foreach($solutions as $item)
+                            <a href="{{ route($item['route']) }}" @class(['is-active' => request()->routeIs($item['route'])]) @if(request()->routeIs($item['route'])) aria-current="page" @endif>
+                                <strong>{{ $item['label'] }}</strong><small>{{ $item['description'] }}</small>
+                            </a>
+                        @endforeach
+                    </div>
+                </div>
+                <a href="{{ route('public.pricing') }}" @class(['is-active' => request()->routeIs('public.pricing')]) @if(request()->routeIs('public.pricing')) aria-current="page" @endif>Pricing</a>
+                <a href="{{ route('public.contact') }}" @class(['is-active' => request()->routeIs('public.contact')]) @if(request()->routeIs('public.contact')) aria-current="page" @endif>Contact</a>
             </div>
 
             <div class="public-navbar__actions">
@@ -39,4 +53,4 @@
     </x-public.container>
 </header>
 
-<x-public.mobile-nav :cta-route="$ctaRoute" :cta-label="$ctaLabel" :navigation="$navigation" />
+<x-public.mobile-nav :cta-route="$ctaRoute" :cta-label="$ctaLabel" :solutions="$solutions" :solutions-active="$solutionsActive" />

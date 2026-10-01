@@ -2,11 +2,13 @@
     <div class="public-device-composition__primary">
         <x-public.screenshot-frame
             browser-shell
-            src="assets/images/landing/lodgix-dashboard-light.webp"
+            src="assets/images/landing/lodgix-dashboard-light.jpg"
+            :srcset="asset('assets/images/landing/lodgix-dashboard-light-960.jpg').' 960w, '.asset('assets/images/landing/lodgix-dashboard-light-1440.jpg').' 1440w, '.asset('assets/images/landing/lodgix-dashboard-light.jpg').' 1654w'"
+            sizes="(max-width: 900px) calc(100vw - 36px), 58vw"
             :width="1654"
             :height="921"
             aspect-ratio="1654 / 921"
-            alt="Sanitized Lodgix desktop product screen."
+            alt="Lodgix desktop dashboard with hotel operations summaries."
             loading="lazy"
         />
     </div>
@@ -14,9 +16,9 @@
         <x-public.screenshot-frame
             browser-shell
             aspect-ratio="4 / 3"
-            alt="Sanitized Lodgix tablet product screen."
-            placeholder-title="Tablet screenshot required"
-            placeholder-text="Use a sanitized demo capture for the tablet view."
+            alt="Illustrative Lodgix tablet feature view, not a product screenshot."
+            placeholder-title="Illustrative view"
+            placeholder-text="A visual summary of hotel workflows, not a live application screen."
         />
     </div>
     <div class="public-device-composition__mobile">
@@ -26,7 +28,7 @@
             :width="485"
             :height="887"
             aspect-ratio="485 / 887"
-            alt="Sanitized Lodgix mobile product screen."
+            alt="Lodgix mobile dashboard showing hotel operations summaries."
             loading="lazy"
         />
     </div>

@@ -17,14 +17,19 @@
             <div>
                 <h2>Product</h2>
                 <a href="{{ route('public.product') }}">Product</a>
+                <a href="{{ route('public.pricing') }}">Pricing</a>
+            </div>
+            <div>
+                <h2>Solutions</h2>
                 <a href="{{ route('public.operations') }}">Operations</a>
                 <a href="{{ route('public.pos') }}">POS</a>
                 <a href="{{ route('public.finance') }}">Finance</a>
-            </div>
-            <div>
-                <h2>Platform</h2>
                 <a href="{{ route('public.security') }}">Security</a>
                 <a href="{{ route('public.integrations') }}">Integrations</a>
+            </div>
+            <div>
+                <h2>Company</h2>
+                <a href="{{ route('public.contact') }}">Contact</a>
                 <a href="{{ auth()->check() ? route('dashboard') : route('login') }}">{{ auth()->check() ? 'Open Dashboard' : 'Sign In' }}</a>
             </div>
         </div>

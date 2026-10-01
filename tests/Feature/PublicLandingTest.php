@@ -14,13 +14,15 @@ class PublicLandingTest extends TestCase
     public static function publicPages(): array
     {
         return [
-            'home' => ['/', 'Run the daily hotel operation from one clear workspace.'],
+            'home' => ['/', 'Hotel operations at a glance.'],
             'product' => ['/product', 'The operating system for your hotel.'],
             'operations' => ['/operations', 'Keep every stay and every room operation in sync.'],
             'pos' => ['/pos', 'From outlet sale to guest folio.'],
             'finance' => ['/finance', 'Know where the money is — and where it moved.'],
             'security' => ['/security', 'Give every role the right level of access.'],
-            'integrations' => ['/integrations', 'Connect supporting services with clear boundaries.'],
+            'integrations' => ['/integrations', 'Connect the services behind your hotel.'],
+            'pricing' => ['/pricing', 'Flexible plans built around your property.'],
+            'contact' => ['/contact', 'Let’s talk about your hotel.'],
         ];
     }
 
@@ -51,17 +53,101 @@ class PublicLandingTest extends TestCase
     {
         $this->get('/')
             ->assertOk()
-            ->assertSee('One platform. Every part of the stay.')
-            ->assertSee('The working tools behind the front desk.')
+            ->assertSee('Hotel operations at a glance.')
+            ->assertSee('The essentials for running your property.')
             ->assertSee('href="'.route('public.operations').'"', false)
             ->assertSee('href="'.route('public.pos').'"', false)
             ->assertSee('href="'.route('public.finance').'"', false)
             ->assertSee('href="'.route('public.integrations').'"', false)
-            ->assertSee('assets/images/landing/lodgix-dashboard-light.webp')
-            ->assertSee('assets/images/landing/lodgix-room-planning.webp')
+            ->assertSee('assets/images/landing/lodgix-dashboard-light.jpg')
+            ->assertSee('assets/images/landing/lodgix-dashboard-light-960.jpg')
+            ->assertSee('assets/images/landing/lodgix-room-planning.jpg')
+            ->assertSee('assets/images/landing/lodgix-room-planning-1440.jpg')
             ->assertDontSee('Move every stay cleanly through the front desk.')
             ->assertDontSee('Turn outlet sales into clear guest charges.')
-            ->assertSee('Follow the stay from booking to report.');
+            ->assertSee('From booking to checkout.');
+        foreach (['Reservations', 'Room planning', 'Housekeeping', 'Maintenance &amp; tasks', 'POS &amp; guest charges', 'Payments &amp; reports'] as $label) {
+            $this->assertStringContainsString($label, $this->get('/')->getContent());
+        }
+    }
+
+    public function test_pricing_page_uses_contact_based_pricing_and_links_to_contact_without_offer_schema(): void
+    {
+        $this->get(route('public.pricing'))
+            ->assertOk()
+            ->assertSee('Lodgix Pricing — Hotel Management System Plans')
+            ->assertSee('Flexible plans built around your property.')
+            ->assertSee('Essential hotel operations')
+            ->assertSee('Connected operations, POS and finance')
+            ->assertSee('Request pricing')
+            ->assertSee('href="'.route('public.contact', ['enquiry_type' => 'pricing']).'"', false)
+            ->assertDontSee('provisional')
+            ->assertDontSee('No published prices')
+            ->assertDontSee('"@type":"Offer"', false)
+            ->assertDontSee('$99')
+            ->assertDontSee('Most Popular');
+    }
+
+    public function test_contact_page_has_its_own_metadata_and_integrations_page_links_to_enquiry(): void
+    {
+        $this->get(route('public.contact'))
+            ->assertOk()
+            ->assertSee('Contact Lodgix — Hotel Management System Enquiries')
+            ->assertSee('Tell us what you operate and what you want Lodgix to handle.')
+            ->assertSee('autocomplete="email"', false)
+            ->assertSee('name="_token"', false)
+            ->assertSee('What happens next')
+            ->assertSee('Implementation')
+            ->assertDontSee('email alert is queued')
+            ->assertDontSee('Configured contact email');
+
+        $this->get(route('public.integrations'))
+            ->assertOk()
+            ->assertSee('href="'.route('public.contact', ['enquiry_type' => 'integrations']).'"', false)
+            ->assertSee('Contact Us');
+    }
+
+    public function test_navigation_uses_a_compact_solutions_disclosure_and_exposes_contact(): void
+    {
+        $response = $this->get('/')->assertOk();
+
+        $response->assertSee('Solutions', false)
+            ->assertSee('aria-controls="public-solutions-menu"', false)
+            ->assertSee('data-solutions-toggle', false)
+            ->assertSee('aria-controls="public-mobile-solutions-list"', false)
+            ->assertSee('aria-label="Public navigation"', false)
+            ->assertSee('href="'.route('public.contact').'"', false);
+
+        foreach (['Operations', 'POS', 'Finance', 'Security', 'Integrations'] as $solution) {
+            $response->assertSee($solution);
+        }
+    }
+
+    public function test_marketing_pages_render_fixed_structured_data_and_never_show_internal_pricing_notes(): void
+    {
+        foreach (['/', '/product', '/operations', '/pos', '/finance', '/security', '/integrations'] as $path) {
+            $this->get($path)->assertOk()->assertSee('"@type":"SoftwareApplication"', false);
+        }
+
+        $this->get('/pricing')->assertOk()->assertDontSee('conversation guides')->assertDontSee('fixed feature entitlements');
+        $this->get('/contact')->assertOk()->assertDontSee('queued for delivery')->assertDontSee('notification address is configured');
+    }
+
+    public function test_marketing_screenshots_use_real_source_dimensions_and_valid_responsive_variants(): void
+    {
+        foreach ([
+            'lodgix-dashboard-light-960.jpg' => [960, 535],
+            'lodgix-dashboard-light-1440.jpg' => [1440, 802],
+            'lodgix-dashboard-light.jpg' => [1654, 921],
+            'lodgix-room-planning-960.jpg' => [960, 479],
+            'lodgix-room-planning-1440.jpg' => [1440, 718],
+            'lodgix-room-planning.jpg' => [1846, 921],
+        ] as $file => [$width, $height]) {
+            $image = getimagesize(public_path('assets/images/landing/'.$file));
+
+            $this->assertSame([$width, $height], [$image[0], $image[1]], $file.' has unexpected dimensions.');
+            $this->assertGreaterThan(40_000, filesize(public_path('assets/images/landing/'.$file)), $file.' should retain readable interface detail.');
+        }
     }
 
     public function test_authenticated_users_see_dashboard_cta_without_losing_public_page_access(): void

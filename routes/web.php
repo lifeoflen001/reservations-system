@@ -14,6 +14,8 @@ use App\Http\Controllers\Payments\InvoiceController;
 use App\Http\Controllers\Payments\PaymentController;
 use App\Http\Controllers\PosController;
 use App\Http\Controllers\PublicMetadataController;
+use App\Http\Controllers\PublicContactController;
+use App\Http\Controllers\ContactEnquiryController;
 use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\Reservations\ReservationController;
 use App\Http\Controllers\RoomPlanningController;
@@ -41,6 +43,9 @@ Route::view('/pos', 'public.pos')->name('public.pos');
 Route::view('/finance', 'public.finance')->name('public.finance');
 Route::view('/security', 'public.security')->name('public.security');
 Route::view('/integrations', 'public.integrations')->name('public.integrations');
+Route::view('/pricing', 'public.pricing')->name('public.pricing');
+Route::get('/contact', [PublicContactController::class, 'create'])->name('public.contact');
+Route::post('/contact', [PublicContactController::class, 'store'])->middleware('throttle:5,60')->name('public.contact.submit');
 Route::get('/sitemap.xml', [PublicMetadataController::class, 'sitemap'])->name('sitemap');
 Route::get('/robots.txt', [PublicMetadataController::class, 'robots'])->name('robots');
 
@@ -68,6 +73,9 @@ Route::middleware([EnsureInstallationComplete::class, 'throttle:6,1'])->group(fu
 
 Route::middleware(['auth', EnsureActiveUser::class, EnsureInstallationComplete::class, ConfiguredSessionSecurity::class, EnsurePasswordChanged::class])->group(function () {
     Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');
+    Route::get('/management/contact-enquiries', [ContactEnquiryController::class, 'index'])->middleware('can:contact_enquiries.view')->name('contact-enquiries.index');
+    Route::get('/management/contact-enquiries/{contactEnquiry}', [ContactEnquiryController::class, 'show'])->middleware('can:contact_enquiries.view')->name('contact-enquiries.show');
+    Route::patch('/management/contact-enquiries/{contactEnquiry}/status', [ContactEnquiryController::class, 'updateStatus'])->middleware('can:contact_enquiries.manage')->name('contact-enquiries.status');
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
     Route::get('/search', [SearchController::class, 'index'])->name('search');
 

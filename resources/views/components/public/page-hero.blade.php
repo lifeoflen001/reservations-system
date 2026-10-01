@@ -3,12 +3,13 @@
     'heading',
     'description' => null,
     'theme' => 'light',
+    'layout' => 'split',
     'class' => '',
     'ctaLabel' => null,
     'ctaHref' => null,
 ])
 
-<section {{ $attributes->merge(['class' => 'public-page-hero public-page-hero--'.$theme.' '.$class]) }}>
+<section {{ $attributes->merge(['class' => 'public-page-hero public-page-hero--'.$theme.' public-page-hero--'.$layout.' '.$class]) }}>
     <x-public.container>
         <div class="public-page-hero__grid">
             <div class="public-page-hero__copy">
