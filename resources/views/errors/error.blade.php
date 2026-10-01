@@ -18,6 +18,16 @@
     $dashboardUrl = \Illuminate\Support\Facades\Route::has('dashboard') ? route('dashboard') : $homeUrl;
     $loginUrl = \Illuminate\Support\Facades\Route::has('login') ? route('login') : $homeUrl;
     $isAuthenticated = auth()->check();
+    $themePreference = 'system';
+    try {
+        $profileTheme = auth()->user()?->preferences?->theme;
+        $configuredTheme = app(\App\Services\SystemSettingsService::class)->get('theme', 'system');
+        $themePreference = in_array($profileTheme, ['light', 'dark'], true)
+            ? $profileTheme
+            : (in_array($configuredTheme, ['light', 'dark', 'system'], true) ? $configuredTheme : 'system');
+    } catch (\Throwable) {
+        // Error pages must remain renderable when the settings store is unavailable.
+    }
 @endphp
 <!doctype html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
@@ -27,17 +37,33 @@
     <meta name="theme-color" content="#0d1014">
     <title>{{ $message['eyebrow'] }} · Lodgix</title>
     <link rel="icon" href="{{ asset($brandMark) }}" type="image/png">
+    <script>
+        (() => {
+            const preference = @json($themePreference);
+            const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            document.documentElement.dataset.themePreference = preference;
+            document.documentElement.dataset.theme = preference === 'system' ? systemTheme : preference;
+        })();
+    </script>
     <style>
         :root {
+            --error-bg: #f4f6f8;
+            --error-surface: #ffffff;
+            --error-border: #dfe3e8;
+            --error-text: #344054;
+            --error-muted: #667085;
+            --error-subtle: #98a2b3;
+            --error-orange: #e67e2f;
+            --error-orange-dark: #cf6d25;
+            --error-orange-soft: rgb(230 126 47 / 12%);
+        }
+        [data-theme="dark"] {
             --error-bg: #0d1014;
             --error-surface: #151a20;
             --error-border: #2b333e;
             --error-text: #f7f8fa;
             --error-muted: #aab4c2;
             --error-subtle: #7d8795;
-            --error-orange: #e67e2f;
-            --error-orange-dark: #cf6d25;
-            --error-orange-soft: rgb(230 126 47 / 12%);
         }
         * { box-sizing: border-box; }
         html, body { min-height: 100%; margin: 0; }
@@ -71,17 +97,20 @@
         .error-page__button--secondary:hover { border-color: var(--error-orange); color: var(--error-text); }
         .error-page__footer { display: flex; align-items: center; justify-content: space-between; gap: 18px; color: var(--error-subtle); font-size: 12px; }
         .error-page__footer strong { color: var(--error-muted); font-weight: 700; }
-        .error-page__visual { position: relative; min-width: 0; overflow: hidden; background: #171b20; }
-        .error-page__visual::before { position: absolute; z-index: 1; inset: 0; background: linear-gradient(100deg, #0d1014 0%, rgb(13 16 20 / 72%) 18%, rgb(13 16 20 / 20%) 75%, rgb(13 16 20 / 45%) 100%), linear-gradient(180deg, rgb(13 16 20 / 14%), rgb(13 16 20 / 75%)); content: ""; }
+        .error-page__visual { position: relative; min-width: 0; overflow: hidden; background: #202b44; }
+        .error-page__visual::before { position: absolute; z-index: 1; inset: 0; background: linear-gradient(100deg, rgb(244 246 248 / 96%) 0%, rgb(244 246 248 / 68%) 18%, rgb(244 246 248 / 15%) 75%, rgb(244 246 248 / 42%) 100%), linear-gradient(180deg, rgb(244 246 248 / 8%), rgb(244 246 248 / 60%)); content: ""; }
+        [data-theme="dark"] .error-page__visual::before { background: linear-gradient(100deg, #0d1014 0%, rgb(13 16 20 / 72%) 18%, rgb(13 16 20 / 20%) 75%, rgb(13 16 20 / 45%) 100%), linear-gradient(180deg, rgb(13 16 20 / 14%), rgb(13 16 20 / 75%)); }
         .error-page__visual::after { position: absolute; z-index: 2; inset: 0; background: radial-gradient(circle at 72% 38%, rgb(230 126 47 / 18%), transparent 32%), linear-gradient(135deg, transparent 0 45%, rgb(230 126 47 / 8%) 45.1% 45.4%, transparent 45.5%); content: ""; pointer-events: none; }
-        .error-page__visual-image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 62% center; filter: saturate(.65) brightness(.62); opacity: .86; }
+        .error-page__visual-image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; filter: saturate(.78) brightness(.9); opacity: .86; }
+        [data-theme="dark"] .error-page__visual-image { filter: saturate(.65) brightness(.62); }
         .error-page__visual-mark { position: absolute; z-index: 3; top: clamp(30px, 7vw, 100px); right: clamp(24px, 7vw, 120px); width: clamp(90px, 12vw, 180px); opacity: .14; filter: grayscale(1) brightness(2.8); }
         .error-page__visual-caption { position: absolute; z-index: 3; right: clamp(24px, 5vw, 72px); bottom: clamp(28px, 5vw, 64px); left: clamp(24px, 5vw, 72px); display: flex; align-items: center; justify-content: space-between; border-top: 1px solid rgb(255 255 255 / 16%); padding-top: 14px; color: rgb(255 255 255 / 62%); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
         .error-page__visual-caption span:last-child { color: var(--error-orange); }
         @media (max-width: 900px) {
             .error-page { display: block; min-height: 100svh; }
             .error-page__visual { position: absolute; z-index: 0; inset: 0; min-height: 100%; }
-            .error-page__visual::before { background: linear-gradient(90deg, rgb(13 16 20 / 96%) 0%, rgb(13 16 20 / 82%) 55%, rgb(13 16 20 / 48%) 100%), linear-gradient(180deg, rgb(13 16 20 / 20%), rgb(13 16 20 / 85%)); }
+            .error-page__visual::before { background: linear-gradient(90deg, rgb(244 246 248 / 96%) 0%, rgb(244 246 248 / 82%) 55%, rgb(244 246 248 / 48%) 100%), linear-gradient(180deg, rgb(244 246 248 / 20%), rgb(244 246 248 / 85%)); }
+            [data-theme="dark"] .error-page__visual::before { background: linear-gradient(90deg, rgb(13 16 20 / 96%) 0%, rgb(13 16 20 / 82%) 55%, rgb(13 16 20 / 48%) 100%), linear-gradient(180deg, rgb(13 16 20 / 20%), rgb(13 16 20 / 85%)); }
             .error-page__content { min-height: 100svh; padding: 28px 24px; }
             .error-page__copy { padding-block: 72px 86px; }
             .error-page__visual-caption { display: none; }
@@ -133,7 +162,7 @@
         </section>
 
         <aside class="error-page__visual" aria-hidden="true">
-            <img class="error-page__visual-image" src="{{ asset('assets/images/landing/lodgix-dashboard-light.webp') }}" alt="">
+            <img class="error-page__visual-image" src="{{ asset('assets/branding/mbvl.webp') }}" alt="">
             @if ($hasMark)<img class="error-page__visual-mark" src="{{ asset($brandMark) }}" alt="">@endif
             <div class="error-page__visual-caption"><span>Connected hotel operations</span><span>Lodgix</span></div>
         </aside>
