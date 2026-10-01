@@ -111,4 +111,13 @@ return [
 
     // Only explicitly verified application-owned names may be retired.
     'retired_permissions' => [],
+
+    'api_token_scopes' => [
+        'rooms:read', 'availability:read',
+        'reservations:read', 'reservations:write',
+        'clients:read',
+        'payments:read', 'payments:write', 'payments:confirm', 'payments:manage',
+        'pos:read', 'pos:write', 'pos:manage',
+        'finance:read', 'invoices:read', 'reports:read', 'staff:read',
+    ],
 ];

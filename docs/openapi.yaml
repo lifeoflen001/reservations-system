@@ -1,0 +1,252 @@
+openapi: 3.0.3
+info:
+  title: Lodgix Hotel Management API
+  version: 1.0.0
+  description: |
+    Scoped JSON API for rooms, reservations, payments, POS, finance, invoices,
+    reports, and staff directory data. Create tokens under Settings > Integrations.
+    Payment creation starts in pending state; only a separate confirmation after
+    verified provider success posts the final financial entry.
+servers:
+  - url: /api
+security:
+  - bearerAuth: []
+paths:
+  /health:
+    get:
+      summary: Safe service health
+      security: []
+      responses:
+        '200': {description: Service health}
+  /openapi.yaml:
+    get:
+      summary: This OpenAPI document
+      security: []
+      responses:
+        '200': {description: OpenAPI YAML}
+  /v1/rooms:
+    get:
+      summary: List active rooms
+      x-scope: rooms:read
+      responses:
+        '200': {description: Paginated rooms}
+  /v1/availability:
+    get:
+      summary: Find available rooms
+      x-scope: availability:read
+      parameters:
+        - {name: check_in, in: query, required: true, schema: {type: string, format: date}}
+        - {name: check_out, in: query, required: true, schema: {type: string, format: date}}
+      responses:
+        '200': {description: Available rooms}
+  /v1/reservations:
+    post:
+      summary: Create a reservation
+      x-scope: reservations:write
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReservationInput'
+      responses:
+        '201': {description: Created reservation}
+  /v1/reservations/{reservation}:
+    get:
+      summary: Get a reservation folio summary
+      x-scope: reservations:read
+      parameters: [{'$ref': '#/components/parameters/Id'}]
+      responses:
+        '200': {description: Reservation}
+  /v1/clients/{client}:
+    get:
+      summary: Get a client
+      x-scope: clients:read
+      parameters: [{'$ref': '#/components/parameters/Id'}]
+      responses:
+        '200': {description: Client}
+  /v1/payments:
+    get:
+      summary: List payments
+      x-scope: payments:read
+      responses:
+        '200': {description: Paginated payments}
+    post:
+      summary: Initiate a payment
+      description: Requires a unique reference. New API payments are pending.
+      x-scope: payments:write
+      parameters: [{'$ref': '#/components/parameters/IdempotencyKey'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentInput'
+      responses:
+        '201': {description: Pending payment}
+        '409': {description: Reference conflict}
+  /v1/payments/{payment}:
+    get:
+      summary: Get a payment
+      x-scope: payments:read
+      parameters: [{'$ref': '#/components/parameters/Id'}]
+      responses:
+        '200': {description: Payment}
+  /v1/payments/{payment}/confirm:
+    post:
+      summary: Confirm a pending payment after verified provider success
+      x-scope: payments:confirm
+      parameters: [{'$ref': '#/components/parameters/Id'}]
+      responses:
+        '200': {description: Confirmed payment and posted ledger entry}
+  /v1/payments/{payment}/void:
+    post:
+      summary: Void a payment
+      x-scope: payments:manage
+      parameters: [{'$ref': '#/components/parameters/Id'}]
+      responses:
+        '200': {description: Voided payment}
+  /v1/payments/{payment}/refund:
+    post:
+      summary: Refund a payment
+      x-scope: payments:manage
+      parameters: [{'$ref': '#/components/parameters/Id'}]
+      responses:
+        '200': {description: Refund and updated payment}
+  /v1/pos/outlets:
+    get:
+      summary: List active POS outlets
+      x-scope: pos:read
+      responses:
+        '200': {description: POS outlets}
+  /v1/pos/products:
+    get:
+      summary: List active POS products
+      x-scope: pos:read
+      responses:
+        '200': {description: Paginated products}
+  /v1/pos/orders:
+    get:
+      summary: List POS orders
+      x-scope: pos:read
+      responses:
+        '200': {description: Paginated orders}
+    post:
+      summary: Complete a POS sale
+      description: Uses the existing stock-locking, shift, room-charge, finance, and idempotency rules.
+      x-scope: pos:write
+      parameters: [{'$ref': '#/components/parameters/IdempotencyKey'}]
+      responses:
+        '201': {description: Completed POS order}
+        '200': {description: Idempotent replay}
+  /v1/pos/orders/{order}:
+    get:
+      summary: Get a POS order and receipt data
+      x-scope: pos:read
+      parameters: [{'$ref': '#/components/parameters/Id'}]
+      responses:
+        '200': {description: POS order}
+  /v1/pos/orders/{order}/void:
+    post:
+      summary: Void a POS order
+      x-scope: pos:manage
+      parameters: [{'$ref': '#/components/parameters/Id'}]
+      responses:
+        '200': {description: Voided order}
+  /v1/pos/orders/{order}/refund:
+    post:
+      summary: Refund a POS order
+      x-scope: pos:manage
+      parameters: [{'$ref': '#/components/parameters/Id'}]
+      responses:
+        '200': {description: Refunded order}
+  /v1/pos/reports:
+    get:
+      summary: POS sales summary
+      x-scope: pos:read
+      responses:
+        '200': {description: POS report}
+  /v1/finance/accounts:
+    get:
+      summary: Active finance accounts and balances
+      x-scope: finance:read
+      responses:
+        '200': {description: Accounts}
+  /v1/finance/transactions:
+    get:
+      summary: Paginated finance ledger transactions
+      x-scope: finance:read
+      responses:
+        '200': {description: Transactions}
+  /v1/finance/reports:
+    get:
+      summary: Finance movement summary
+      x-scope: finance:read
+      responses:
+        '200': {description: Finance report}
+  /v1/invoices/{invoice}:
+    get:
+      summary: Get invoice, folio, payment, and POS line items
+      x-scope: invoices:read
+      parameters: [{'$ref': '#/components/parameters/Id'}]
+      responses:
+        '200': {description: Invoice}
+  /v1/reports:
+    get:
+      summary: Hotel operations and financial report
+      x-scope: reports:read
+      responses:
+        '200': {description: Hotel report}
+  /v1/staff:
+    get:
+      summary: List staff directory records
+      x-scope: staff:read
+      responses:
+        '200': {description: Paginated staff}
+  /v1/staff/{staff}:
+    get:
+      summary: Get a staff directory record
+      x-scope: staff:read
+      parameters: [{'$ref': '#/components/parameters/Id'}]
+      responses:
+        '200': {description: Staff record}
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: {type: integer}
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      schema: {type: string, maxLength: 80}
+  schemas:
+    ReservationInput:
+      type: object
+      required: [client_id, room_id, check_in, check_out, adults, children, status, nightly_rate]
+      properties:
+        client_id: {type: integer}
+        room_id: {type: integer}
+        check_in: {type: string, format: date-time}
+        check_out: {type: string, format: date-time}
+        adults: {type: integer, minimum: 1}
+        children: {type: integer, minimum: 0}
+        status: {type: string, enum: [pending, confirmed]}
+        nightly_rate: {type: number, format: decimal}
+    PaymentInput:
+      type: object
+      required: [reservation_id, amount, method, reference]
+      properties:
+        reservation_id: {type: integer}
+        amount: {type: number, format: decimal}
+        method: {type: string}
+        reference: {type: string, maxLength: 100}
+        transaction_date: {type: string, format: date-time}
+        notes: {type: string}
