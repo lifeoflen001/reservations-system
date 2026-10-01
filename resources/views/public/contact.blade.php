@@ -31,7 +31,7 @@
                 </div>
             </aside>
 
-            <div class="public-card public-contact-card" id="contact-form">
+            <div class="public-contact-form-shell" id="contact-form">
                 @if(session('success'))<div class="public-form-feedback public-form-feedback--success" role="status" aria-live="polite">{{ session('success') }}</div>@endif
                 @if($errors->any())
                     <div class="public-form-feedback public-form-feedback--error" role="alert" aria-live="assertive" tabindex="-1">

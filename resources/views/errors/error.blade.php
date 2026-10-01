@@ -10,7 +10,7 @@
         503 => ['eyebrow' => '503', 'title' => 'We will be right back.', 'copy' => 'Lodgix is temporarily unavailable while we finish a system update.'],
     ];
     $message = $messages[$status] ?? ['eyebrow' => (string) $status, 'title' => 'Something went wrong.', 'copy' => 'We could not complete that request. Please try again or return home.'];
-    $brandWordmark = 'assets/images/landing/lodgix-wordmark.webp';
+    $brandWordmark = 'assets/branding/lodgix.png';
     $brandMark = 'assets/branding/lodgix-mark.png';
     $hasWordmark = file_exists(public_path($brandWordmark));
     $hasMark = file_exists(public_path($brandMark));
