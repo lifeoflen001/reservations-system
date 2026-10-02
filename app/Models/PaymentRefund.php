@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\AssignsTenantOwnership;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class PaymentRefund extends Model
 {
+    use AssignsTenantOwnership;
     protected $fillable = ['payment_id', 'account_id', 'amount', 'method', 'refund_reference', 'reason', 'status', 'refunded_by', 'refunded_at', 'ledger_transaction_id'];
 
     protected function casts(): array
@@ -18,4 +20,5 @@ class PaymentRefund extends Model
     public function account(): BelongsTo { return $this->belongsTo(FinancialAccount::class); }
     public function refunder(): BelongsTo { return $this->belongsTo(User::class, 'refunded_by'); }
     public function ledgerTransaction(): BelongsTo { return $this->belongsTo(FinancialTransaction::class, 'ledger_transaction_id'); }
+    public function property(): BelongsTo { return $this->belongsTo(Property::class); }
 }

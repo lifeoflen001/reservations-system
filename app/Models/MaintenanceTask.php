@@ -4,12 +4,14 @@ namespace App\Models;
 
 use App\Enums\TaskPriority;
 use App\Enums\TaskStatus;
+use App\Models\Concerns\AssignsTenantOwnership;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class MaintenanceTask extends Model
 {
+    use AssignsTenantOwnership;
     protected $fillable = [
         'room_id', 'assignee_id', 'created_by', 'updated_by', 'issue', 'description', 'priority', 'starts_at', 'ends_at', 'due_at',
         'cost', 'status', 'notes', 'completed_at', 'completed_by',
@@ -33,5 +35,6 @@ class MaintenanceTask extends Model
     public function creator(): BelongsTo { return $this->belongsTo(User::class, 'created_by'); }
     public function updater(): BelongsTo { return $this->belongsTo(User::class, 'updated_by'); }
     public function completer(): BelongsTo { return $this->belongsTo(User::class, 'completed_by'); }
+    public function property(): BelongsTo { return $this->belongsTo(Property::class); }
     public function tasks(): HasMany { return $this->hasMany(Task::class); }
 }

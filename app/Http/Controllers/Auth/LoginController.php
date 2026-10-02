@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Services\LoginHistoryService;
+use App\Services\Tenancy\TenantContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -17,7 +18,7 @@ class LoginController extends Controller
         return Auth::check() ? redirect()->route('dashboard') : view('auth.login');
     }
 
-    public function store(LoginRequest $request, LoginHistoryService $loginHistory): RedirectResponse
+    public function store(LoginRequest $request, LoginHistoryService $loginHistory, TenantContext $tenantContext): RedirectResponse
     {
         $user = $request->authenticate();
 
@@ -30,6 +31,7 @@ class LoginController extends Controller
 
         Auth::login($user, $request->boolean('remember'));
         $request->session()->regenerate();
+        $tenantContext->resolveFor($user);
         $user->forceFill(['last_login_at' => now(), 'last_login_ip' => $request->ip()])->save();
         $loginHistory->record($user, $request);
 
@@ -40,9 +42,10 @@ class LoginController extends Controller
         return redirect()->intended(route('dashboard'))->with('success', 'Welcome back.');
     }
 
-    public function destroy(Request $request, LoginHistoryService $loginHistory): RedirectResponse
+    public function destroy(Request $request, LoginHistoryService $loginHistory, TenantContext $tenantContext): RedirectResponse
     {
         $loginHistory->logoutCurrent($request);
+        $tenantContext->clear();
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();

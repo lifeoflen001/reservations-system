@@ -25,6 +25,11 @@ use App\Http\Controllers\SearchController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\SetupController;
 use App\Http\Controllers\TaskController;
+use App\Http\Controllers\TenantContextController;
+use App\Http\Controllers\PropertyManagementController;
+use App\Http\Controllers\OrganizationSettingsController;
+use App\Http\Controllers\OrganizationMemberController;
+use App\Http\Controllers\OrganizationAuditController;
 use App\Http\Controllers\Staff\ProfileController;
 use App\Http\Controllers\Staff\StaffController;
 use App\Http\Controllers\WebhookController;
@@ -72,8 +77,10 @@ Route::middleware([EnsureInstallationComplete::class, 'throttle:6,1'])->group(fu
     Route::post('/two-factor-challenge', [TwoFactorController::class, 'store'])->name('two-factor.login.store');
 });
 
-Route::middleware(['auth', EnsureActiveUser::class, EnsureInstallationComplete::class, ConfiguredSessionSecurity::class, EnsurePasswordChanged::class])->group(function () {
+Route::middleware(['auth', EnsureActiveUser::class, EnsureInstallationComplete::class, ConfiguredSessionSecurity::class, EnsurePasswordChanged::class, 'tenant.context'])->group(function () {
     Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');
+    Route::post('/context/property', [TenantContextController::class, 'property'])->name('context.property');
+    Route::post('/context/organization', [TenantContextController::class, 'organization'])->name('context.organization');
     Route::get('/management/contact-enquiries', [ContactEnquiryController::class, 'index'])->middleware('can:contact_enquiries.view')->name('contact-enquiries.index');
     Route::get('/management/contact-enquiries/{contactEnquiry}', [ContactEnquiryController::class, 'show'])->middleware('can:contact_enquiries.view')->name('contact-enquiries.show');
     Route::patch('/management/contact-enquiries/{contactEnquiry}/status', [ContactEnquiryController::class, 'updateStatus'])->middleware('can:contact_enquiries.manage')->name('contact-enquiries.status');
@@ -225,6 +232,18 @@ Route::middleware(['auth', EnsureActiveUser::class, EnsureInstallationComplete::
     Route::post('/pos/shifts/{shift}/close', [PosController::class, 'shiftClose'])->name('pos.shifts.close');
     Route::get('/pos/reports', [PosController::class, 'reports'])->name('pos.reports');
     Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
+    Route::get('/settings/properties', [PropertyManagementController::class, 'index'])->middleware('can:properties.view')->name('settings.properties.index');
+    Route::post('/settings/properties', [PropertyManagementController::class, 'store'])->middleware('can:properties.create')->name('settings.properties.store');
+    Route::get('/settings/properties/{property}/edit', [PropertyManagementController::class, 'edit'])->middleware('can:properties.update')->name('settings.properties.edit');
+    Route::put('/settings/properties/{property}', [PropertyManagementController::class, 'update'])->middleware('can:properties.update')->name('settings.properties.update');
+    Route::get('/settings/properties/{property}/access', [PropertyManagementController::class, 'access'])->middleware('can:members.view')->name('settings.properties.access');
+    Route::put('/settings/properties/{property}/access', [PropertyManagementController::class, 'updateAccess'])->middleware('can:members.manage')->name('settings.properties.access.update');
+    Route::get('/settings/organization', [OrganizationSettingsController::class, 'index'])->middleware('can:organization.view')->name('settings.organization.index');
+    Route::put('/settings/organization', [OrganizationSettingsController::class, 'update'])->middleware('can:organization.update')->name('settings.organization.update');
+    Route::get('/settings/members', [OrganizationMemberController::class, 'index'])->middleware('can:members.view')->name('settings.members.index');
+    Route::get('/settings/members/{membership}/edit', [OrganizationMemberController::class, 'edit'])->middleware('can:members.manage')->name('settings.members.edit');
+    Route::put('/settings/members/{membership}', [OrganizationMemberController::class, 'update'])->middleware('can:members.manage')->name('settings.members.update');
+    Route::get('/settings/audit', [OrganizationAuditController::class, 'index'])->middleware('can:audit.view')->name('settings.audit.index');
     Route::get('/settings/database/backup', [SettingsController::class, 'downloadDatabaseBackup'])->name('settings.database.backup');
     Route::get('/settings/database/backups/{filename}', [SettingsController::class, 'downloadExistingDatabaseBackup'])->where('filename', '[A-Za-z0-9._-]+')->name('settings.database.backups.download');
     Route::post('/settings/integrations/email', [SettingsController::class, 'updateEmail'])->name('settings.integrations.email');

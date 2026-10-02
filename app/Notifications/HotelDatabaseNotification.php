@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Notifications\Channels\TenantDatabaseChannel;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 
@@ -13,7 +14,7 @@ class HotelDatabaseNotification extends Notification
 
     public function via(object $notifiable): array
     {
-        return ['database'];
+        return [TenantDatabaseChannel::class];
     }
 
     public function toDatabase(object $notifiable): array

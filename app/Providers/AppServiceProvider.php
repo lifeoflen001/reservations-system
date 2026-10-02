@@ -46,7 +46,12 @@ use App\Services\NullBookingChannelProvider;
 use App\Services\NullPaymentGateway;
 use App\Services\NullWhatsAppProvider;
 use App\Services\WebhookService;
+use App\Services\Tenancy\TenantContext;
+use App\Services\Tenancy\MembershipAccessService;
 use Illuminate\Console\Events\CommandStarting;
+use Illuminate\Foundation\Http\Events\RequestHandled;
+use Illuminate\Notifications\DatabaseNotification;
+use Illuminate\Notifications\Events\NotificationSent;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Event;
@@ -62,6 +67,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->scoped(TenantContext::class, fn (): TenantContext => new TenantContext);
         $this->app->bind(WhatsAppProviderInterface::class, NullWhatsAppProvider::class);
         $this->app->bind(PaymentGatewayInterface::class, NullPaymentGateway::class);
         $this->app->bind(BookingChannelInterface::class, NullBookingChannelProvider::class);
@@ -78,6 +84,11 @@ class AppServiceProvider extends ServiceProvider
         }
 
         RateLimiter::for('api', fn (Request $request) => Limit::perMinute(60)->by($request->bearerToken() ? hash('sha256', $request->bearerToken()) : $request->ip()));
+        if ($this->app->environment('testing')) {
+            // Feature tests reuse the application container across requests;
+            // mirror request-scoped production lifetime between responses.
+            Event::listen(RequestHandled::class, fn (): TenantContext => tap(app(TenantContext::class), fn (TenantContext $context) => $context->release()));
+        }
         Event::listen(ReservationCreated::class, fn (ReservationCreated $event) => $this->reservationEvent($event->reservation, 'created'));
         Event::listen(ReservationUpdated::class, fn (ReservationUpdated $event) => $this->reservationEvent($event->reservation, 'updated'));
         Event::listen(ReservationConfirmed::class, fn (ReservationConfirmed $event) => $this->reservationEvent($event->reservation, 'confirmed'));
@@ -86,6 +97,29 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(GuestCheckedOut::class, fn (GuestCheckedOut $event) => $this->reservationEvent($event->reservation, 'checked_out'));
         Event::listen(PaymentReceived::class, fn (PaymentReceived $event) => $this->paymentEvent($event->payment, 'received'));
         Event::listen(PaymentVoided::class, fn (PaymentVoided $event) => $this->paymentEvent($event->payment, 'voided'));
+        Event::listen(NotificationSent::class, function (NotificationSent $event): void {
+            if ($event->channel !== 'database' || ! $event->response instanceof DatabaseNotification) {
+                return;
+            }
+
+            $context = app(TenantContext::class);
+            if ($context->organizationId() === null && $event->notifiable instanceof User) {
+                // Notifications may be emitted by a service or test outside
+                // an HTTP request. Resolve the recipient's active membership
+                // before stamping ownership; never accept tenant IDs from the
+                // notification payload itself.
+                $context->resolveFor($event->notifiable);
+            }
+
+            if ($context->organizationId() === null) {
+                return;
+            }
+
+            $event->response->forceFill([
+                'organization_id' => $context->organizationId(),
+                'property_id' => $context->propertyId(),
+            ])->save();
+        });
         Gate::policy(Reservation::class, ReservationPolicy::class);
         Gate::policy(Room::class, RoomPolicy::class);
         Gate::policy(HousekeepingTask::class, HousekeepingTaskPolicy::class);
@@ -104,10 +138,25 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('dashboard.view', fn (User $user): bool => $user->hasPermission('dashboard.view'));
         Gate::define('reports.view', fn (User $user): bool => $user->hasPermission('reports.view'));
         Gate::define('reports.export', fn (User $user): bool => $user->hasPermission('reports.export'));
-        foreach (['contact_enquiries.view', 'contact_enquiries.manage', 'website.view', 'website.pages.manage', 'website.pages.publish', 'website.media.manage', 'website.navigation.manage', 'website.pricing.manage', 'website.seo.manage', 'website.enquiries.view', 'website.enquiries.manage', 'website.settings.manage', 'pos.access', 'pos.sell', 'pos.charge_room', 'pos.discount', 'pos.void', 'pos.refund', 'pos.products.view', 'pos.products.manage', 'pos.categories.manage', 'pos.outlets.manage', 'pos.shifts.open', 'pos.shifts.close', 'pos.shifts.view_all', 'pos.reports.view', 'pos.receipts.view', 'pos.manage', 'finance.view', 'finance.accounts.view', 'finance.accounts.manage', 'finance.payments.view', 'finance.payments.create', 'finance.expenses.view', 'finance.expenses.create', 'finance.expenses.submit', 'finance.expenses.approve', 'finance.expenses.reject', 'finance.expenses.pay', 'finance.expenses.reverse', 'finance.transfers.create', 'finance.transfers.approve', 'finance.petty_cash.manage', 'finance.bank.manage', 'finance.reconcile', 'finance.refunds', 'finance.adjustments', 'finance.reports.view', 'finance.reports.export'] as $permission) {
+        foreach (['contact_enquiries.view', 'contact_enquiries.manage', 'website.view', 'website.pages.manage', 'website.pages.publish', 'website.media.manage', 'website.navigation.manage', 'website.pricing.manage', 'website.seo.manage', 'website.enquiries.view', 'website.enquiries.manage', 'website.settings.manage', 'properties.view', 'properties.create', 'properties.update', 'properties.manage_access', 'pos.access', 'pos.sell', 'pos.charge_room', 'pos.discount', 'pos.void', 'pos.refund', 'pos.products.view', 'pos.products.manage', 'pos.categories.manage', 'pos.outlets.manage', 'pos.shifts.open', 'pos.shifts.close', 'pos.shifts.view_all', 'pos.reports.view', 'pos.receipts.view', 'pos.manage', 'finance.view', 'finance.accounts.view', 'finance.accounts.manage', 'finance.payments.view', 'finance.payments.create', 'finance.expenses.view', 'finance.expenses.create', 'finance.expenses.submit', 'finance.expenses.approve', 'finance.expenses.reject', 'finance.expenses.pay', 'finance.expenses.reverse', 'finance.transfers.create', 'finance.transfers.approve', 'finance.petty_cash.manage', 'finance.bank.manage', 'finance.reconcile', 'finance.refunds', 'finance.adjustments', 'finance.reports.view', 'finance.reports.export'] as $permission) {
             Gate::define($permission, fn (User $user) => $user->hasPermission($permission));
         }
+        foreach (['organization.view', 'organization.update', 'members.view', 'members.manage', 'audit.view'] as $permission) {
+            Gate::define($permission, fn (User $user) => app(MembershipAccessService::class)->hasCurrentOrganizationPermission($user, $permission));
+        }
         Gate::before(function (User $user): ?bool {
+            $arguments = func_get_args();
+            // Gate callbacks receive user, ability, then the policy argument
+            // array. The first policy argument is the resource instance.
+            $resource = $arguments[2][0] ?? null;
+            if ($resource instanceof \Illuminate\Database\Eloquent\Model
+                && ! app(\App\Services\TenantOwnershipConsistencyService::class)->owns($resource)) {
+                return false;
+            }
+
+            // Hotel super administrators bypass permission checks only after
+            // the tenant boundary has been verified above. There is no
+            // platform-admin bypass in this phase.
             return $user->roleName() === 'super_administrator' ? true : null;
         });
     }
@@ -131,6 +180,11 @@ class AppServiceProvider extends ServiceProvider
             $connection = (string) config('database.default');
             $database = strtolower((string) config("database.connections.{$connection}.database"));
             $testingDatabase = app()->environment('testing') && $connection === 'sqlite' && $database === ':memory:';
+            $disposableMariaDb = app()->environment('testing')
+                && $connection === 'mysql'
+                && filter_var(env('POS_MYSQL_INTEGRATION', false), FILTER_VALIDATE_BOOL)
+                && str_starts_with($database, 'reservations_pos_integration_')
+                && ! str_contains($database, 'reservations_db');
             $disposableOverride = filter_var(env('DB_ALLOW_DESTRUCTIVE_COMMANDS', false), FILTER_VALIDATE_BOOL)
                 && $connection === 'sqlite'
                 && ($database === ':memory:' || str_contains($database, 'test') || str_contains($database, 'tmp') || str_contains($database, 'audit'))
@@ -139,7 +193,7 @@ class AppServiceProvider extends ServiceProvider
                 && ! str_contains($database, 'production')
                 && ! str_contains($database, 'staging');
 
-            if (! $testingDatabase && ! $disposableOverride) {
+            if (! $testingDatabase && ! $disposableMariaDb && ! $disposableOverride) {
                 throw new \RuntimeException(sprintf(
                     'Blocked destructive database command [%s]. Use php artisan migrate for normal schema updates. Set DB_ALLOW_DESTRUCTIVE_COMMANDS=true only after verifying that the database is disposable and the destructive action is explicitly approved.',
                     $event->command,

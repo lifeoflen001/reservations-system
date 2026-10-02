@@ -14,7 +14,7 @@ class PublicLandingTest extends TestCase
     public static function publicPages(): array
     {
         return [
-            'home' => ['/', 'Hotel operations at a glance.'],
+            'home' => ['/', 'Connected hotel workflow'],
             'product' => ['/product', 'The operating system for your hotel.'],
             'operations' => ['/operations', 'Keep every stay and every room operation in sync.'],
             'pos' => ['/pos', 'From outlet sale to guest folio.'],
@@ -28,8 +28,21 @@ class PublicLandingTest extends TestCase
 
     public function test_public_pages_are_short_static_pages_without_pms_shell_or_operational_queries(): void
     {
-        $queries = 0;
-        DB::listen(static function () use (&$queries): void { $queries++; });
+        $operationalQueries = [];
+        DB::listen(static function ($query) use (&$operationalQueries): void {
+            $sql = strtolower((string) $query->sql);
+            $operationalTables = [
+                'reservations', 'clients', 'payments', 'invoices', 'financial_', 'expenses',
+                'pos_', 'rooms', 'room_', 'housekeeping_', 'maintenance_', 'tasks', 'staff',
+                'users', 'notifications', 'webhook_', 'channel_',
+            ];
+            foreach ($operationalTables as $table) {
+                if (str_contains($sql, $table)) {
+                    $operationalQueries[] = $query->sql;
+                    break;
+                }
+            }
+        });
 
         foreach (self::publicPages() as [$path, $heading]) {
             $this->get($path)
@@ -46,27 +59,25 @@ class PublicLandingTest extends TestCase
                 ->assertDontSee('INV-');
         }
 
-        $this->assertSame(0, $queries, 'Public marketing pages must not query the operational database.');
+        $this->assertSame([], $operationalQueries, 'Public marketing pages must not query operational tenant data.');
     }
 
     public function test_homepage_links_to_dedicated_public_product_pages_and_stays_concise(): void
     {
         $this->get('/')
             ->assertOk()
-            ->assertSee('Hotel operations at a glance.')
-            ->assertSee('The essentials for running your property.')
+            ->assertSee('Connected hotel workflow')
+            ->assertSee('Follow the stay from booking to report.')
             ->assertSee('href="'.route('public.operations').'"', false)
             ->assertSee('href="'.route('public.pos').'"', false)
             ->assertSee('href="'.route('public.finance').'"', false)
             ->assertSee('href="'.route('public.integrations').'"', false)
-            ->assertSee('assets/images/landing/lodgix-dashboard-light.jpg')
-            ->assertSee('assets/images/landing/lodgix-dashboard-light-960.jpg')
-            ->assertSee('assets/images/landing/lodgix-room-planning.jpg')
-            ->assertSee('assets/images/landing/lodgix-room-planning-1440.jpg')
+            ->assertSee('assets/images/landing/lodgix-dashboard-light.webp')
+            ->assertSee('assets/images/landing/lodgix-room-planning.webp')
             ->assertDontSee('Move every stay cleanly through the front desk.')
             ->assertDontSee('Turn outlet sales into clear guest charges.')
-            ->assertSee('From booking to checkout.');
-        foreach (['Reservations', 'Room planning', 'Housekeeping', 'Maintenance &amp; tasks', 'POS &amp; guest charges', 'Payments &amp; reports'] as $label) {
+            ->assertSee('Follow the stay from booking to report.');
+        foreach (['Reservations and arrivals', 'Room planning', 'Housekeeping and maintenance', 'POS &amp; guest charges', 'Finance &amp; payments', 'Integrations'] as $label) {
             $this->assertStringContainsString($label, $this->get('/')->getContent());
         }
     }

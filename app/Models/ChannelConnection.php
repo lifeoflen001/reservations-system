@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\AssignsTenantOwnership;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ChannelConnection extends Model
 {
+    use AssignsTenantOwnership;
     protected $fillable = ['provider', 'name', 'property_external_id', 'status', 'is_active', 'credentials', 'last_sync_at', 'last_error', 'created_by', 'updated_by'];
 
     protected $hidden = ['credentials'];
@@ -20,4 +23,6 @@ class ChannelConnection extends Model
     {
         return $this->hasMany(ChannelMapping::class);
     }
+
+    public function property(): BelongsTo { return $this->belongsTo(Property::class); }
 }

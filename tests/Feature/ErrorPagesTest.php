@@ -36,7 +36,7 @@ class ErrorPagesTest extends TestCase
     {
         $response = $this->view('errors.error', ['status' => 500]);
 
-        $response->assertSee('assets/images/landing/lodgix-wordmark.webp')
+        $response->assertSee('assets/branding/lodgix.png')
             ->assertSee('assets/branding/mbvl.webp')
             ->assertSee('dataset.themePreference', false)
             ->assertSee('[data-theme="dark"]', false)

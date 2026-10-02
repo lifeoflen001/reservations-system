@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\ReservationStatus;
+use App\Models\Concerns\AssignsTenantOwnership;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,6 +13,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Reservation extends Model
 {
     use SoftDeletes;
+    use AssignsTenantOwnership;
 
     protected $fillable = [
         'code', 'client_id', 'room_id', 'reservation_source_id', 'created_by', 'updated_by', 'check_in',
@@ -42,6 +44,7 @@ class Reservation extends Model
     public function updater(): BelongsTo { return $this->belongsTo(User::class, 'updated_by'); }
     public function canceller(): BelongsTo { return $this->belongsTo(User::class, 'cancelled_by'); }
     public function noShowBy(): BelongsTo { return $this->belongsTo(User::class, 'no_show_by'); }
+    public function property(): BelongsTo { return $this->belongsTo(Property::class); }
     public function payments(): HasMany { return $this->hasMany(Payment::class); }
     public function posOrders(): HasMany { return $this->hasMany(PosOrder::class); }
     public function posRoomCharges(): HasMany { return $this->hasMany(PosRoomCharge::class); }

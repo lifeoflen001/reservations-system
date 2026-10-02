@@ -15,6 +15,7 @@ use App\Services\FinanceExportService;
 use App\Services\PropertySettingsService;
 use App\Support\CurrencyFormatter;
 use App\Support\TablePagination;
+use App\Support\TenantValidation;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -86,7 +87,7 @@ class FinanceController extends Controller
     public function expenseStore(Request $request)
     {
         $this->allow('finance.expenses.create');
-        $data = $request->validate(['account_id' => ['required', 'integer', 'exists:financial_accounts,id'], 'category_id' => ['nullable', 'integer', 'exists:expense_categories,id'], 'department_id' => ['nullable', 'integer', 'exists:departments,id'], 'amount' => ['required', 'numeric', 'gt:0', 'decimal:0,2'], 'expense_date' => ['required', 'date'], 'payment_method' => ['nullable', 'string', 'max:60'], 'payee' => ['nullable', 'string', 'max:160'], 'reference' => ['nullable', 'string', 'max:120'], 'description' => ['required', 'string', 'max:2000'], 'attachment_type' => ['nullable', Rule::in(['receipt', 'supplier_invoice', 'bank_proof', 'supporting_document'])], 'attachment' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png,webp,doc,docx', 'max:10240']]);
+        $data = $request->validate(['account_id' => ['required', 'integer', TenantValidation::propertyExists('financial_accounts')], 'category_id' => ['nullable', 'integer', TenantValidation::propertyExists('expense_categories')], 'department_id' => ['nullable', 'integer', TenantValidation::propertyExists('departments')], 'amount' => ['required', 'numeric', 'gt:0', 'decimal:0,2'], 'expense_date' => ['required', 'date'], 'payment_method' => ['nullable', 'string', 'max:60'], 'payee' => ['nullable', 'string', 'max:160'], 'reference' => ['nullable', 'string', 'max:120'], 'description' => ['required', 'string', 'max:2000'], 'attachment_type' => ['nullable', Rule::in(['receipt', 'supplier_invoice', 'bank_proof', 'supporting_document'])], 'attachment' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png,webp,doc,docx', 'max:10240']]);
         if ($request->hasFile('attachment')) $data['attachment_path'] = $request->file('attachment')->store('finance/expenses');
         $data['status'] = $request->boolean('save_as_draft') ? 'draft' : 'pending_approval';
         if ($data['status'] === 'pending_approval') $this->allow('finance.expenses.submit');
@@ -126,7 +127,7 @@ class FinanceController extends Controller
     public function transferStore(Request $request)
     {
         $this->allow('finance.transfers.create');
-        $data = $request->validate(['from_account_id' => ['required', 'integer', 'exists:financial_accounts,id'], 'to_account_id' => ['required', 'integer', 'exists:financial_accounts,id', 'different:from_account_id'], 'amount' => ['required', 'numeric', 'gt:0', 'decimal:0,2'], 'transfer_date' => ['required', 'date'], 'reference' => ['nullable', 'string', 'max:120'], 'description' => ['nullable', 'string', 'max:2000'], 'attachment' => ['nullable', 'file', 'max:10240']]);
+        $data = $request->validate(['from_account_id' => ['required', 'integer', TenantValidation::propertyExists('financial_accounts')], 'to_account_id' => ['required', 'integer', TenantValidation::propertyExists('financial_accounts'), 'different:from_account_id'], 'amount' => ['required', 'numeric', 'gt:0', 'decimal:0,2'], 'transfer_date' => ['required', 'date'], 'reference' => ['nullable', 'string', 'max:120'], 'description' => ['nullable', 'string', 'max:2000'], 'attachment' => ['nullable', 'file', 'max:10240']]);
         if ($request->hasFile('attachment')) $data['attachment_path'] = $request->file('attachment')->store('finance/transfers');
         try { $this->finance->createTransfer($data, $request->user()->getKey()); }
         catch (InvalidArgumentException $exception) { return back()->withInput()->with('error', $exception->getMessage()); }
@@ -208,7 +209,7 @@ class FinanceController extends Controller
     public function reconciliationStore(Request $request)
     {
         $this->allow('finance.reconcile');
-        $data = $request->validate(['account_id' => ['required', 'integer', 'exists:financial_accounts,id'], 'period_start' => ['required', 'date'], 'period_end' => ['required', 'date', 'after_or_equal:period_start'], 'opening_balance' => ['required', 'numeric', 'decimal:0,2'], 'statement_balance' => ['required', 'numeric', 'decimal:0,2'], 'notes' => ['nullable', 'string', 'max:2000']]);
+        $data = $request->validate(['account_id' => ['required', 'integer', TenantValidation::propertyExists('financial_accounts')], 'period_start' => ['required', 'date'], 'period_end' => ['required', 'date', 'after_or_equal:period_start'], 'opening_balance' => ['required', 'numeric', 'decimal:0,2'], 'statement_balance' => ['required', 'numeric', 'decimal:0,2'], 'notes' => ['nullable', 'string', 'max:2000']]);
         $periodStart = Carbon::parse($data['period_start'])->startOfDay();
         $periodEnd = Carbon::parse($data['period_end'])->endOfDay();
         $movement = (float) FinancialTransaction::query()->where('account_id', $data['account_id'])->whereIn('status', ['posted', 'reversed'])->whereBetween('transaction_date', [$periodStart, $periodEnd])->selectRaw("COALESCE(SUM(CASE WHEN direction = 'credit' THEN amount ELSE -amount END), 0) as balance")->value('balance');

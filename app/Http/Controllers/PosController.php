@@ -17,6 +17,7 @@ use App\Services\PosReportService;
 use App\Services\PosShiftService;
 use App\Support\CurrencyFormatter;
 use App\Support\TablePagination;
+use App\Support\TenantValidation;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -63,7 +64,7 @@ class PosController extends Controller
     public function checkout(Request $request): JsonResponse|RedirectResponse
     {
         Gate::authorize('create', PosOrder::class);
-        $data = $request->validate(['outlet_id' => ['required', 'integer', 'exists:pos_outlets,id'], 'shift_id' => ['nullable', 'integer', 'exists:pos_shifts,id'], 'reservation_id' => ['nullable', 'integer', 'exists:reservations,id'], 'client_id' => ['nullable', 'integer', 'exists:clients,id'], 'room_id' => ['nullable', 'integer', 'exists:rooms,id'], 'items' => ['required', 'array', 'min:1'], 'items.*.product_id' => ['required', 'integer', 'exists:pos_products,id'], 'items.*.quantity' => ['required', 'numeric', 'gt:0', 'max:9999'], 'items.*.note' => ['nullable', 'string', 'max:500'], 'payments' => ['required', 'array', 'min:1'], 'payments.*.method' => ['required', 'string', 'max:60'], 'payments.*.amount' => ['required', 'numeric', 'gt:0'], 'payments.*.reference' => ['nullable', 'string', 'max:100'], 'discount_type' => ['nullable', Rule::in(['fixed', 'percentage'])], 'discount_value' => ['nullable', 'numeric', 'min:0'], 'notes' => ['nullable', 'string', 'max:2000'], 'idempotency_key' => ['nullable', 'string', 'max:80']]);
+        $data = $request->validate(['outlet_id' => ['required', 'integer', TenantValidation::propertyExists('pos_outlets')], 'shift_id' => ['nullable', 'integer', TenantValidation::propertyExists('pos_shifts')], 'reservation_id' => ['nullable', 'integer', TenantValidation::propertyExists('reservations')], 'client_id' => ['nullable', 'integer', TenantValidation::organizationExists('clients')], 'room_id' => ['nullable', 'integer', TenantValidation::propertyExists('rooms')], 'items' => ['required', 'array', 'min:1'], 'items.*.product_id' => ['required', 'integer', TenantValidation::propertyExists('pos_products')], 'items.*.quantity' => ['required', 'numeric', 'gt:0', 'max:9999'], 'items.*.note' => ['nullable', 'string', 'max:500'], 'payments' => ['required', 'array', 'min:1'], 'payments.*.method' => ['required', 'string', 'max:60'], 'payments.*.amount' => ['required', 'numeric', 'gt:0'], 'payments.*.reference' => ['nullable', 'string', 'max:100'], 'discount_type' => ['nullable', Rule::in(['fixed', 'percentage'])], 'discount_value' => ['nullable', 'numeric', 'min:0'], 'notes' => ['nullable', 'string', 'max:2000'], 'idempotency_key' => ['nullable', 'string', 'max:80']]);
         try {
             $order = $this->orders->checkout($data, $request->user());
         } catch (InvalidArgumentException $exception) {

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\TaskPriority;
 use App\Enums\TaskStatus;
+use App\Models\Concerns\AssignsTenantOwnership;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -14,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Task extends Model
 {
     use SoftDeletes;
+    use AssignsTenantOwnership;
 
     protected $fillable = ['task_number', 'title', 'description', 'category', 'status', 'priority', 'department_id', 'created_by', 'completed_by', 'room_id', 'reservation_id', 'client_id', 'housekeeping_task_id', 'maintenance_task_id', 'due_at', 'started_at', 'completed_at', 'archived_at', 'estimated_minutes', 'actual_minutes'];
 
@@ -42,4 +44,5 @@ class Task extends Model
     public function timeEntries(): HasMany { return $this->hasMany(TaskTimeEntry::class)->with('user')->latest('started_at'); }
     public function activity(): HasMany { return $this->hasMany(TaskActivity::class)->with('user')->latest(); }
     public function activeTimeEntry(): HasMany { return $this->hasMany(TaskTimeEntry::class)->whereNull('ended_at'); }
+    public function property(): BelongsTo { return $this->belongsTo(Property::class); }
 }

@@ -1250,3 +1250,48 @@ body.modal-open { overflow: hidden; }
     body:has(.pos-receipt) .page-header { display: none !important; }
     body:has(.pos-receipt) .pos-receipt { width: 100%; max-width: none; border: 0; margin: 0; padding: 0; box-shadow: none; }
 }
+.property-management-layout { display: grid; gap: 16px; }
+.tenant-page-context { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-bg); margin: 0 0 14px; padding: 7px 10px; color: var(--text-muted); font-size: 11px; }
+.tenant-page-context strong { color: var(--text-primary); font-size: 12px; }
+.property-management-table td:first-child { min-width: 180px; }
+.property-management-table td:first-child strong, .property-management-table td:first-child small { display: block; }
+.property-management-table td:first-child small { margin-top: 3px; }
+.property-create-card, .property-edit-card { max-width: 980px; }
+.property-create-card .ui-card__header, .property-edit-card .ui-card__header { align-items: flex-start; }
+.property-create-card .ui-card__header h2, .property-edit-card .ui-card__header h2 { margin: 0 0 4px; color: var(--text-primary); font-size: 16px; }
+.property-create-card .form-grid, .property-edit-card .form-grid { padding: 18px; }
+.property-edit-card .settings-form-footer { display: flex; justify-content: flex-end; gap: 8px; }
+@media (min-width: 1100px) { .property-management-layout { grid-template-columns: minmax(0, 1.45fr) minmax(320px, .75fr); align-items: start; } }
+@media (max-width: 700px) { .property-create-card .form-grid, .property-edit-card .form-grid { padding: 14px; } .property-edit-card .settings-form-footer { justify-content: flex-start; flex-wrap: wrap; } }
+.organization-admin-layout { display: grid; grid-template-columns: minmax(190px, 240px) minmax(0, 1fr); align-items: start; gap: 18px; }
+.settings-scope-nav { display: grid; gap: 4px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-bg); padding: 8px; }
+.settings-scope-nav a { display: flex; min-height: 40px; align-items: center; border-left: 3px solid transparent; border-radius: var(--radius-sm); color: var(--text-secondary); padding: 0 11px; font-size: 13px; font-weight: 600; }
+.settings-scope-nav a:hover, .settings-scope-nav a:focus-visible { background: var(--surface-secondary); color: var(--text-primary); }
+.settings-scope-nav a.is-active { border-left-color: var(--brand-primary); background: var(--brand-primary-soft); color: var(--brand-primary); }
+.organization-admin-layout > .ui-card { min-width: 0; }
+.organization-scope-card { grid-column: 2; }
+.organization-scope-note { grid-column: 2; }
+.organization-scope-note p { color: var(--text-secondary); line-height: 1.6; }
+.organization-scope-note h2, .organization-table-card h2 { margin: 0; color: var(--text-primary); font-size: 18px; }
+.settings-eyebrow { margin: 0 0 4px; color: var(--brand-primary); font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.organization-table-card { grid-column: 2; }
+.organization-filter-bar { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(150px, 220px) auto; align-items: end; gap: 10px; border-bottom: 1px solid var(--border); padding: 16px; }
+.organization-filter-bar--audit { grid-template-columns: repeat(2, minmax(120px, 1fr)) minmax(170px, 1fr) minmax(170px, 1fr) minmax(160px, 1fr) auto; }
+.organization-members-table td, .organization-audit-table td { vertical-align: top; }
+.organization-members-table td strong, .organization-members-table td small { display: block; }
+.access-property-fieldset { min-width: 0; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 16px; }
+.access-property-fieldset legend { padding: 0 6px; color: var(--text-primary); font-weight: 700; }
+.access-property-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.access-property-option { display: flex; min-height: 58px; align-items: center; gap: 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-secondary); padding: 10px 12px; cursor: pointer; }
+.access-property-option:hover { border-color: var(--input-focus); }
+.access-property-option.is-disabled { opacity: .58; cursor: not-allowed; }
+.access-property-option input { flex: 0 0 auto; accent-color: var(--brand-primary); }
+.access-property-option span { display: grid; min-width: 0; gap: 2px; }
+.access-property-option strong, .access-property-option small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.access-property-option small { color: var(--text-muted); font-size: 11px; }
+.access-member-grid { padding: 16px; }
+.member-access-editor > form { padding: 16px; }
+.organization-audit-table code { color: var(--brand-primary); font-size: 11px; }
+.table-pagination { border-top: 1px solid var(--border); padding: 14px 16px; }
+@media (max-width: 900px) { .organization-admin-layout { grid-template-columns: 1fr; } .organization-scope-card, .organization-scope-note, .organization-table-card { grid-column: 1; } .settings-scope-nav { grid-template-columns: repeat(2, minmax(0, 1fr)); } .organization-filter-bar--audit { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .settings-scope-nav, .organization-filter-bar, .organization-filter-bar--audit, .access-property-grid { grid-template-columns: 1fr; } .organization-filter-bar { align-items: stretch; } .organization-filter-bar .ui-button { width: 100%; justify-content: center; } .organization-table-card .table-scroll { overflow-x: auto; } .organization-members-table, .organization-audit-table { min-width: 760px; } }

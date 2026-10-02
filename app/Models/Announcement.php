@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\AssignsTenantOwnership;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -13,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Announcement extends Model
 {
     use HasFactory, SoftDeletes;
+    use AssignsTenantOwnership;
 
     protected $fillable = [
         'title', 'category', 'short_description', 'content', 'start_at', 'end_at', 'status',
@@ -29,11 +31,18 @@ class Announcement extends Model
         ];
     }
 
+    protected function propertyOwnershipRequired(): bool
+    {
+        return false;
+    }
+
     public function creator(): BelongsTo { return $this->belongsTo(User::class, 'created_by'); }
     public function publisher(): BelongsTo { return $this->belongsTo(User::class, 'published_by'); }
     public function departments(): BelongsToMany { return $this->belongsToMany(Department::class, 'announcement_department'); }
     public function recipients(): HasMany { return $this->hasMany(AnnouncementRecipient::class); }
     public function attachments(): HasMany { return $this->hasMany(AnnouncementAttachment::class); }
+    public function organization(): BelongsTo { return $this->belongsTo(Organization::class); }
+    public function property(): BelongsTo { return $this->belongsTo(Property::class); }
 
     public function scopeVisible(Builder $query): Builder
     {

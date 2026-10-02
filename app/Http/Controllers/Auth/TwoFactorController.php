@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\TwoFactorChallengeRequest;
 use App\Models\User;
 use App\Services\LoginHistoryService;
+use App\Services\Tenancy\TenantContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -25,7 +26,7 @@ class TwoFactorController extends Controller
         return view('auth.two-factor-challenge', ['user' => $user]);
     }
 
-    public function store(TwoFactorChallengeRequest $request, TwoFactorAuthenticationProvider $provider, LoginHistoryService $loginHistory): RedirectResponse
+    public function store(TwoFactorChallengeRequest $request, TwoFactorAuthenticationProvider $provider, LoginHistoryService $loginHistory, TenantContext $tenantContext): RedirectResponse
     {
         $user = $this->challengedUser($request);
         if (! $user) {
@@ -51,6 +52,7 @@ class TwoFactorController extends Controller
         $request->session()->forget('login.id');
         Auth::login($user, $remember);
         $request->session()->regenerate();
+        $tenantContext->resolveFor($user);
         $user->forceFill(['last_login_at' => now(), 'last_login_ip' => $request->ip()])->save();
         $loginHistory->record($user, $request);
 

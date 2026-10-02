@@ -804,6 +804,15 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!event.target.closest('[data-dropdown]')) closeDropdowns();
     });
 
+    document.querySelectorAll('[data-tenant-search]').forEach((input) => input.addEventListener('input', () => {
+        const term = input.value.trim().toLowerCase();
+        const menu = input.closest('[data-dropdown-menu]');
+        menu?.querySelectorAll('[data-tenant-option]').forEach((option) => { option.hidden = term !== '' && !option.dataset.tenantName.includes(term); });
+        menu?.querySelectorAll('[data-tenant-organization]').forEach((organization) => {
+            organization.hidden = [...organization.querySelectorAll('[data-tenant-option]')].every((option) => option.hidden);
+        });
+    }));
+
     const focusableSelector = 'a[href], area[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
     const visibleModals = () => [...document.querySelectorAll('[data-modal]:not([hidden])')];
     const activeModal = () => visibleModals().at(-1);

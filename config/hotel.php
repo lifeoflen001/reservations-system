@@ -63,6 +63,16 @@ return [
         'timezone' => env('APP_TIMEZONE', 'Africa/Dar_es_Salaam'),
     ],
 
+    'tenancy' => [
+        // SAAS-03 provides the context and server-side validation. Switching
+        // stays disabled in the normal UI until operational data is scoped.
+        'context_switching' => filter_var(env('HOTEL_TENANT_CONTEXT_SWITCHING', false), FILTER_VALIDATE_BOOL),
+        // SAAS-06 controlled staging release. Keep this independently
+        // switchable so production can hold the UX back without changing the
+        // underlying tenant isolation model.
+        'multi_property_ui' => filter_var(env('HOTEL_MULTI_PROPERTY_UI', true), FILTER_VALIDATE_BOOL),
+    ],
+
     'reservation_code_prefix' => env('HOTEL_RESERVATION_CODE_PREFIX', 'WSX'),
 
     'pos' => [
@@ -110,6 +120,7 @@ return [
         'pos.access', 'pos.sell', 'pos.view_orders', 'pos.view_all_orders', 'pos.charge_room', 'pos.discount', 'pos.void', 'pos.refund',
         'pos.products.view', 'pos.products.manage', 'pos.categories.manage', 'pos.outlets.manage', 'pos.shifts.open', 'pos.shifts.close',
         'pos.shifts.view_all', 'pos.reports.view', 'pos.receipts.view', 'pos.manage',
+        'properties.view', 'properties.create', 'properties.update', 'properties.manage_access',
     ],
 
     // Only explicitly verified application-owned names may be retired.

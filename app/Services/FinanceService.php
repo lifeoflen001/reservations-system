@@ -35,6 +35,7 @@ class FinanceService
         if ($payment->status?->value !== 'paid') return null;
         $account = $this->accountForMethod((string) $payment->method);
         if (! $account) return null;
+        $this->ownership()->assertSameProperty($payment->property_id, $account->property_id, 'The payment and ledger account must belong to the same property.');
         return $this->postOnce($account, 'guest_payment', 'credit', (float) $payment->amount, $payment->reference ?: $payment->invoice_number, 'Guest payment '.$payment->invoice_number, $payment->transaction_date, Payment::class, $payment->getKey(), $actorId ?: $payment->created_by, ['payment_id' => $payment->getKey(), 'reservation_id' => $payment->reservation_id]);
     }
 
@@ -45,6 +46,7 @@ class FinanceService
             if ($payment->status !== 'paid' || $payment->method === 'charge_to_room') continue;
             $account = $this->accountForMethod($payment->method);
             if (! $account) continue;
+            $this->ownership()->assertSameProperty($order->property_id, $account->property_id, 'The POS order and ledger account must belong to the same property.');
             $this->postOnce($account, 'pos_sale', 'credit', (float) $payment->amount, $payment->reference ?: $order->order_number, 'POS sale '.$order->order_number, $payment->paid_at ?: $order->completed_at, PosPayment::class, $payment->getKey(), $actorId ?: $order->cashier_id, ['order_id' => $order->getKey(), 'outlet_id' => $order->outlet_id]);
         }
     }
@@ -55,6 +57,7 @@ class FinanceService
         if (! $payment) return null;
         $account = $this->accountForMethod($payment->method);
         if (! $account) return null;
+        $this->ownership()->assertSameProperty($order->property_id, $account->property_id, 'The POS order and ledger account must belong to the same property.');
         return $this->postOnce($account, 'pos_refund', 'debit', (float) $refund->amount, $payment->reference ?: $order->order_number, 'POS refund '.$order->order_number, $refund->refunded_at, PosRefund::class, $refund->getKey(), $actorId, ['order_id' => $order->getKey(), 'refund_id' => $refund->getKey()]);
     }
 
@@ -62,7 +65,9 @@ class FinanceService
     {
         FinancialTransaction::query()->where('source_type', $sourceType)->where('source_id', $sourceId)->where('status', 'posted')->get()->each(function (FinancialTransaction $transaction) use ($actorId, $reason): void {
             if ($transaction->reversed_at) return;
-            $reversal = $this->postOnce(FinancialAccount::findOrFail($transaction->account_id), 'reversal', $transaction->direction === 'credit' ? 'debit' : 'credit', (float) $transaction->amount, $transaction->reference, $reason, now(), FinancialTransaction::class, $transaction->getKey(), $actorId, ['reverses' => $transaction->transaction_number]);
+            $account = FinancialAccount::findOrFail($transaction->account_id);
+            $this->ownership()->assertSameProperty($transaction->property_id, $account->property_id, 'The ledger transaction and account must belong to the same property.');
+            $reversal = $this->postOnce($account, 'reversal', $transaction->direction === 'credit' ? 'debit' : 'credit', (float) $transaction->amount, $transaction->reference, $reason, now(), FinancialTransaction::class, $transaction->getKey(), $actorId, ['reverses' => $transaction->transaction_number]);
             $transaction->update(['status' => 'reversed', 'reversed_at' => now(), 'reversal_transaction_id' => $reversal->getKey()]);
         });
     }
@@ -71,6 +76,15 @@ class FinanceService
     {
         return DB::transaction(function () use ($data, $actorId): Expense {
             $account = FinancialAccount::query()->whereKey($data['account_id'])->where('is_active', true)->lockForUpdate()->firstOrFail();
+            $this->ownership()->assertCurrentProperty($account->property_id, 'The expense account belongs to another property.');
+            if (! empty($data['category_id'])) {
+                $categoryPropertyId = DB::table('expense_categories')->where('id', $data['category_id'])->where('property_id', $this->ownership()->currentPropertyId())->value('property_id');
+                $this->ownership()->assertSameProperty($account->property_id, $categoryPropertyId, 'The expense category and account must belong to the same property.');
+            }
+            if (! empty($data['department_id'])) {
+                $departmentPropertyId = DB::table('departments')->where('id', $data['department_id'])->where('property_id', $this->ownership()->currentPropertyId())->value('property_id');
+                $this->ownership()->assertSameProperty($account->property_id, $departmentPropertyId, 'The expense department and account must belong to the same property.');
+            }
             $amount = $this->amount($data['amount'] ?? 0);
             $expense = Expense::create(['expense_number' => $this->nextNumber('expense', 'EXP-'), 'category_id' => $data['category_id'] ?? null, 'account_id' => $account->getKey(), 'department_id' => $data['department_id'] ?? null, 'amount' => $amount, 'currency' => $account->currency, 'payment_method' => $data['payment_method'] ?? null, 'payee' => $data['payee'] ?? null, 'reference' => $data['reference'] ?? null, 'description' => $data['description'], 'attachment_path' => $data['attachment_path'] ?? null, 'attachment_type' => $data['attachment_type'] ?? null, 'expense_date' => $data['expense_date'] ?? now(), 'status' => $data['status'] ?? 'pending_approval', 'created_by' => $actorId, 'submitted_at' => ($data['status'] ?? 'pending_approval') === 'pending_approval' ? now() : null]);
             return $expense->fresh(['account', 'category', 'department', 'creator']);
@@ -114,6 +128,7 @@ class FinanceService
             $expense = Expense::query()->whereKey($expense instanceof Expense ? $expense->getKey() : $expense)->lockForUpdate()->firstOrFail();
             if (! in_array($expense->status, ['approved'], true)) throw new InvalidArgumentException('Only approved expenses can be paid.');
             $account = FinancialAccount::query()->whereKey($expense->account_id)->where('is_active', true)->lockForUpdate()->firstOrFail();
+            $this->ownership()->assertSameProperty($expense->property_id, $account->property_id, 'The expense and account must belong to the same property.');
             $ledger = $this->postOnce($account, 'expense', 'debit', (float) $expense->amount, $expense->reference ?: $expense->expense_number, $expense->description, $expense->expense_date, Expense::class, $expense->getKey(), $actorId, ['expense_id' => $expense->getKey()]);
             $expense->update(['status' => 'paid', 'paid_at' => now(), 'ledger_transaction_id' => $ledger->getKey()]);
             return $expense->fresh(['account', 'ledgerTransaction', 'approver']);
@@ -128,7 +143,9 @@ class FinanceService
             if (trim($reason) === '') throw new InvalidArgumentException('A reversal reason is required.');
             $original = FinancialTransaction::query()->whereKey($expense->ledger_transaction_id)->lockForUpdate()->firstOrFail();
             if ($original->status !== 'posted') throw new InvalidArgumentException('This expense ledger entry has already been reversed.');
-            $reversal = $this->postOnce(FinancialAccount::findOrFail($original->account_id), 'expense_reversal', 'credit', (float) $original->amount, $expense->expense_number, $reason, now(), Expense::class, $expense->getKey(), $actorId, ['expense_id' => $expense->getKey(), 'reverses' => $original->transaction_number]);
+            $account = FinancialAccount::findOrFail($original->account_id);
+            $this->ownership()->assertSameProperty($original->property_id, $account->property_id, 'The expense ledger transaction and account must belong to the same property.');
+            $reversal = $this->postOnce($account, 'expense_reversal', 'credit', (float) $original->amount, $expense->expense_number, $reason, now(), Expense::class, $expense->getKey(), $actorId, ['expense_id' => $expense->getKey(), 'reverses' => $original->transaction_number]);
             $original->update(['status' => 'reversed', 'reversed_at' => now(), 'reversal_transaction_id' => $reversal->getKey()]);
             $expense->update(['status' => 'reversed', 'reversed_by' => $actorId, 'reversed_at' => now(), 'reversal_reason' => $reason, 'reversal_transaction_id' => $reversal->getKey()]);
             return $expense->fresh(['account', 'ledgerTransaction', 'reverser']);
@@ -138,6 +155,7 @@ class FinanceService
     public function postPaymentRefund(PaymentRefund $refund, ?int $actorId = null): FinancialTransaction
     {
         $account = FinancialAccount::query()->whereKey($refund->account_id)->where('is_active', true)->firstOrFail();
+        $this->ownership()->assertSameProperty($refund->property_id, $account->property_id, 'The refund and ledger account must belong to the same property.');
         return $this->postOnce($account, 'guest_refund', 'debit', (float) $refund->amount, $refund->refund_reference, $refund->reason, $refund->refunded_at, PaymentRefund::class, $refund->getKey(), $actorId ?: $refund->refunded_by, ['payment_id' => $refund->payment_id, 'refund_id' => $refund->getKey()]);
     }
 
@@ -145,9 +163,11 @@ class FinanceService
     {
         return DB::transaction(function () use ($data, $actorId): FundTransfer {
             $amount = $this->amount($data['amount'] ?? 0);
-            $from = FinancialAccount::query()->whereKey($data['from_account_id'])->where('is_active', true)->lockForUpdate()->firstOrFail();
-            $to = FinancialAccount::query()->whereKey($data['to_account_id'])->where('is_active', true)->lockForUpdate()->firstOrFail();
+            $from = FinancialAccount::query()->withoutGlobalScope('tenant-ownership')->whereKey($data['from_account_id'])->where('is_active', true)->lockForUpdate()->firstOrFail();
+            $to = FinancialAccount::query()->withoutGlobalScope('tenant-ownership')->whereKey($data['to_account_id'])->where('is_active', true)->lockForUpdate()->firstOrFail();
             if ($from->is($to)) throw new InvalidArgumentException('Source and destination accounts must be different.');
+            $this->ownership()->assertCurrentProperty($from->property_id, 'The source account belongs to another property.');
+            $this->ownership()->assertSameProperty($from->property_id, $to->property_id, 'Transfers cannot cross property boundaries.');
             if ($this->balance($from) < $amount) throw new InvalidArgumentException('The source account does not have enough available funds.');
             $transfer = FundTransfer::create(['transfer_number' => $this->nextNumber('transfer', 'TRF-'), 'from_account_id' => $from->getKey(), 'to_account_id' => $to->getKey(), 'amount' => $amount, 'currency' => $from->currency, 'reference' => $data['reference'] ?? null, 'description' => $data['description'] ?? null, 'attachment_path' => $data['attachment_path'] ?? null, 'transfer_date' => $data['transfer_date'] ?? now(), 'status' => 'posted', 'created_by' => $actorId]);
             $debit = $this->postOnce($from, 'transfer', 'debit', $amount, $transfer->reference ?: $transfer->transfer_number, $transfer->description ?: 'Internal transfer', $transfer->transfer_date, FundTransfer::class, $transfer->getKey(), $actorId, ['transfer_id' => $transfer->getKey(), 'side' => 'from']);
@@ -160,7 +180,12 @@ class FinanceService
     public function accountForMethod(string $method): ?FinancialAccount
     {
         $code = match ($method) { 'cash' => 'cash', 'card' => 'card_clearing', 'mobile_money' => 'mobile_money', 'bank_transfer' => 'bank', default => null };
-        return $code ? FinancialAccount::query()->where('code', $code)->where('is_active', true)->first() : null;
+        if (! $code) return null;
+
+        $query = FinancialAccount::query()->where('code', $code)->where('is_active', true);
+        if ($propertyId = $this->ownership()->currentPropertyId()) $query->where('property_id', $propertyId);
+
+        return $query->first();
     }
 
     public function postOpeningBalance(FinancialAccount $account, float $amount, int $actorId, mixed $date = null): FinancialTransaction
@@ -170,6 +195,7 @@ class FinanceService
 
     private function postOnce(FinancialAccount $account, string $type, string $direction, float $amount, ?string $reference, ?string $description, mixed $date, ?string $sourceType, ?int $sourceId, ?int $actorId, array $metadata = []): FinancialTransaction
     {
+        $this->ownership()->assertCurrentProperty($account->property_id, 'The ledger account belongs to another property.');
         if ($sourceType && $sourceId && $type !== 'transfer') {
             $existing = FinancialTransaction::query()->where('source_type', $sourceType)->where('source_id', $sourceId)->where('transaction_type', $type)->where('direction', $direction)->where('status', 'posted')->first();
             if ($existing) return $existing;
@@ -196,5 +222,10 @@ class FinanceService
         $value = round((float) $amount, 2);
         if ($value <= 0) throw new InvalidArgumentException('Amount must be greater than zero.');
         return $value;
+    }
+
+    private function ownership(): TenantOwnershipConsistencyService
+    {
+        return app(TenantOwnershipConsistencyService::class);
     }
 }

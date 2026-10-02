@@ -3,7 +3,10 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Models\Concerns\ScopesTenantOwnership;
+use App\Services\Tenancy\TenantContext;
 use Database\Factories\UserFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -17,7 +20,21 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable, TwoFactorAuthenticatable;
+    use HasFactory, Notifiable, TwoFactorAuthenticatable, ScopesTenantOwnership;
+
+    protected static function applyTenantScope(Builder $builder, TenantContext $context): void
+    {
+        if ($context->scopePropertyId() === null) {
+            return;
+        }
+
+        // Staff are operationally visible through their property-owned
+        // department. Users without a department remain platform identities.
+        $builder->where(function (Builder $query) use ($context): void {
+            $query->whereNull('department_id')
+                ->orWhereHas('department', fn (Builder $department): Builder => $department->where('property_id', $context->scopePropertyId()));
+        });
+    }
 
     /**
      * The attributes that are mass assignable.
@@ -93,6 +110,25 @@ class User extends Authenticatable
     public function role(): BelongsTo
     {
         return $this->belongsTo(Role::class);
+    }
+
+    public function organizationMemberships(): HasMany
+    {
+        return $this->hasMany(OrganizationMembership::class);
+    }
+
+    public function memberships(): HasMany
+    {
+        return $this->organizationMemberships();
+    }
+
+    public function organizations(): BelongsToMany
+    {
+        return $this->belongsToMany(Organization::class, 'organization_memberships')
+            ->wherePivot('status', 'active')
+            ->where('organizations.status', 'active')
+            ->withPivot(['role_id', 'status', 'joined_at', 'invited_by'])
+            ->withTimestamps();
     }
 
     /**

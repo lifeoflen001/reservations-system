@@ -9,12 +9,19 @@
     ];
 @endphp
 @section('content')
-<x-page-header title="Settings" subtitle="Property, interface, database, license and update configuration." />
+@php
+    $activeProperty = app(\App\Services\Tenancy\TenantContext::class)->currentProperty();
+@endphp
+<x-page-header title="Settings" subtitle="Property, interface, database, license and update configuration.{{ $activeProperty ? ' Applies to '.$activeProperty->name.'.' : '' }}" />
 <div class="settings-layout">
     <nav class="settings-nav" aria-label="Settings sections">
         @foreach($sections as $key => [$label, $icon])
             <a class="settings-nav__item {{ $section === $key ? 'is-active' : '' }}" href="{{ route('settings.index', ['section' => $key]) }}"><x-ui.icon :name="$icon" size="18" /><span>{{ $label }}</span></a>
         @endforeach
+        @can('properties.view')<a class="settings-nav__item {{ request()->routeIs('settings.properties.*') ? 'is-active' : '' }}" href="{{ route('settings.properties.index') }}"><x-ui.icon name="building" size="18" /><span>Properties</span></a>@endcan
+        @can('organization.view')<a class="settings-nav__item {{ request()->routeIs('settings.organization.*') ? 'is-active' : '' }}" href="{{ route('settings.organization.index') }}"><x-ui.icon name="building" size="18" /><span>Organization</span></a>@endcan
+        @can('members.view')<a class="settings-nav__item {{ request()->routeIs('settings.members.*') ? 'is-active' : '' }}" href="{{ route('settings.members.index') }}"><x-ui.icon name="users" size="18" /><span>Members &amp; access</span></a>@endcan
+        @can('audit.view')<a class="settings-nav__item {{ request()->routeIs('settings.audit.*') ? 'is-active' : '' }}" href="{{ route('settings.audit.index') }}"><x-ui.icon name="history" size="18" /><span>Audit</span></a>@endcan
     </nav>
     <div class="settings-content">
         @if($section === 'general')

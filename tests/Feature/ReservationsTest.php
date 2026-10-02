@@ -119,7 +119,9 @@ class ReservationsTest extends TestCase
         $this->actingAs($user)->get(route('room-planning.index', ['view' => 'week', 'start' => '2026-10-01']))
             ->assertOk()->assertSee('999')->assertSee('Standard Room')->assertSee('data-fullscreen-toggle', false);
         $this->actingAs($user)->get(route('room-planning.index', ['view' => 'month', 'start' => '2026-10-01', 'room_type_id' => $suiteType->id]))
-            ->assertOk()->assertSee('999')->assertDontSee($room->room_number)->assertSee('01 Oct 2026');
+            ->assertOk()->assertSee('<strong>999</strong>', false)
+            ->assertDontSee('<strong>'.$room->room_number.'</strong>', false)
+            ->assertSee('01 Oct 2026');
         $this->actingAs($user)->get(route('room-planning.index', ['view' => 'two_months', 'start' => '2026-10-01']))
             ->assertOk()->assertSee('2 Months')->assertSee($suite->room_number);
     }

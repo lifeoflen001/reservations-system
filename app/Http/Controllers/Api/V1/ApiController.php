@@ -23,6 +23,7 @@ use App\Services\PosOrderService;
 use App\Services\PosReportService;
 use App\Services\ReservationService;
 use App\Services\RoomAvailabilityService;
+use App\Services\Tenancy\TenantContext;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -89,8 +90,8 @@ class ApiController extends Controller
         $this->scope($request, 'reservations:write');
         Gate::forUser($request->user())->authorize('create', Reservation::class);
         $data = $request->validate([
-            'client_id' => ['required', 'integer', 'exists:clients,id'],
-            'room_id' => ['required', 'integer', 'exists:rooms,id'],
+            'client_id' => ['required', 'integer', $this->organizationExists('clients')],
+            'room_id' => ['required', 'integer', $this->propertyExists('rooms')],
             'reservation_source_id' => ['nullable', 'integer', 'exists:reservation_sources,id'],
             'check_in' => ['required', 'date'],
             'check_out' => ['required', 'date', 'after:check_in'],
@@ -151,7 +152,7 @@ class ApiController extends Controller
         $this->scope($request, 'payments:write');
         Gate::forUser($request->user())->authorize('create', Payment::class);
         $data = $request->validate([
-            'reservation_id' => ['required', 'integer', 'exists:reservations,id'],
+            'reservation_id' => ['required', 'integer', $this->propertyExists('reservations')],
             'amount' => ['required', 'numeric', 'gt:0', 'decimal:0,2'],
             'method' => ['required', 'string', 'exists:payment_methods,code'],
             'reference' => ['required', 'string', 'max:100'],
@@ -276,13 +277,13 @@ class ApiController extends Controller
         Gate::forUser($request->user())->authorize('create', PosOrder::class);
         $request->merge(['idempotency_key' => $request->input('idempotency_key') ?: $request->header('Idempotency-Key')]);
         $data = $request->validate([
-            'outlet_id' => ['required', 'integer', 'exists:pos_outlets,id'],
-            'shift_id' => ['nullable', 'integer', 'exists:pos_shifts,id'],
-            'reservation_id' => ['nullable', 'integer', 'exists:reservations,id'],
-            'client_id' => ['nullable', 'integer', 'exists:clients,id'],
-            'room_id' => ['nullable', 'integer', 'exists:rooms,id'],
+            'outlet_id' => ['required', 'integer', $this->propertyExists('pos_outlets')],
+            'shift_id' => ['nullable', 'integer', $this->propertyExists('pos_shifts')],
+            'reservation_id' => ['nullable', 'integer', $this->propertyExists('reservations')],
+            'client_id' => ['nullable', 'integer', $this->organizationExists('clients')],
+            'room_id' => ['nullable', 'integer', $this->propertyExists('rooms')],
             'items' => ['required', 'array', 'min:1'],
-            'items.*.product_id' => ['required', 'integer', 'exists:pos_products,id'],
+            'items.*.product_id' => ['required', 'integer', $this->propertyExists('pos_products')],
             'items.*.quantity' => ['required', 'numeric', 'gt:0', 'max:9999'],
             'items.*.note' => ['nullable', 'string', 'max:500'],
             'payments' => ['required', 'array', 'min:1'],
@@ -498,6 +499,16 @@ class ApiController extends Controller
         if ($from->greaterThan($to) || $from->diffInDays($to) > 366) abort(422, 'Report periods must be ordered and cannot exceed 366 days.');
 
         return [$from, $to];
+    }
+
+    private function propertyExists(string $table): \Illuminate\Validation\Rules\Exists
+    {
+        return Rule::exists($table, 'id')->where(fn ($query) => $query->where('property_id', app(TenantContext::class)->propertyId()));
+    }
+
+    private function organizationExists(string $table): \Illuminate\Validation\Rules\Exists
+    {
+        return Rule::exists($table, 'id')->where(fn ($query) => $query->where('organization_id', app(TenantContext::class)->organizationId()));
     }
 
     private function reservationData(Reservation $reservation): array

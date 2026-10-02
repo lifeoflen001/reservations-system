@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\ScopesTenantOwnership;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ApiToken extends Model
 {
+    use ScopesTenantOwnership;
+
     protected $fillable = ['user_id', 'name', 'token_prefix', 'token_hash', 'abilities', 'last_used_at', 'expires_at', 'revoked_at'];
 
     protected $hidden = ['token_hash'];

@@ -112,6 +112,7 @@ APP_KEY=<generated Laravel application key>
 APP_DEBUG=false
 APP_URL=https://<configured-production-domain>
 APP_TIMEZONE=Africa/Dar_es_Salaam
+HOTEL_MULTI_PROPERTY_UI=true
 TRUSTED_PROXIES=*
 DB_ALLOW_DESTRUCTIVE_COMMANDS=false
 HOTEL_SETUP_ENABLED=false
@@ -122,6 +123,12 @@ HOTEL_ALLOW_RESERVED_EMAILS=false
 production domain to source or use `localhost` in the production environment.
 `APP_KEY` must be generated once for the environment and kept stable; changing
 it invalidates encrypted data and sessions.
+
+`HOTEL_MULTI_PROPERTY_UI=true` enables the authenticated SAAS-06 property and
+organization switcher plus organization-scoped property management. It does
+not expose the public website/CMS or bypass tenant authorization. Set it to
+`false` to hold back the user-facing switcher while retaining the validated
+tenant foundation.
 
 ### MySQL
 

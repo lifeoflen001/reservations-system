@@ -34,6 +34,7 @@ class PosModuleTest extends TestCase
         parent::setUp();
         $this->seed(DatabaseSeeder::class);
         $this->admin = User::where('username', 'admin')->firstOrFail();
+        $this->actingAs($this->admin);
         $this->outlet = PosOutlet::create(['name' => 'Main Restaurant', 'code' => 'restaurant', 'location' => 'Ground floor', 'is_active' => true]);
         $category = PosCategory::create(['name' => 'Food', 'code' => 'food', 'is_active' => true]);
         $this->product = PosProduct::create(['category_id' => $category->id, 'outlet_id' => $this->outlet->id, 'name' => 'Club sandwich', 'sku' => 'FOOD-001', 'selling_price' => 15000, 'tax_rate' => 0, 'is_active' => true, 'track_stock' => true, 'stock_quantity' => 10, 'reorder_level' => 2]);

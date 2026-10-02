@@ -6,10 +6,12 @@ use App\Exceptions\ProviderNotConfiguredException;
 use App\Models\EmailDeliveryLog;
 use App\Models\EmailTemplate;
 use App\Models\AnnouncementRecipient;
+use App\Models\Property;
 use App\Services\ConfiguredEmailProvider;
 use App\Services\EmailAddressPolicy;
 use App\Services\IntegrationSettingsService;
 use App\Services\SafeTemplateRenderer;
+use App\Services\Tenancy\TenantContext;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Bus\Queueable;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -33,9 +35,12 @@ class SendHotelEmail implements ShouldQueue
     public function handle(IntegrationSettingsService $integrations, SafeTemplateRenderer $renderer, EmailAddressPolicy $emailPolicy): void
     {
         $log = EmailDeliveryLog::query()->findOrFail($this->deliveryLogId);
-        if ($log->status === 'sent') {
-            return;
+        $context = app(TenantContext::class);
+        if ($log->property_id && ($property = Property::query()->find($log->property_id))) {
+            $context->activate((int) $property->organization_id, (int) $property->id);
         }
+        try {
+            if ($log->status === 'sent') return;
         if (! $emailPolicy->isDeliverable($log->recipient)) {
             $log->update([
                 'status' => 'skipped',
@@ -63,10 +68,11 @@ class SendHotelEmail implements ShouldQueue
         if ($log->announcement_recipient_id) {
             AnnouncementRecipient::query()->whereKey($log->announcement_recipient_id)->update(['email_status' => 'sent']);
         }
-        if ($provider->exists) {
-            $provider->update(['last_success_at' => now(), 'last_error' => null]);
+            if ($provider->exists) $provider->update(['last_success_at' => now(), 'last_error' => null]);
+            $integrations->forget('email');
+        } finally {
+            $context->release();
         }
-        $integrations->forget('email');
     }
 
     public function failed(Throwable $exception): void

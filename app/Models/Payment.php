@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\PaymentStatus;
+use App\Models\Concerns\AssignsTenantOwnership;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Payment extends Model
 {
+    use AssignsTenantOwnership;
     protected $fillable = [
         'invoice_number', 'reservation_id', 'client_id', 'created_by', 'updated_by', 'amount', 'method',
         'reference', 'transaction_date', 'notes', 'status', 'voided_by', 'voided_at', 'void_reason',
@@ -27,6 +29,7 @@ class Payment extends Model
     public function updater(): BelongsTo { return $this->belongsTo(User::class, 'updated_by'); }
     public function voider(): BelongsTo { return $this->belongsTo(User::class, 'voided_by'); }
     public function invoice(): HasOne { return $this->hasOne(Invoice::class); }
+    public function property(): BelongsTo { return $this->belongsTo(Property::class); }
     public function refunds(): HasMany { return $this->hasMany(PaymentRefund::class); }
 
     public function scopeSuccessful(Builder $query): Builder

@@ -20,6 +20,7 @@ class FinanceExportTest extends TestCase
     {
         $this->seed(DatabaseSeeder::class);
         $admin = User::where('username', 'admin')->firstOrFail();
+        $this->actingAs($admin);
         $account = FinancialAccount::where('code', 'cash')->firstOrFail();
         FinancialTransaction::create(['transaction_number' => 'EXP-MATCH', 'account_id' => $account->id, 'transaction_type' => 'guest_payment', 'direction' => 'credit', 'amount' => 25, 'currency' => 'USD', 'description' => 'Included payment', 'transaction_date' => now(), 'status' => 'posted']);
         FinancialTransaction::create(['transaction_number' => 'EXP-OLD', 'account_id' => $account->id, 'transaction_type' => 'guest_payment', 'direction' => 'credit', 'amount' => 99, 'currency' => 'USD', 'description' => 'Excluded payment', 'transaction_date' => now()->subDays(10), 'status' => 'posted']);

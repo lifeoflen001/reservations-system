@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\AssignsTenantOwnership;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class PosAudit extends Model
 {
+    use AssignsTenantOwnership;
     protected $table = 'pos_audits';
     protected $fillable = ['event', 'actor_id', 'order_id', 'shift_id', 'product_id', 'metadata'];
     protected function casts(): array { return ['metadata' => 'array']; }
@@ -14,4 +16,5 @@ class PosAudit extends Model
     public function order(): BelongsTo { return $this->belongsTo(PosOrder::class, 'order_id'); }
     public function shift(): BelongsTo { return $this->belongsTo(PosShift::class, 'shift_id'); }
     public function product(): BelongsTo { return $this->belongsTo(PosProduct::class, 'product_id'); }
+    public function property(): BelongsTo { return $this->belongsTo(Property::class); }
 }

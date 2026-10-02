@@ -5,6 +5,7 @@ use App\Http\Middleware\EnsureInstallationComplete;
 use App\Http\Middleware\EnsureInstallationIncomplete;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\UsePropertySettings;
+use App\Http\Middleware\ResolveTenantContext;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -38,6 +39,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'installation.complete' => EnsureInstallationComplete::class,
             'installation.incomplete' => EnsureInstallationIncomplete::class,
             'configured.session' => ConfiguredSessionSecurity::class,
+            'tenant.context' => ResolveTenantContext::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
