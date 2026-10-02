@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Jobs\SendContactEnquiryNotification;
 use App\Models\ContactEnquiry;
-use App\Services\HotelNotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -14,8 +13,6 @@ use Throwable;
 
 class PublicContactController extends Controller
 {
-    public function __construct(private readonly HotelNotificationService $notifications) {}
-
     public function create(): View
     {
         return view('public.contact', ['contactEmail' => config('hotel.contact.email')]);
@@ -41,17 +38,6 @@ class PublicContactController extends Controller
         ]);
 
         $enquiry = ContactEnquiry::query()->create($validated + ['status' => 'new']);
-
-        try {
-            $this->notifications->contactEnquiry($enquiry);
-        } catch (Throwable $exception) {
-            // The enquiry remains the source of truth if an in-app notification
-            // cannot be written temporarily.
-            Log::warning('Contact enquiry in-app notification could not be created.', [
-                'enquiry_id' => $enquiry->getKey(),
-                'exception' => $exception::class,
-            ]);
-        }
 
         if (filled(config('hotel.contact.email'))) {
             try {

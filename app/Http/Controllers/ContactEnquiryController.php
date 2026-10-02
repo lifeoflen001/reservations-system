@@ -6,12 +6,13 @@ use App\Models\ContactEnquiry;
 use App\Models\WebsiteAuditLog;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class ContactEnquiryController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request): Response
     {
         $enquiries = ContactEnquiry::query()
             ->when($request->filled('status') && in_array($request->query('status'), ContactEnquiry::STATUSES, true), fn ($query) => $query->where('status', $request->query('status')))
@@ -20,7 +21,9 @@ class ContactEnquiryController extends Controller
             ->paginate(20)
             ->withQueryString();
 
-        return view('contact-enquiries.index', compact('enquiries'));
+        return response()->view('contact-enquiries.index', compact('enquiries'))
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+            ->header('Pragma', 'no-cache');
     }
 
     public function show(ContactEnquiry $contactEnquiry): View
