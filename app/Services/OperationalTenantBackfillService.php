@@ -31,6 +31,13 @@ final class OperationalTenantBackfillService
         ];
 
         if (! $property) {
+            if (DB::table('properties')->count() === 0) {
+                $report['financial_totals_after'] = $report['financial_totals'];
+                $report['valid'] = true;
+
+                return $report;
+            }
+
             $report['anomalies'][] = ['table' => 'properties', 'record_id' => null, 'reason' => 'No active organization-backed property is available.'];
 
             return $report;

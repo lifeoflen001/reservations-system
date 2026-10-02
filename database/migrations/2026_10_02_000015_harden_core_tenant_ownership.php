@@ -1,5 +1,6 @@
 <?php
 
+use App\Services\OperationalTenantBackfillService;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -15,6 +16,13 @@ return new class extends Migration
 
     public function up(): void
     {
+        if (DB::table('properties')->whereNotNull('organization_id')->exists()) {
+            $report = app(OperationalTenantBackfillService::class)->run();
+            if ($report['anomalies'] !== []) {
+                throw new \RuntimeException('Cannot harden tenant ownership until the operational backfill is reconciled.');
+            }
+        }
+
         $this->assertNoNulls('properties', 'organization_id');
         foreach ($this->propertyTables as $table) {
             $this->assertNoNulls($table, 'property_id');
