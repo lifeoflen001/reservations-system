@@ -53,4 +53,9 @@ class Property extends Model
     {
         return $this->hasMany(PropertyMembership::class);
     }
+
+    public function supportSessions(): HasMany
+    {
+        return $this->hasMany(PlatformSupportSession::class);
+    }
 }

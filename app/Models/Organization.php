@@ -44,4 +44,9 @@ class Organization extends Model
     {
         return $this->hasMany(OrganizationAuditLog::class);
     }
+
+    public function supportSessions(): HasMany
+    {
+        return $this->hasMany(PlatformSupportSession::class);
+    }
 }

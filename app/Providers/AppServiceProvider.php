@@ -48,6 +48,7 @@ use App\Services\NullWhatsAppProvider;
 use App\Services\WebhookService;
 use App\Services\Tenancy\TenantContext;
 use App\Services\Tenancy\MembershipAccessService;
+use App\Services\Platform\PlatformSupportContext;
 use Illuminate\Console\Events\CommandStarting;
 use Illuminate\Foundation\Http\Events\RequestHandled;
 use Illuminate\Notifications\DatabaseNotification;
@@ -58,6 +59,7 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Str;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -68,6 +70,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->scoped(TenantContext::class, fn (): TenantContext => new TenantContext);
+        $this->app->scoped(PlatformSupportContext::class, fn (): PlatformSupportContext => new PlatformSupportContext);
         $this->app->bind(WhatsAppProviderInterface::class, NullWhatsAppProvider::class);
         $this->app->bind(PaymentGatewayInterface::class, NullPaymentGateway::class);
         $this->app->bind(BookingChannelInterface::class, NullBookingChannelProvider::class);
@@ -84,6 +87,7 @@ class AppServiceProvider extends ServiceProvider
         }
 
         RateLimiter::for('api', fn (Request $request) => Limit::perMinute(60)->by($request->bearerToken() ? hash('sha256', $request->bearerToken()) : $request->ip()));
+        RateLimiter::for('platform-login', fn (Request $request) => Limit::perMinute(6)->by(Str::lower((string) $request->input('email')).'|'.$request->ip()));
         if ($this->app->environment('testing')) {
             // Feature tests reuse the application container across requests;
             // mirror request-scoped production lifetime between responses.

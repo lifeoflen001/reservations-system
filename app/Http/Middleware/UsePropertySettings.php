@@ -14,7 +14,7 @@ class UsePropertySettings
     {
         // The public landing page is intentionally static/config-driven. Do
         // not read property records just to render marketing content.
-        if ($request->routeIs('public.*', 'sitemap', 'robots', 'website.*', 'contact-enquiries.*')) {
+        if ($request->routeIs('public.*', 'sitemap', 'robots', 'website.*', 'contact-enquiries.*', 'platform.*')) {
             return $next($request);
         }
 

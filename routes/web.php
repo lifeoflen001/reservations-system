@@ -34,6 +34,10 @@ use App\Http\Controllers\Staff\ProfileController;
 use App\Http\Controllers\Staff\StaffController;
 use App\Http\Controllers\WebhookController;
 use App\Http\Controllers\Announcements\AnnouncementController;
+use App\Http\Controllers\Platform\PlatformAuthController;
+use App\Http\Controllers\Platform\PlatformController;
+use App\Http\Controllers\Platform\PlatformTwoFactorController;
+use App\Http\Controllers\Platform\PlatformSupportWorkspaceController;
 use App\Http\Controllers\Webhooks\PaymentGatewayWebhookController;
 use App\Http\Middleware\ConfiguredSessionSecurity;
 use App\Http\Middleware\EnsureActiveUser;
@@ -63,6 +67,51 @@ Route::middleware(EnsureInstallationIncomplete::class)->prefix('setup')->name('s
 Route::get('/setup/finish', [SetupController::class, 'finish'])->name('setup.finish');
 Route::post('/webhooks/payments/{provider}', PaymentGatewayWebhookController::class)->name('webhooks.payments');
 Route::post('/webhooks/{provider}/{type}', [WebhookController::class, 'inbound'])->whereIn('type', ['whatsapp', 'channels'])->name('webhooks.inbound');
+
+Route::prefix('platform')->name('platform.')->group(function (): void {
+    Route::middleware('guest:platform')->group(function (): void {
+        Route::get('/login', [PlatformAuthController::class, 'create'])->name('login');
+        Route::post('/login', [PlatformAuthController::class, 'store'])->middleware('throttle:platform-login')->name('login.store');
+    });
+
+    Route::middleware('platform.2fa.pending')->group(function (): void {
+        Route::get('/two-factor/enroll', [PlatformTwoFactorController::class, 'enroll'])->name('2fa.enroll');
+        Route::post('/two-factor/enroll', [PlatformTwoFactorController::class, 'confirmEnrollment'])->name('2fa.enroll.confirm');
+        Route::get('/two-factor/challenge', [PlatformTwoFactorController::class, 'challenge'])->name('2fa.challenge');
+        Route::post('/two-factor/challenge', [PlatformTwoFactorController::class, 'verifyChallenge'])->name('2fa.challenge.verify');
+    });
+
+    Route::middleware(['platform.auth', 'platform.active', 'platform.2fa'])->group(function (): void {
+        Route::post('/logout', [PlatformAuthController::class, 'destroy'])->name('logout');
+        Route::get('/', [PlatformController::class, 'dashboard'])->middleware('platform.permission:platform.dashboard.view')->name('dashboard');
+        Route::get('/organizations', [PlatformController::class, 'organizations'])->middleware('platform.permission:platform.organizations.view')->name('organizations');
+        Route::get('/organizations/{organization}', [PlatformController::class, 'organization'])->middleware('platform.permission:platform.organizations.view')->name('organizations.show');
+        Route::get('/properties', [PlatformController::class, 'properties'])->middleware('platform.permission:platform.properties.view')->name('properties');
+        Route::get('/properties/{property}', [PlatformController::class, 'property'])->middleware('platform.permission:platform.properties.view')->name('properties.show');
+        Route::get('/subscriptions', [PlatformController::class, 'subscriptions'])->middleware('platform.permission:platform.subscriptions.view')->name('subscriptions');
+        Route::get('/subscriptions/{subscription}', [PlatformController::class, 'subscription'])->middleware('platform.permission:platform.subscriptions.view')->name('subscriptions.show');
+        Route::get('/support', [PlatformController::class, 'support'])->middleware('platform.permission:platform.support.view')->name('support');
+        Route::post('/support', [PlatformController::class, 'startSupport'])->middleware('platform.permission:platform.support.start')->name('support.start');
+        Route::post('/support/end', [PlatformController::class, 'endSupport'])->middleware('platform.permission:platform.support.start')->name('support.end');
+        Route::post('/support/{platformSupportSession}/enter', [PlatformController::class, 'enterSupport'])->middleware('platform.permission:platform.support.start')->name('support.enter');
+        Route::prefix('/support/{platformSupportSession}/workspace')->middleware(['platform.permission:platform.support.start', 'platform.support.context', 'platform.support.readonly'])->group(function (): void {
+            Route::get('/', [PlatformSupportWorkspaceController::class, 'dashboard'])->name('support.workspace');
+            Route::get('/search', [PlatformSupportWorkspaceController::class, 'search'])->name('support.workspace.search');
+            Route::get('/{module}', [PlatformSupportWorkspaceController::class, 'module'])->whereIn('module', ['reservations', 'clients', 'rooms', 'room-planning', 'tasks', 'housekeeping', 'maintenance', 'pos', 'finance', 'reports', 'settings'])->name('support.workspace.module');
+            Route::get('/{module}/{id}', [PlatformSupportWorkspaceController::class, 'detail'])->whereIn('module', ['reservations', 'clients'])->whereNumber('id')->name('support.workspace.detail');
+        });
+        Route::get('/health', [PlatformController::class, 'health'])->middleware('platform.permission:platform.health.view')->name('health');
+        Route::get('/audit-logs', [PlatformController::class, 'audit'])->middleware('platform.permission:platform.audit.view')->name('audit');
+        Route::get('/administrators', [PlatformController::class, 'administrators'])->middleware('platform.permission:platform.administrators.manage')->name('administrators');
+        Route::post('/administrators', [PlatformController::class, 'storeAdministrator'])->middleware('platform.permission:platform.administrators.manage')->name('administrators.store');
+        Route::patch('/administrators/{platformAdministrator}/status', [PlatformController::class, 'updateAdministratorStatus'])->middleware('platform.permission:platform.administrators.manage')->name('administrators.status');
+        Route::get('/profile', [PlatformController::class, 'profile'])->name('profile');
+        Route::put('/profile/password', [PlatformController::class, 'updatePassword'])->name('profile.password');
+        Route::get('/two-factor/recovery-codes', [PlatformTwoFactorController::class, 'recoveryCodes'])->name('2fa.recovery');
+        Route::post('/profile/two-factor/recovery-codes', [PlatformTwoFactorController::class, 'regenerate'])->name('profile.2fa.recovery-codes');
+        Route::post('/profile/two-factor/reset', [PlatformTwoFactorController::class, 'reset'])->name('profile.2fa.reset');
+    });
+});
 
 Route::middleware(['guest', EnsureInstallationComplete::class])->group(function () {
     Route::get('/login', [LoginController::class, 'create'])->name('login');

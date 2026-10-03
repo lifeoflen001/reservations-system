@@ -392,4 +392,36 @@ billing, signup or platform-administration UI work.
 
 SAAS-06 adds a session-based authenticated property/organization switcher and organization-scoped property management. Enable `HOTEL_MULTI_PROPERTY_UI=true` for controlled staging. Context mutations are POST-only and CSRF-protected; tenant ownership and property access remain server-validated. No billing, signup, entitlement, or Platform Admin behavior is included. See `docs/SAAS-06-MULTI-PROPERTY-UX.md` for redirect, session cleanup, multi-tab, and validation rules.
 
+## Phase SAAS-07 platform administration control plane
+
+SAAS-07 introduces a separate Lodgix platform control plane. Platform
+administrators live in `platform_administrators` and use the `platform` guard
+at `/platform/login`; customer users continue to use the `web` guard and
+`/login`. Platform routes are outside customer tenant context and have their
+own middleware, layout, permissions, audit log, health checks, organization,
+property and read-only subscription views.
+
+Support access is explicit, organization/property-scoped, reason-required,
+time-bounded to 5–60 minutes, visible in the platform shell, and audited on
+start, entry, expiry, blocked mutation and exit. SAAS-07.1 adds a separate,
+server-enforced read-only support workspace for scoped reservations, clients,
+rooms, room planning, tasks, housekeeping, maintenance, POS, finance and
+reports. It never impersonates a customer or uses customer `TenantContext`;
+organization-only support is metadata-only. Settings are redacted and no
+support file, bulk export or mutation route is exposed. Platform subscriptions
+remain observational; billing, signup, trial and entitlement enforcement are
+deferred.
+
+The phase intentionally does not seed credentials, deploy to production,
+create production platform administrators, or perform automatic Git
+operations. Platform 2FA is mandatory: password-only login remains pending,
+enrollment cannot be skipped, TOTP/recovery challenge is required, recovery
+codes are encrypted and one-time, and sensitive 2FA actions are rate limited
+and audited without secret material. Administrator-assisted reset is deferred.
+Before controlled staging approval, run the full SQLite suite and a disposable
+MariaDB migration/relationship validation, review the support and audit
+controls, and perform an explicit staging security review. See
+`docs/SAAS-07-PLATFORM-ADMIN.md` and `docs/SAAS-07-1-PLATFORM-HARDENING.md`
+for the route map, security model, limitations and validation checklist.
+
 End of the SAAS-06 migration notes.
