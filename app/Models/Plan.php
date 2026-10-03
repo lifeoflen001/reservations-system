@@ -9,11 +9,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Plan extends Model
 {
-    protected $fillable = ['uuid', 'code', 'slug', 'name', 'description', 'status', 'is_public', 'is_system', 'sort_order'];
+    protected $fillable = ['uuid', 'code', 'slug', 'name', 'description', 'status', 'is_public', 'is_system', 'sort_order', 'is_onboarding_eligible', 'is_onboarding_default'];
 
     protected function casts(): array
     {
-        return ['is_public' => 'boolean', 'is_system' => 'boolean', 'sort_order' => 'integer'];
+        return ['is_public' => 'boolean', 'is_system' => 'boolean', 'is_onboarding_eligible' => 'boolean', 'is_onboarding_default' => 'boolean', 'sort_order' => 'integer'];
     }
 
     public function subscriptions(): HasMany

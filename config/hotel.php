@@ -73,6 +73,11 @@ return [
         'multi_property_ui' => filter_var(env('HOTEL_MULTI_PROPERTY_UI', true), FILTER_VALIDATE_BOOL),
     ],
 
+    'onboarding' => [
+        'invitation_days' => (int) env('LODGIX_INVITATION_DAYS', 7),
+        'terms_version' => env('LODGIX_TERMS_VERSION', 'current'),
+    ],
+
     'reservation_code_prefix' => env('HOTEL_RESERVATION_CODE_PREFIX', 'WSX'),
 
     'pos' => [

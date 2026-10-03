@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Organization extends Model
 {
@@ -55,5 +56,15 @@ class Organization extends Model
     public function supportSessions(): HasMany
     {
         return $this->hasMany(PlatformSupportSession::class);
+    }
+
+    public function onboarding(): HasOne
+    {
+        return $this->hasOne(OrganizationOnboarding::class);
+    }
+
+    public function invitations(): HasMany
+    {
+        return $this->hasMany(OrganizationInvitation::class);
     }
 }

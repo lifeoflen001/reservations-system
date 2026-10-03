@@ -141,7 +141,7 @@ class PlatformController extends Controller
     public function createPlan(): View
     {
         return view('platform.plans.form', [
-            'plan' => new Plan(['status' => 'active', 'is_public' => false]),
+            'plan' => new Plan(['status' => 'active', 'is_public' => false, 'is_onboarding_eligible' => false, 'is_onboarding_default' => false]),
             'features' => Feature::query()->where('status', 'active')->orderBy('category')->orderBy('name')->get(),
             'limits' => ['properties' => 'Properties', 'users' => 'Active users', 'rooms' => 'Active rooms'],
             'selectedFeatures' => [],
@@ -157,7 +157,7 @@ class PlatformController extends Controller
                 'uuid' => (string) Str::uuid(), 'code' => Str::lower(trim($data['code'])),
                 'slug' => Str::slug($data['code']), 'name' => trim($data['name']),
                 'description' => $data['description'] ?? null, 'status' => $data['status'],
-                'is_public' => request()->boolean('is_public'), 'is_system' => false,
+                'is_public' => request()->boolean('is_public'), 'is_onboarding_eligible' => request()->boolean('is_onboarding_eligible'), 'is_onboarding_default' => request()->boolean('is_onboarding_default'), 'is_system' => false,
                 'sort_order' => (int) ($data['sort_order'] ?? 0),
             ]);
             $this->syncPlanConfiguration($plan, $data);
@@ -197,7 +197,7 @@ class PlatformController extends Controller
             $plan->update([
                 'code' => Str::lower(trim($data['code'])), 'slug' => Str::slug($data['code']),
                 'name' => trim($data['name']), 'description' => $data['description'] ?? null,
-                'status' => $data['status'], 'is_public' => request()->boolean('is_public'),
+                'status' => $data['status'], 'is_public' => request()->boolean('is_public'), 'is_onboarding_eligible' => request()->boolean('is_onboarding_eligible'), 'is_onboarding_default' => request()->boolean('is_onboarding_default'),
                 'sort_order' => (int) ($data['sort_order'] ?? 0),
             ]);
             $this->syncPlanConfiguration($plan, $data);
@@ -224,6 +224,7 @@ class PlatformController extends Controller
             'name' => ['required', 'string', 'max:120'],
             'description' => ['nullable', 'string', 'max:2000'],
             'status' => ['required', 'in:active,inactive'],
+            'is_onboarding_eligible' => ['nullable', 'boolean'], 'is_onboarding_default' => ['nullable', 'boolean'],
             'sort_order' => ['nullable', 'integer', 'min:0', 'max:9999'],
             'features' => ['array'], 'features.*' => ['integer', 'exists:features,id'],
             'limits' => ['array'], 'limits.properties' => ['nullable', 'integer', 'min:0'], 'limits.users' => ['nullable', 'integer', 'min:0'], 'limits.rooms' => ['nullable', 'integer', 'min:0'],
@@ -233,6 +234,9 @@ class PlatformController extends Controller
     /** @param array<string, mixed> $data */
     private function syncPlanConfiguration(Plan $plan, array $data): void
     {
+        if (request()->boolean('is_onboarding_default')) {
+            Plan::query()->whereKeyNot($plan->getKey())->where('is_onboarding_default', true)->update(['is_onboarding_default' => false]);
+        }
         $featureIds = collect($data['features'] ?? [])->map(fn ($id): int => (int) $id)->unique()->values();
         PlanFeature::query()->where('plan_id', $plan->getKey())->delete();
         foreach ($featureIds as $featureId) PlanFeature::create(['plan_id' => $plan->getKey(), 'feature_id' => $featureId, 'enabled' => true]);

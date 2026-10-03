@@ -13,11 +13,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, TwoFactorAuthenticatable, ScopesTenantOwnership;
@@ -65,6 +66,7 @@ class User extends Authenticatable
         'two_factor_secret',
         'two_factor_recovery_codes',
         'two_factor_confirmed_at',
+        'email_verification_required', 'registration_terms_accepted_at', 'registration_terms_version', 'registration_source',
     ];
 
     /**
@@ -94,6 +96,8 @@ class User extends Authenticatable
             'must_change_password' => 'boolean',
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
+            'email_verification_required' => 'boolean',
+            'registration_terms_accepted_at' => 'datetime',
         ];
     }
 

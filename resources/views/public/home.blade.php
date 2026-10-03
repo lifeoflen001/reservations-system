@@ -44,6 +44,7 @@ $capabilities = $homeCapabilities['items'] ?? $capabilities;
                 <div class="public-home-hero__actions">
                     <x-public.button :href="route('public.product')" variant="primary">Explore the platform <x-ui.icon name="arrow-right" size="16" /></x-public.button>
                     <x-public.button :href="auth()->check() ? route('dashboard') : route('login')" variant="secondary">{{ auth()->check() ? 'Open Dashboard' : 'Sign In' }}</x-public.button>
+                    @guest<x-public.button :href="route('register')" variant="secondary">Get started</x-public.button>@endguest
                 </div>
                 <div class="public-home-hero__points" aria-label="Lodgix capabilities">
                     <span><x-ui.icon name="check" size="14" /> Connected records</span>

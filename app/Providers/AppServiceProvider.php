@@ -88,6 +88,7 @@ class AppServiceProvider extends ServiceProvider
 
         RateLimiter::for('api', fn (Request $request) => Limit::perMinute(60)->by($request->bearerToken() ? hash('sha256', $request->bearerToken()) : $request->ip()));
         RateLimiter::for('platform-login', fn (Request $request) => Limit::perMinute(6)->by(Str::lower((string) $request->input('email')).'|'.$request->ip()));
+        RateLimiter::for('register', fn (Request $request) => Limit::perMinute(5)->by(Str::lower((string) $request->input('email')).'|'.$request->ip()));
         if ($this->app->environment('testing')) {
             // Feature tests reuse the application container across requests;
             // mirror request-scoped production lifetime between responses.

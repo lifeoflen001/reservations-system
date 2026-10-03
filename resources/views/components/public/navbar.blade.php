@@ -58,7 +58,12 @@
             </div>
 
             <div class="public-navbar__actions">
-                <x-public.button :href="$ctaRoute" variant="secondary">{{ $ctaLabel }}</x-public.button>
+                @if(auth()->check())
+                    <x-public.button :href="$ctaRoute" variant="secondary">{{ $ctaLabel }}</x-public.button>
+                @else
+                    <x-public.button href="{{ route('login') }}" variant="secondary">Sign In</x-public.button>
+                    <x-public.button href="{{ route('register') }}" variant="primary">Get Started</x-public.button>
+                @endif
                 <button class="public-menu-toggle" type="button" data-public-menu-open aria-label="Open navigation menu" aria-controls="public-mobile-menu" aria-expanded="false">
                     <x-ui.icon name="menu" size="21" />
                 </button>

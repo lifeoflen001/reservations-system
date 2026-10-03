@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Services\Tenancy\TenantContext;
 use App\Models\Organization;
+use App\Models\OrganizationOnboarding;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -37,6 +38,10 @@ class ResolveTenantContext
 
         if ($context->hasOrganization() && $context->hasProperty()) {
             return $next($request);
+        }
+
+        if ($user->email_verification_required && OrganizationOnboarding::query()->where('owner_user_id', $user->getKey())->whereNull('completed_at')->exists()) {
+            return redirect()->route('onboarding.start');
         }
 
         if ($request->expectsJson()) {

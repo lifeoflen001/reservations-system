@@ -3,6 +3,10 @@
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\TwoFactorController;
+use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\Auth\VerificationController;
+use App\Http\Controllers\OnboardingController;
+use App\Http\Controllers\OrganizationInvitationController;
 use App\Http\Controllers\Clients\ClientController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FinanceController;
@@ -58,6 +62,12 @@ Route::get('/contact', [PublicContactController::class, 'create'])->name('public
 Route::post('/contact', [PublicContactController::class, 'store'])->middleware('throttle:5,60')->name('public.contact.submit');
 Route::get('/sitemap.xml', [PublicMetadataController::class, 'sitemap'])->name('sitemap');
 Route::get('/robots.txt', [PublicMetadataController::class, 'robots'])->name('robots');
+Route::get('/invitations/{token}', [OrganizationInvitationController::class, 'show'])->name('invitations.show');
+
+Route::middleware(['guest', EnsureInstallationComplete::class])->group(function (): void {
+    Route::get('/register', [RegisterController::class, 'create'])->middleware('throttle:register')->name('register');
+    Route::post('/register', [RegisterController::class, 'store'])->middleware('throttle:register')->name('register.store');
+});
 
 Route::middleware(EnsureInstallationIncomplete::class)->prefix('setup')->name('setup.')->group(function () {
     Route::get('/', [SetupController::class, 'index'])->name('index');
@@ -134,8 +144,32 @@ Route::middleware([EnsureInstallationComplete::class, 'throttle:6,1'])->group(fu
     Route::post('/two-factor-challenge', [TwoFactorController::class, 'store'])->name('two-factor.login.store');
 });
 
-Route::middleware(['auth', EnsureActiveUser::class, EnsureInstallationComplete::class, ConfiguredSessionSecurity::class, EnsurePasswordChanged::class, 'tenant.context'])->group(function () {
-    Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');
+Route::middleware(['auth', EnsureActiveUser::class, EnsureInstallationComplete::class, 'throttle:6,1'])->group(function (): void {
+    Route::get('/email/verify', [VerificationController::class, 'notice'])->name('verification.notice');
+    Route::get('/email/verify/{id}/{hash}', [VerificationController::class, 'verify'])->middleware('signed')->name('verification.verify');
+    Route::post('/email/verification-notification', [VerificationController::class, 'resend'])->name('verification.send');
+    Route::get('/post-auth', [LoginController::class, 'postAuth'])->name('post-auth');
+});
+
+Route::middleware(['auth', EnsureActiveUser::class, EnsureInstallationComplete::class, 'customer.verified'])->prefix('onboarding')->name('onboarding.')->group(function (): void {
+    Route::get('/', [OnboardingController::class, 'start'])->name('start');
+    Route::get('/organization', [OnboardingController::class, 'organization'])->name('organization');
+    Route::post('/organization', [OnboardingController::class, 'storeOrganization'])->name('organization.store');
+    Route::get('/plan', [OnboardingController::class, 'plan'])->name('plan');
+    Route::post('/plan', [OnboardingController::class, 'storePlan'])->name('plan.store');
+    Route::get('/property', [OnboardingController::class, 'property'])->name('property');
+    Route::post('/property', [OnboardingController::class, 'storeProperty'])->name('property.store');
+    Route::get('/hotel', [OnboardingController::class, 'hotel'])->name('hotel');
+    Route::post('/finish', [OnboardingController::class, 'finish'])->name('finish');
+});
+
+Route::middleware(['auth', EnsureActiveUser::class, EnsureInstallationComplete::class, 'customer.verified'])->group(function (): void {
+    Route::post('/invitations/{token}/accept', [OrganizationInvitationController::class, 'accept'])->name('invitations.accept');
+});
+
+Route::post('/logout', [LoginController::class, 'destroy'])->middleware(['auth', EnsureActiveUser::class, EnsureInstallationComplete::class])->name('logout');
+
+Route::middleware(['auth', EnsureActiveUser::class, EnsureInstallationComplete::class, ConfiguredSessionSecurity::class, EnsurePasswordChanged::class, 'customer.verified', 'tenant.context'])->group(function () {
     Route::post('/context/property', [TenantContextController::class, 'property'])->name('context.property');
     Route::post('/context/organization', [TenantContextController::class, 'organization'])->name('context.organization');
     Route::get('/management/contact-enquiries', [ContactEnquiryController::class, 'index'])->middleware('can:contact_enquiries.view')->name('contact-enquiries.index');
@@ -299,6 +333,10 @@ Route::middleware(['auth', EnsureActiveUser::class, EnsureInstallationComplete::
     Route::put('/settings/organization', [OrganizationSettingsController::class, 'update'])->middleware('can:organization.update')->name('settings.organization.update');
     Route::get('/settings/subscription', [OrganizationSettingsController::class, 'subscription'])->middleware('can:organization.view')->name('settings.subscription');
     Route::get('/settings/members', [OrganizationMemberController::class, 'index'])->middleware('can:members.view')->name('settings.members.index');
+    Route::get('/settings/invitations', [OrganizationInvitationController::class, 'index'])->middleware('can:members.view')->name('settings.invitations.index');
+    Route::post('/settings/invitations', [OrganizationInvitationController::class, 'store'])->middleware('can:members.manage')->name('settings.invitations.store');
+    Route::post('/settings/invitations/{invitation}/resend', [OrganizationInvitationController::class, 'resend'])->middleware('can:members.manage')->name('settings.invitations.resend');
+    Route::post('/settings/invitations/{invitation}/revoke', [OrganizationInvitationController::class, 'revoke'])->middleware('can:members.manage')->name('settings.invitations.revoke');
     Route::get('/settings/members/{membership}/edit', [OrganizationMemberController::class, 'edit'])->middleware('can:members.manage')->name('settings.members.edit');
     Route::put('/settings/members/{membership}', [OrganizationMemberController::class, 'update'])->middleware('can:members.manage')->name('settings.members.update');
     Route::post('/settings/members/{membership}/owner', [OrganizationMemberController::class, 'grantOwner'])->middleware('can:members.manage')->name('settings.members.owner.grant');

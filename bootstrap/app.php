@@ -14,6 +14,7 @@ use App\Http\Middleware\EnsurePlatformTwoFactorPending;
 use App\Http\Middleware\ResolvePlatformSupportContext;
 use App\Http\Middleware\PlatformSupportReadOnly;
 use App\Http\Middleware\EnsureFeatureEntitlement;
+use App\Http\Middleware\EnsureCustomerEmailVerified;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -56,6 +57,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'platform.support.context' => ResolvePlatformSupportContext::class,
             'platform.support.readonly' => PlatformSupportReadOnly::class,
             'feature' => EnsureFeatureEntitlement::class,
+            'customer.verified' => EnsureCustomerEmailVerified::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

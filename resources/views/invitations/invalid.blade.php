@@ -1,0 +1,2 @@
+@extends('layouts.guest')
+@section('content')<main class="onboarding-shell"><div class="onboarding-card"><x-app-logo class="auth-form-logo" /><h1>Invitation unavailable</h1><p>This invitation has expired, been revoked, or was already accepted. Ask the organization administrator to send a new invitation.</p><a class="ui-button ui-button--primary" href="{{ route('public.home') }}">Return home</a></div></main>@endsection

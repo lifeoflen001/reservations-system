@@ -7,6 +7,7 @@ use App\Http\Requests\Auth\TwoFactorChallengeRequest;
 use App\Models\User;
 use App\Services\LoginHistoryService;
 use App\Services\Tenancy\TenantContext;
+use App\Services\OnboardingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -60,6 +61,8 @@ class TwoFactorController extends Controller
             return redirect()->route('password.change')->with('warning', 'Please change your password before continuing.');
         }
 
+        if ($user->email_verification_required && ! $user->hasVerifiedEmail()) return redirect()->route('verification.notice');
+        if (app(OnboardingService::class)->stateFor($user)) return redirect()->route('onboarding.start');
         return redirect()->intended(route('dashboard'))->with('success', 'Welcome back.');
     }
 

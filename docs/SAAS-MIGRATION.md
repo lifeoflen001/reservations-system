@@ -428,3 +428,7 @@ End of the SAAS-06 migration notes.
 ## SAAS-08 entitlement compatibility
 
 The entitlement catalog is additive. Existing organizations without an explicit plan are assigned the private `legacy_full_access` system plan by migration so existing staff do not lose module access. This plan is not public and has no monetary pricing. Commercial plan changes are platform-admin-only and audited; customer permissions remain separate from commercial feature entitlements.
+
+## SAAS-09 onboarding compatibility
+
+SAAS-09 adds `organization_onboardings`, hashed `organization_invitations`, invitation property access, explicit public signup-plan flags, and registration metadata on users. Existing users retain `email_verification_required = false` so legacy installations are not unexpectedly locked out; new public registrations set it to true and must verify email before onboarding. The migration is incremental and does not create billing or trial-expiration data.

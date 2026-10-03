@@ -34,6 +34,7 @@
                 <h2>Company</h2>
                 <a href="{{ route('public.contact') }}">Contact</a>
                 <a href="{{ auth()->check() ? route('dashboard') : route('login') }}">{{ auth()->check() ? 'Open Dashboard' : 'Sign In' }}</a>
+                @guest<a href="{{ route('register') }}">Get Started</a>@endguest
             </div>
         </div>
         <div class="public-footer__bottom">
