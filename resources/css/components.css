@@ -1291,6 +1291,9 @@ body.modal-open { overflow: hidden; }
 .access-property-option small { color: var(--text-muted); font-size: 11px; }
 .access-member-grid { padding: 16px; }
 .member-access-editor > form { padding: 16px; }
+.member-ownership-controls { display: flex; align-items: center; justify-content: space-between; gap: 16px; border-top: 1px solid var(--border); padding: 16px; background: var(--surface-secondary); }
+.member-ownership-controls p { max-width: 720px; margin: 4px 0 0; }
+@media (max-width: 700px) { .member-ownership-controls { align-items: stretch; flex-direction: column; } .member-ownership-controls .ui-button { width: 100%; justify-content: center; } }
 .organization-audit-table code { color: var(--brand-primary); font-size: 11px; }
 .table-pagination { border-top: 1px solid var(--border); padding: 14px 16px; }
 @media (max-width: 900px) { .organization-admin-layout { grid-template-columns: 1fr; } .organization-scope-card, .organization-scope-note, .organization-table-card { grid-column: 1; } .settings-scope-nav { grid-template-columns: repeat(2, minmax(0, 1fr)); } .organization-filter-bar--audit { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

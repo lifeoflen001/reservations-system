@@ -10,12 +10,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class OrganizationMembership extends Model
 {
     protected $fillable = [
-        'organization_id', 'user_id', 'role_id', 'status', 'joined_at', 'invited_by',
+        'organization_id', 'user_id', 'role_id', 'is_owner', 'status', 'joined_at', 'invited_by',
     ];
 
     protected function casts(): array
     {
-        return ['joined_at' => 'datetime'];
+        return ['is_owner' => 'boolean', 'joined_at' => 'datetime'];
     }
 
     public function organization(): BelongsTo

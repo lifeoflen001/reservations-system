@@ -243,6 +243,8 @@ Route::middleware(['auth', EnsureActiveUser::class, EnsureInstallationComplete::
     Route::get('/settings/members', [OrganizationMemberController::class, 'index'])->middleware('can:members.view')->name('settings.members.index');
     Route::get('/settings/members/{membership}/edit', [OrganizationMemberController::class, 'edit'])->middleware('can:members.manage')->name('settings.members.edit');
     Route::put('/settings/members/{membership}', [OrganizationMemberController::class, 'update'])->middleware('can:members.manage')->name('settings.members.update');
+    Route::post('/settings/members/{membership}/owner', [OrganizationMemberController::class, 'grantOwner'])->middleware('can:members.manage')->name('settings.members.owner.grant');
+    Route::delete('/settings/members/{membership}/owner', [OrganizationMemberController::class, 'removeOwner'])->middleware('can:members.manage')->name('settings.members.owner.remove');
     Route::get('/settings/audit', [OrganizationAuditController::class, 'index'])->middleware('can:audit.view')->name('settings.audit.index');
     Route::get('/settings/database/backup', [SettingsController::class, 'downloadDatabaseBackup'])->name('settings.database.backup');
     Route::get('/settings/database/backups/{filename}', [SettingsController::class, 'downloadExistingDatabaseBackup'])->where('filename', '[A-Za-z0-9._-]+')->name('settings.database.backups.download');

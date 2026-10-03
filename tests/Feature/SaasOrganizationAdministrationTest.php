@@ -10,6 +10,7 @@ use App\Models\PropertyMembership;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\Tenancy\MembershipAccessService;
+use App\Services\Tenancy\OrganizationOwnershipService;
 use App\Services\Tenancy\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -99,6 +100,66 @@ class SaasOrganizationAdministrationTest extends TestCase
         $this->assertDatabaseHas('property_memberships', ['membership_id' => $membership->id, 'property_id' => $second->id, 'status' => 'inactive']);
     }
 
+    public function test_owner_backfill_selects_highest_authority_and_audits_selection(): void
+    {
+        $administratorRole = Role::firstOrCreate(['name' => 'administrator'], ['label' => 'Administrator', 'is_system' => true, 'is_active' => true]);
+        $managerRole = Role::firstOrCreate(['name' => 'manager'], ['label' => 'Manager', 'is_system' => true, 'is_active' => true]);
+        $administrator = User::factory()->create(['role_id' => $administratorRole->id, 'is_active' => true]);
+        $manager = User::factory()->create(['role_id' => $managerRole->id, 'is_active' => true]);
+        $organization = Organization::create(['uuid' => fake()->uuid(), 'name' => 'Backfill Org', 'slug' => 'backfill-'.uniqid()]);
+        $adminMembership = OrganizationMembership::create(['organization_id' => $organization->id, 'user_id' => $administrator->id, 'role_id' => $administratorRole->id, 'status' => 'active']);
+        OrganizationMembership::create(['organization_id' => $organization->id, 'user_id' => $manager->id, 'role_id' => $managerRole->id, 'status' => 'active']);
+
+        $report = app(OrganizationOwnershipService::class)->backfill();
+
+        $this->assertSame(1, $report['owners_granted']);
+        $this->assertTrue((bool) $adminMembership->fresh()->is_owner);
+        $this->assertDatabaseHas('organization_audit_logs', ['organization_id' => $organization->id, 'action' => 'organization.owner_granted', 'target_user_id' => $administrator->id]);
+        $this->assertSame('administrator', $report['selections'][0]['role']);
+    }
+
+    public function test_owner_grant_remove_and_last_owner_protection_are_tenant_scoped(): void
+    {
+        [$admin, $organization, $first, $second, $member, $membership, $foreign] = $this->fixture();
+        OrganizationMembership::where('id', $membership->id)->update(['is_owner' => false]);
+        OrganizationMembership::where('organization_id', $organization->id)->where('user_id', $admin->id)->update(['is_owner' => true]);
+        $membership->refresh();
+        $adminMembership = OrganizationMembership::where('organization_id', $organization->id)->where('user_id', $admin->id)->firstOrFail();
+        $this->actingAs($admin);
+
+        $this->post(route('settings.members.owner.grant', $membership))->assertRedirect();
+        $this->assertTrue((bool) $membership->fresh()->is_owner);
+        $this->assertDatabaseHas('organization_audit_logs', ['action' => 'organization.owner_granted', 'target_user_id' => $member->id]);
+
+        $this->delete(route('settings.members.owner.remove', $membership))->assertRedirect();
+        $this->assertFalse((bool) $membership->fresh()->is_owner);
+
+        $this->delete(route('settings.members.owner.remove', $adminMembership))->assertRedirect()->assertSessionHasErrors('membership');
+        $this->put(route('settings.members.update', $adminMembership), ['role_id' => $adminMembership->role_id, 'status' => 'inactive', 'property_ids' => [$first->id]])->assertRedirect()->assertSessionHasErrors('status');
+        $this->assertTrue((bool) $adminMembership->fresh()->is_owner);
+
+        $managerUser = User::factory()->create(['role_id' => $adminMembership->role_id, 'is_active' => true]);
+        OrganizationMembership::create(['organization_id' => $organization->id, 'user_id' => $managerUser->id, 'role_id' => $adminMembership->role_id, 'status' => 'active']);
+        $this->actingAs($managerUser);
+        app(\App\Services\Tenancy\TenantContext::class)->activate($organization->id, $first->id);
+        $this->put(route('settings.members.update', $adminMembership), ['role_id' => $adminMembership->role_id, 'status' => 'inactive', 'property_ids' => [$first->id]])->assertRedirect()->assertSessionHasErrors('status');
+        $this->assertTrue((bool) $adminMembership->fresh()->is_owner);
+
+        $foreignUser = User::factory()->create(['role_id' => $adminMembership->role_id, 'is_active' => true]);
+        $foreignMembership = OrganizationMembership::create(['organization_id' => $foreign->organization_id, 'user_id' => $foreignUser->id, 'role_id' => $adminMembership->role_id, 'is_owner' => true, 'status' => 'active']);
+        $this->delete(route('settings.members.owner.remove', $foreignMembership))->assertForbidden();
+    }
+
+    public function test_non_owner_cannot_grant_ownership(): void
+    {
+        [$admin, $organization, $first, $second, $member, $membership] = $this->fixture();
+        OrganizationMembership::where('organization_id', $organization->id)->update(['is_owner' => false]);
+        $this->actingAs($member);
+
+        $this->post(route('settings.members.owner.grant', $membership))->assertForbidden();
+        $this->assertFalse((bool) $membership->fresh()->is_owner);
+    }
+
     /** @return array<int, mixed> */
     private function fixture(): array
     {
@@ -109,7 +170,7 @@ class SaasOrganizationAdministrationTest extends TestCase
         $organization = Organization::create(['uuid' => (string) \Illuminate\Support\Str::uuid(), 'name' => 'Alpha Hospitality', 'slug' => 'alpha-'.uniqid(), 'status' => 'active']);
         $first = Property::create(['organization_id' => $organization->id, 'name' => 'Alpha One', 'slug' => 'alpha-one-'.uniqid(), 'property_code' => 'ALP-01', 'status' => 'active', 'default_language' => 'en', 'timezone' => 'Africa/Dar_es_Salaam']);
         $second = Property::create(['organization_id' => $organization->id, 'name' => 'Alpha Two', 'slug' => 'alpha-two-'.uniqid(), 'property_code' => 'ALP-02', 'status' => 'active', 'default_language' => 'en', 'timezone' => 'Africa/Dar_es_Salaam']);
-        $adminMembership = OrganizationMembership::create(['organization_id' => $organization->id, 'user_id' => $admin->id, 'role_id' => $role->id, 'status' => 'active']);
+        $adminMembership = OrganizationMembership::create(['organization_id' => $organization->id, 'user_id' => $admin->id, 'role_id' => $role->id, 'is_owner' => true, 'status' => 'active']);
         $membership = OrganizationMembership::create(['organization_id' => $organization->id, 'user_id' => $member->id, 'role_id' => $memberRole->id, 'status' => 'active']);
         PropertyMembership::create(['membership_id' => $adminMembership->id, 'property_id' => $first->id, 'status' => 'active']);
         PropertyMembership::create(['membership_id' => $adminMembership->id, 'property_id' => $second->id, 'status' => 'active']);

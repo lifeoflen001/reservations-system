@@ -6,6 +6,7 @@ use App\Models\OrganizationMembership;
 use App\Models\Property;
 use App\Models\Role;
 use App\Services\Tenancy\MembershipAccessService;
+use App\Services\Tenancy\OrganizationOwnershipService;
 use App\Support\TablePagination;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -30,7 +31,7 @@ class OrganizationMemberController extends Controller
         ]);
     }
 
-    public function edit(Request $request, OrganizationMembership $membership, MembershipAccessService $access): View
+    public function edit(Request $request, OrganizationMembership $membership, MembershipAccessService $access, OrganizationOwnershipService $ownership): View
     {
         $organization = $access->currentOrganizationFor($request->user());
         $membership = $access->assertMember($membership, $organization);
@@ -38,6 +39,7 @@ class OrganizationMemberController extends Controller
         return view('settings.member-edit', [
             'organization' => $organization,
             'membership' => $membership,
+            'canManageOwnership' => $ownership->canManageOwnership($request->user()),
             'properties' => Property::query()->where('organization_id', $organization->getKey())->orderBy('name')->get(['id', 'name', 'property_code', 'status']),
             'roles' => Role::query()->where('is_active', true)->orderBy('label')->get(['id', 'label', 'name']),
         ]);
@@ -54,5 +56,19 @@ class OrganizationMemberController extends Controller
         $access->updateMembership($membership, $request->user(), $data['role_id'] ?? null, $data['status'], $data['property_ids'] ?? []);
 
         return redirect()->route('settings.members.index')->with('success', 'Organization access updated.');
+    }
+
+    public function grantOwner(Request $request, OrganizationMembership $membership, OrganizationOwnershipService $ownership): RedirectResponse
+    {
+        $ownership->grantOwner($membership, $request->user());
+
+        return redirect()->route('settings.members.edit', $membership)->with('success', 'Organization owner access granted.');
+    }
+
+    public function removeOwner(Request $request, OrganizationMembership $membership, OrganizationOwnershipService $ownership): RedirectResponse
+    {
+        $ownership->removeOwner($membership, $request->user());
+
+        return redirect()->route('settings.members.edit', $membership)->with('success', 'Organization owner access removed.');
     }
 }

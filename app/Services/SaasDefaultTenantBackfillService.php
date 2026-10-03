@@ -2,7 +2,9 @@
 
 namespace App\Services;
 
+use App\Services\Tenancy\OrganizationOwnershipService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class SaasDefaultTenantBackfillService
@@ -161,6 +163,14 @@ class SaasDefaultTenantBackfillService
 
             if ($dryRun) {
                 $report['property_access_created'] = DB::table('users')->count() * $properties->count();
+            }
+
+            // Ownership is introduced after the original tenant backfill
+            // migration. Keep the legacy backfill safe before that column
+            // exists, then guarantee a deterministic owner on every later
+            // installation/backfill run.
+            if (Schema::hasColumn('organization_memberships', 'is_owner')) {
+                app(OrganizationOwnershipService::class)->backfill($dryRun);
             }
 
             return $report;

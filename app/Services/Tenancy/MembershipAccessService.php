@@ -41,6 +41,10 @@ final class MembershipAccessService
             ->where('status', 'active')
             ->first();
 
+        if ($membership?->is_owner && in_array($permission, OrganizationOwnershipService::ownerManagementPermissions(), true)) {
+            return true;
+        }
+
         return (bool) $membership?->role?->permissions?->contains('name', $permission);
     }
 
@@ -114,6 +118,15 @@ final class MembershipAccessService
             ->where('id', '!=', $membership->getKey())
             ->doesntExist()) {
             throw ValidationException::withMessages(['status' => 'The organization must retain at least one active member.']);
+        }
+
+        if ($status !== 'active' && $membership->is_owner && OrganizationMembership::query()
+            ->where('organization_id', $organization->getKey())
+            ->where('status', 'active')
+            ->where('is_owner', true)
+            ->whereKeyNot($membership->getKey())
+            ->doesntExist()) {
+            throw ValidationException::withMessages(['status' => 'The organization must retain at least one active owner.']);
         }
 
         $role = $roleId === null ? null : Role::query()->whereKey($roleId)->where('is_active', true)->first();
