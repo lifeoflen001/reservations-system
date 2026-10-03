@@ -1,21 +1,24 @@
 <?php
 
+use App\Http\Controllers\Announcements\AnnouncementController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\TwoFactorController;
 use App\Http\Controllers\Clients\ClientController;
+use App\Http\Controllers\ContactEnquiryController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\HousekeepingController;
 use App\Http\Controllers\MaintenanceController;
+use App\Http\Controllers\NewsletterAdminController;
+use App\Http\Controllers\NewsletterSubscriptionController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OperationalDataTransferController;
 use App\Http\Controllers\Payments\InvoiceController;
 use App\Http\Controllers\Payments\PaymentController;
 use App\Http\Controllers\PosController;
-use App\Http\Controllers\PublicMetadataController;
 use App\Http\Controllers\PublicContactController;
-use App\Http\Controllers\ContactEnquiryController;
+use App\Http\Controllers\PublicMetadataController;
 use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\Reservations\ReservationController;
 use App\Http\Controllers\RoomPlanningController;
@@ -23,11 +26,10 @@ use App\Http\Controllers\Rooms\RoomController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\SetupController;
-use App\Http\Controllers\TaskController;
 use App\Http\Controllers\Staff\ProfileController;
 use App\Http\Controllers\Staff\StaffController;
+use App\Http\Controllers\TaskController;
 use App\Http\Controllers\WebhookController;
-use App\Http\Controllers\Announcements\AnnouncementController;
 use App\Http\Controllers\Webhooks\PaymentGatewayWebhookController;
 use App\Http\Middleware\ConfiguredSessionSecurity;
 use App\Http\Middleware\EnsureActiveUser;
@@ -46,6 +48,9 @@ Route::view('/integrations', 'public.integrations')->name('public.integrations')
 Route::view('/pricing', 'public.pricing')->name('public.pricing');
 Route::get('/contact', [PublicContactController::class, 'create'])->name('public.contact');
 Route::post('/contact', [PublicContactController::class, 'store'])->middleware('throttle:5,60')->name('public.contact.submit');
+Route::post('/newsletter/subscribe', [NewsletterSubscriptionController::class, 'subscribe'])->middleware('throttle:newsletter')->name('newsletter.subscribe');
+Route::get('/newsletter/confirm/{token}', [NewsletterSubscriptionController::class, 'confirm'])->middleware('signed')->name('newsletter.confirm');
+Route::get('/newsletter/unsubscribe/{token}', [NewsletterSubscriptionController::class, 'unsubscribe'])->name('newsletter.unsubscribe');
 Route::get('/sitemap.xml', [PublicMetadataController::class, 'sitemap'])->name('sitemap');
 Route::get('/robots.txt', [PublicMetadataController::class, 'robots'])->name('robots');
 
@@ -76,6 +81,10 @@ Route::middleware(['auth', EnsureActiveUser::class, EnsureInstallationComplete::
     Route::get('/management/contact-enquiries', [ContactEnquiryController::class, 'index'])->middleware('can:contact_enquiries.view')->name('contact-enquiries.index');
     Route::get('/management/contact-enquiries/{contactEnquiry}', [ContactEnquiryController::class, 'show'])->middleware('can:contact_enquiries.view')->name('contact-enquiries.show');
     Route::patch('/management/contact-enquiries/{contactEnquiry}/status', [ContactEnquiryController::class, 'updateStatus'])->middleware('can:contact_enquiries.manage')->name('contact-enquiries.status');
+    Route::get('/management/newsletter', [NewsletterAdminController::class, 'index'])->middleware('can:newsletter.view')->name('newsletter.index');
+    Route::patch('/management/newsletter/{newsletterSubscriber}/status', [NewsletterAdminController::class, 'updateStatus'])->middleware('can:newsletter.manage')->name('newsletter.status');
+    Route::delete('/management/newsletter/{newsletterSubscriber}', [NewsletterAdminController::class, 'destroy'])->middleware('can:newsletter.manage')->name('newsletter.destroy');
+    Route::get('/management/newsletter/export', [NewsletterAdminController::class, 'export'])->middleware('can:newsletter.export')->name('newsletter.export');
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
     Route::get('/search', [SearchController::class, 'index'])->name('search');
 

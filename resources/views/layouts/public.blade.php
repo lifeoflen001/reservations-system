@@ -12,6 +12,10 @@
     $pageRobots = $robots ?? 'index,follow';
     $defaultSocialImage = 'assets/images/landing/lodgix-social-preview.webp';
     $socialImage = $ogImage ?? (file_exists(public_path($defaultSocialImage)) ? asset($defaultSocialImage) : $brandAsset('mark', 'assets/branding/lodgix-mark.png'));
+    $commonStructuredData = [
+        ['@context' => 'https://schema.org', '@type' => 'Organization', 'name' => $publicBrand['product_name'], 'url' => url('/'), 'logo' => $socialImage],
+        ['@context' => 'https://schema.org', '@type' => 'WebSite', 'name' => $publicBrand['product_name'], 'url' => url('/')],
+    ];
 @endphp
 <!doctype html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
@@ -28,6 +32,7 @@
     <link rel="apple-touch-icon" href="{{ $brandAsset('apple_touch_icon', 'assets/branding/lodgix-mark.png') }}">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="{{ $publicBrand['product_name'] }}">
+    <meta property="og:locale" content="{{ str_replace('_', '-', app()->getLocale()) }}">
     <meta property="og:title" content="{{ $pageTitle }}">
     <meta property="og:description" content="{{ $pageDescription }}">
     <meta property="og:url" content="{{ $pageCanonical }}">
@@ -35,11 +40,14 @@
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
     <meta property="og:image:alt" content="{{ $publicBrand['product_name'] }} hotel management system">
+    <meta property="og:image:type" content="image/webp">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="{{ $pageTitle }}">
     <meta name="twitter:description" content="{{ $pageDescription }}">
+    <meta name="twitter:url" content="{{ $pageCanonical }}">
     <meta name="twitter:image" content="{{ $socialImage }}">
     <title>{{ $pageTitle }}</title>
+    @foreach($commonStructuredData as $structuredItem)<script type="application/ld+json">{!! json_encode($structuredItem, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>@endforeach
     @stack('structured-data')
     @vite(['resources/css/public.css', 'resources/js/public.js'])
 </head>

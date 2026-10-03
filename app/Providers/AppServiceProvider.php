@@ -78,6 +78,7 @@ class AppServiceProvider extends ServiceProvider
         }
 
         RateLimiter::for('api', fn (Request $request) => Limit::perMinute(60)->by($request->bearerToken() ? hash('sha256', $request->bearerToken()) : $request->ip()));
+        RateLimiter::for('newsletter', fn (Request $request) => Limit::perMinute(5)->by(hash_hmac('sha256', (string) $request->ip(), (string) config('app.key'))));
         Event::listen(ReservationCreated::class, fn (ReservationCreated $event) => $this->reservationEvent($event->reservation, 'created'));
         Event::listen(ReservationUpdated::class, fn (ReservationUpdated $event) => $this->reservationEvent($event->reservation, 'updated'));
         Event::listen(ReservationConfirmed::class, fn (ReservationConfirmed $event) => $this->reservationEvent($event->reservation, 'confirmed'));
@@ -104,7 +105,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('dashboard.view', fn (User $user): bool => $user->hasPermission('dashboard.view'));
         Gate::define('reports.view', fn (User $user): bool => $user->hasPermission('reports.view'));
         Gate::define('reports.export', fn (User $user): bool => $user->hasPermission('reports.export'));
-        foreach (['contact_enquiries.view', 'contact_enquiries.manage', 'pos.access', 'pos.sell', 'pos.charge_room', 'pos.discount', 'pos.void', 'pos.refund', 'pos.products.view', 'pos.products.manage', 'pos.categories.manage', 'pos.outlets.manage', 'pos.shifts.open', 'pos.shifts.close', 'pos.shifts.view_all', 'pos.reports.view', 'pos.receipts.view', 'pos.manage', 'finance.view', 'finance.accounts.view', 'finance.accounts.manage', 'finance.payments.view', 'finance.payments.create', 'finance.expenses.view', 'finance.expenses.create', 'finance.expenses.submit', 'finance.expenses.approve', 'finance.expenses.reject', 'finance.expenses.pay', 'finance.expenses.reverse', 'finance.transfers.create', 'finance.transfers.approve', 'finance.petty_cash.manage', 'finance.bank.manage', 'finance.reconcile', 'finance.refunds', 'finance.adjustments', 'finance.reports.view', 'finance.reports.export'] as $permission) {
+        foreach (['contact_enquiries.view', 'contact_enquiries.manage', 'newsletter.view', 'newsletter.manage', 'newsletter.export', 'pos.access', 'pos.sell', 'pos.charge_room', 'pos.discount', 'pos.void', 'pos.refund', 'pos.products.view', 'pos.products.manage', 'pos.categories.manage', 'pos.outlets.manage', 'pos.shifts.open', 'pos.shifts.close', 'pos.shifts.view_all', 'pos.reports.view', 'pos.receipts.view', 'pos.manage', 'finance.view', 'finance.accounts.view', 'finance.accounts.manage', 'finance.payments.view', 'finance.payments.create', 'finance.expenses.view', 'finance.expenses.create', 'finance.expenses.submit', 'finance.expenses.approve', 'finance.expenses.reject', 'finance.expenses.pay', 'finance.expenses.reverse', 'finance.transfers.create', 'finance.transfers.approve', 'finance.petty_cash.manage', 'finance.bank.manage', 'finance.reconcile', 'finance.refunds', 'finance.adjustments', 'finance.reports.view', 'finance.reports.export'] as $permission) {
             Gate::define($permission, fn (User $user) => $user->hasPermission($permission));
         }
         Gate::before(function (User $user): ?bool {

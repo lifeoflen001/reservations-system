@@ -28,6 +28,13 @@ return [
         'email' => env('CONTACT_EMAIL', env('HOTEL_SUPPORT_EMAIL')),
     ],
 
+    'newsletter' => [
+        // Keep the subscriber table ready for double opt-in without making
+        // email delivery a prerequisite for the footer form to work.
+        'double_opt_in' => filter_var(env('NEWSLETTER_DOUBLE_OPT_IN', false), FILTER_VALIDATE_BOOL),
+        'confirmation_ttl_days' => (int) env('NEWSLETTER_CONFIRMATION_TTL_DAYS', 3),
+    ],
+
     // Product metadata is kept separate from the framework/runtime versions so
     // the About and Updates screens can describe the packaged desktop build.
     'product' => [
@@ -100,6 +107,7 @@ return [
         'api_tokens.view', 'api_tokens.manage', 'webhooks.view', 'webhooks.manage', 'webhooks.retry',
         'notifications.view', 'notifications.manage',
         'contact_enquiries.view', 'contact_enquiries.manage',
+        'newsletter.view', 'newsletter.manage', 'newsletter.export',
         'announcements.view', 'announcements.create', 'announcements.update', 'announcements.publish',
         'announcements.archive', 'announcements.statistics', 'announcements.manage',
         'announcements.manage_categories', 'announcements.manage_audience', 'announcements.send_email',

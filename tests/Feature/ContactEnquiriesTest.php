@@ -55,6 +55,21 @@ class ContactEnquiriesTest extends TestCase
         $this->assertDatabaseCount('contact_enquiries', 0);
     }
 
+    public function test_contact_form_accepts_a_demo_enquiry(): void
+    {
+        Mail::fake();
+
+        $response = $this->post(route('public.contact.submit'), [
+            'name' => 'Demo Guest',
+            'email' => 'demo@example.com',
+            'enquiry_type' => 'demo',
+            'message' => 'I would like to see the hotel operations workflow.',
+        ]);
+
+        $response->assertRedirect(route('public.contact'));
+        $this->assertDatabaseHas('contact_enquiries', ['email' => 'demo@example.com', 'enquiry_type' => 'demo']);
+    }
+
     public function test_honeypot_does_not_store_or_queue_spam(): void
     {
         Queue::fake();

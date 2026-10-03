@@ -13,7 +13,6 @@
                 @if ($errors->any())
                     <x-feedback.alert type="danger">{{ $errors->first() }}</x-feedback.alert>
                 @endif
-                  <br>
                 <form method="POST" action="{{ route('login.store') }}" class="login-form">
                     @csrf
                     <x-form.input name="identity" label="Email or username" value="{{ old('identity', 'admin') }}" autocomplete="username" :show-error="false" required />
@@ -22,6 +21,7 @@
                     <x-ui.button type="submit" class="login-submit"><x-ui.icon name="key" size="17" /> Sign in</x-ui.button>
                 </form>
                 <a class="auth-secondary-link" href="{{ route('password.request') }}">Forgot your password?</a>
+                <a class="auth-secondary-link login-home-link" href="{{ url('/') }}">Back to the Lodgix website</a>
 
                 @if (app()->environment('local', 'development'))
                     <!--<div class="dev-notice">

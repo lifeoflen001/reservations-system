@@ -1,4 +1,4 @@
-@props(['ctaRoute', 'ctaLabel', 'solutions' => [], 'solutionsActive' => false])
+@props(['ctaRoute', 'ctaLabel', 'solutions' => [], 'solutionsActive' => false, 'authenticated' => false])
 
 <div class="public-mobile-menu" id="public-mobile-menu" data-public-mobile-menu hidden>
     <div class="public-mobile-menu__backdrop" data-public-menu-close></div>
@@ -14,14 +14,22 @@
                     Solutions <x-ui.icon name="chevron-down" size="16" />
                 </button>
                 <div class="public-mobile-solutions__list" id="public-mobile-solutions-list" data-mobile-solutions-list @if(!$solutionsActive) hidden @endif>
-                    @foreach($solutions as $item)
-                        <a href="{{ route($item['route']) }}" @class(['is-active' => request()->routeIs($item['route'])]) @if(request()->routeIs($item['route'])) aria-current="page" @endif>{{ $item['label'] }}</a>
+                    @foreach($solutions as $group)
+                        <div class="public-mobile-solutions__group">
+                            <strong>{{ $group['label'] }}</strong>
+                            @foreach($group['items'] as $item)
+                                <a href="{{ route($item['route']) }}" @class(['is-active' => request()->routeIs($item['route'])]) @if(request()->routeIs($item['route'])) aria-current="page" @endif>{{ $item['label'] }}</a>
+                            @endforeach
+                        </div>
                     @endforeach
                 </div>
             </div>
             <a href="{{ route('public.pricing') }}" @class(['is-active' => request()->routeIs('public.pricing')]) @if(request()->routeIs('public.pricing')) aria-current="page" @endif>Pricing</a>
             <a href="{{ route('public.contact') }}" @class(['is-active' => request()->routeIs('public.contact')]) @if(request()->routeIs('public.contact')) aria-current="page" @endif>Contact</a>
         </nav>
-        <x-public.button :href="$ctaRoute" variant="primary">{{ $ctaLabel }}</x-public.button>
+        <div class="public-mobile-menu__actions">
+            @if(!$authenticated)<x-public.button :href="route('login')" variant="secondary">Sign In</x-public.button>@endif
+            <x-public.button :href="$ctaRoute" variant="primary">{{ $ctaLabel }}</x-public.button>
+        </div>
     </div>
 </div>

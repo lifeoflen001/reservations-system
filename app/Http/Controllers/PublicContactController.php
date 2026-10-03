@@ -33,7 +33,7 @@ class PublicContactController extends Controller
             'phone' => ['nullable', 'string', 'max:40'],
             'country' => ['nullable', 'string', 'max:100'],
             'hotel_size' => ['nullable', 'integer', 'min:1', 'max:100000'],
-            'enquiry_type' => ['required', Rule::in(['general', 'pricing', 'implementation', 'integrations', 'support'])],
+            'enquiry_type' => ['required', Rule::in(['general', 'demo', 'pricing', 'implementation', 'integrations', 'support'])],
             'message' => ['required', 'string', 'min:10', 'max:5000'],
         ]);
 

@@ -64,6 +64,31 @@
         </div>
     </x-public.section>
 
+    <x-public.section class="public-pricing-comparison">
+        <x-public.section-heading align="center" eyebrow="Scope guide" heading="Compare the starting scope." description="Use this as a conversation guide; the final scope is confirmed around your property and operating requirements." />
+        <div class="public-comparison-wrap">
+            <table class="public-comparison">
+                <caption>Typical starting scope by plan</caption>
+                <thead><tr><th scope="col">Capability</th><th scope="col">Starter</th><th scope="col">Professional</th><th scope="col">Enterprise</th></tr></thead>
+                <tbody>
+                    @foreach([
+                        ['Reservations and guest records', 'Included', 'Included', 'Included'],
+                        ['Rooms and room planning', 'Included', 'Included', 'Included'],
+                        ['Housekeeping, maintenance and tasks', 'Included', 'Included', 'Included'],
+                        ['Operational reporting', 'Included', 'Included', 'Included'],
+                        ['POS and guest charges', '—', 'Included', 'Scope discussion'],
+                        ['Payments and finance workflows', '—', 'Included', 'Scope discussion'],
+                        ['Advanced roles and permissions', '—', 'Scope discussion', 'Scope discussion'],
+                        ['Provider integrations', '—', 'Scope discussion', 'Scope discussion'],
+                    ] as [$capability, $starter, $professional, $enterprise])
+                        <tr><th scope="row">{{ $capability }}</th><td data-label="Starter">{{ $starter }}</td><td data-label="Professional">{{ $professional }}</td><td data-label="Enterprise">{{ $enterprise }}</td></tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+        <p class="public-pricing-note">“Included” describes a typical starting scope, not a contractual entitlement. We’ll confirm the right fit with you.</p>
+    </x-public.section>
+
     <x-public.section class="public-pricing-faq">
         <x-public.section-heading align="center" eyebrow="Common questions" heading="A few things to clarify." />
         <div class="public-pricing-faq__list">
@@ -78,7 +103,7 @@
         <div class="public-final-cta__content"><x-public.eyebrow>Talk through your requirements</x-public.eyebrow>
             <h2>Need a plan that fits your hotel?</h2>
             <p>Tell us about your property and the Lodgix modules you’re interested in.</p>
-            <div class="public-final-cta__actions"><x-public.button :href="route('public.contact', ['enquiry_type' => 'pricing'])" variant="primary">Contact Us</x-public.button></div>
+            <div class="public-final-cta__actions"><x-public.button :href="route('public.contact', ['enquiry_type' => 'pricing'])" variant="primary">Discuss your plan</x-public.button></div>
         </div>
     </x-public.section>
 </div>

@@ -15,7 +15,7 @@
                 <h2>What would you like to explore?</h2>
                 <p>Choose a topic to get started, or send us a note about your hotel.</p>
                 <nav class="public-contact-topics" aria-label="Contact topics">
-                    @foreach(['pricing' => 'Pricing', 'implementation' => 'Implementation', 'integrations' => 'Integrations', 'support' => 'Support'] as $topic => $label)
+                    @foreach(['demo' => 'Request a demo', 'pricing' => 'Pricing', 'implementation' => 'Implementation', 'integrations' => 'Integrations', 'support' => 'Support'] as $topic => $label)
                         <a href="{{ route('public.contact', ['enquiry_type' => $topic]) }}#contact-form">{{ $label }} <x-ui.icon name="arrow-right" size="14" /></a>
                     @endforeach
                 </nav>
@@ -24,9 +24,9 @@
                 @endif
                 <div class="public-contact-next"><strong>What happens next</strong>
                     <ol>
-                        <li><span>1</span>Send your enquiry</li>
-                        <li><span>2</span>Our team reviews your requirements</li>
-                        <li><span>3</span>We continue the discussion using your contact details</li>
+                        <li><span>1</span><div><strong>Send your enquiry</strong><small>Share the property context and workflow you want to discuss.</small></div></li>
+                        <li><span>2</span><div><strong>We review your requirements</strong><small>We’ll use the details you provide to understand the right starting point.</small></div></li>
+                        <li><span>3</span><div><strong>Continue the conversation</strong><small>We’ll respond using the contact details in your message.</small></div></li>
                     </ol>
                 </div>
             </aside>
@@ -40,9 +40,9 @@
                     </div>
                 @endif
 
-                <form method="POST" action="{{ route('public.contact.submit') }}" class="public-contact-form">
+                <form method="POST" action="{{ route('public.contact.submit') }}" class="public-contact-form" data-contact-form>
                     @csrf
-                    <div class="public-contact-honeypot" aria-hidden="true"><label for="contact-website">Leave this field empty</label><input id="contact-website" type="text" name="website" tabindex="-1" autocomplete="off"></div>
+                    <div class="public-contact-honeypot" aria-hidden="true"><label for="contact-website">Website</label><input id="contact-website" type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true"></div>
                     <div class="public-contact-fields">
                         <div class="public-form-field">
                             <label for="contact-name">Full name <span aria-hidden="true">*</span></label>
@@ -78,7 +78,7 @@
                             <label for="contact-enquiry-type">Enquiry type <span aria-hidden="true">*</span></label>
                             <select id="contact-enquiry-type" name="enquiry_type" required @if($errors->has('enquiry_type')) aria-invalid="true" aria-describedby="contact-enquiry-type-error" @endif>
                                 <option value="">Select an enquiry type</option>
-                                @foreach(['general' => 'General Enquiry', 'pricing' => 'Pricing', 'implementation' => 'Implementation', 'integrations' => 'Integrations', 'support' => 'Support'] as $value => $label)
+                                @foreach(['general' => 'General Enquiry', 'demo' => 'Request a demo', 'pricing' => 'Pricing', 'implementation' => 'Implementation', 'integrations' => 'Integrations', 'support' => 'Support'] as $value => $label)
                                     <option value="{{ $value }}" @selected(old('enquiry_type', request('enquiry_type')) === $value)>{{ $label }}</option>
                                 @endforeach
                             </select>
@@ -91,7 +91,7 @@
                             @error('message')<small class="public-field-error" id="contact-message-error">{{ $message }}</small>@enderror
                         </div>
                     </div>
-                    <div class="public-contact-form__footer"><p>Submitting this form allows Lodgix to use these details to respond to your enquiry.</p><button class="public-button public-button--primary" type="submit">Send enquiry</button></div>
+                    <div class="public-contact-form__footer"><p>Submitting this form allows Lodgix to use these details to respond to your enquiry.</p><button class="public-button public-button--primary" type="submit" data-contact-submit>Send enquiry</button></div>
                 </form>
             </div>
         </div>

@@ -23,6 +23,7 @@
         'Management' => [
             ['label' => 'Announcements', 'route' => 'announcements.*', 'icon' => 'bell'],
             ['label' => 'Enquiries', 'route' => 'contact-enquiries.*', 'icon' => 'document'],
+            ['label' => 'Newsletter', 'route' => 'newsletter.*', 'icon' => 'document'],
             ['label' => 'Staff', 'route' => 'staff.*', 'icon' => 'users'],
             ['label' => 'Payments', 'route' => 'payments.*', 'icon' => 'card'],
             ['label' => 'Finance', 'route' => 'finance.*', 'href' => 'finance.overview', 'icon' => 'currency'],
@@ -59,6 +60,7 @@
                         'POS' => auth()->user()->hasPermission('pos.access') || auth()->user()->hasPermission('pos.sell'),
                         'Announcements' => auth()->user()->hasPermission('announcements.view') || auth()->user()->hasPermission('announcements.manage'),
                         'Enquiries' => auth()->user()->hasPermission('contact_enquiries.view') || auth()->user()->hasPermission('contact_enquiries.manage'),
+                        'Newsletter' => auth()->user()->hasPermission('newsletter.view') || auth()->user()->hasPermission('newsletter.manage'),
                         'Staff' => Gate::allows('viewAny', User::class),
                         'Payments' => auth()->user()->hasPermission('payments.view') || auth()->user()->hasPermission('payments.manage'),
                         'Finance' => auth()->user()->hasPermission('finance.view'),

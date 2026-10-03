@@ -68,6 +68,15 @@ $pages = [
 $page = $pages[$pageKey];
 $pageTitle = $page['title'];
 $pageDescription = $page['description'];
+$pageCtas = [
+    'product' => ['label' => 'Request a demo', 'href' => route('public.contact', ['enquiry_type' => 'demo']), 'heading' => 'See the hotel day in one connected workspace.', 'description' => 'Explore how Lodgix connects the stay, the room and the teams behind it.'],
+    'operations' => ['label' => 'Request an operations demo', 'href' => route('public.contact', ['enquiry_type' => 'demo']), 'heading' => 'Bring reservations, rooms and teams into one operating view.', 'description' => 'Tell us how your property runs today and where you want a clearer handoff.'],
+    'pos' => ['label' => 'Discuss your POS workflow', 'href' => route('public.contact', ['enquiry_type' => 'demo']), 'heading' => 'Connect outlet sales to the guest stay.', 'description' => 'See how a sale can remain identifiable from order through folio, payment and finance.'],
+    'finance' => ['label' => 'Discuss your finance workflow', 'href' => route('public.contact', ['enquiry_type' => 'demo']), 'heading' => 'Follow payments and financial movement from one workspace.', 'description' => 'Walk through the controls and reporting your property needs.'],
+    'security' => ['label' => 'Discuss access and controls', 'href' => route('public.contact', ['enquiry_type' => 'demo']), 'heading' => 'See how Lodgix controls access and sensitive activity.', 'description' => 'Discuss the roles, permissions and review points that matter to your team.'],
+    'integrations' => ['label' => 'Discuss an integration', 'href' => route('public.contact', ['enquiry_type' => 'integrations']), 'heading' => 'Connect the services behind your hotel.', 'description' => 'Tell us about the provider or workflow you want to explore.'],
+];
+$pageCta = $pageCtas[$pageKey] ?? $pageCtas['product'];
 $structuredData = json_encode(['@context' => 'https://schema.org', '@type' => 'SoftwareApplication', 'name' => config('hotel.brand.product_name', 'Lodgix'), 'applicationCategory' => 'BusinessApplication', 'operatingSystem' => 'Web', 'description' => $pageDescription, 'url' => url('/'.$pageKey)], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 @endphp
 
@@ -77,7 +86,7 @@ $structuredData = json_encode(['@context' => 'https://schema.org', '@type' => 'S
 
 @section('content')
 <div class="public-page public-page--{{ $pageKey }}">
-    <x-public.page-hero eyebrow="{{ $page['eyebrow'] }}" heading="{{ $page['heading'] }}" description="{{ $pageDescription }}" theme="{{ $page['theme'] ?? 'light' }}" layout="{{ !empty($page['heroImage']) ? 'split' : 'centered' }}">
+    <x-public.page-hero eyebrow="{{ $page['eyebrow'] }}" heading="{{ $page['heading'] }}" description="{{ $pageDescription }}" theme="{{ $page['theme'] ?? 'light' }}" layout="{{ !empty($page['heroImage']) ? 'split' : 'centered' }}" cta-label="{{ $pageCta['label'] }}" :cta-href="$pageCta['href']">
         @if(!empty($page['heroImage']))<x-public.screenshot-frame class="public-page-hero__screenshot" browser-shell :src="$page['heroImage']" :mobile-src="$pageKey === 'product' ? 'assets/images/landing/lodgix-dashboard-mobile.webp' : null" :srcset="$pageKey === 'product' ? asset('assets/images/landing/lodgix-dashboard-light-960.jpg').' 960w, '.asset('assets/images/landing/lodgix-dashboard-light-1440.jpg').' 1440w, '.asset('assets/images/landing/lodgix-dashboard-light.jpg').' 1654w' : asset('assets/images/landing/lodgix-room-planning-960.jpg').' 960w, '.asset('assets/images/landing/lodgix-room-planning-1440.jpg').' 1440w, '.asset('assets/images/landing/lodgix-room-planning.jpg').' 1846w'" sizes="(max-width: 900px) calc(100vw - 36px), 58vw" :width="$pageKey === 'product' ? 1654 : 1846" :height="921" :aspect-ratio="$pageKey === 'product' ? '1654 / 921' : '1846 / 921'" :alt="$page['heroAlt']" loading="eager" fetch-priority="high" />@endif
     </x-public.page-hero>
 
@@ -145,13 +154,13 @@ $structuredData = json_encode(['@context' => 'https://schema.org', '@type' => 'S
     <x-public.section class="public-final-cta public-page-cta {{ $pageKey === 'pos' ? 'public-section--dark' : '' }}">
         <div class="public-final-cta__content"><x-public.eyebrow>Explore the workspace</x-public.eyebrow>
             @if($pageKey === 'integrations')
-                <h2>Discuss an integration for your hotel.</h2>
-                <p>Tell us about the provider or workflow you want to explore.</p>
-                <div class="public-final-cta__actions"><x-public.button :href="route('public.contact', ['enquiry_type' => 'integrations'])" variant="primary">Contact Us</x-public.button></div>
+                <h2>{{ $pageCta['heading'] }}</h2>
+                <p>{{ $pageCta['description'] }}</p>
+                <div class="public-final-cta__actions"><x-public.button :href="$pageCta['href']" variant="primary">Contact Us about an integration</x-public.button></div>
             @else
-                <h2>Explore a better flow for your hotel.</h2>
-                <p>See how Lodgix can support the way your teams work.</p>
-                <div class="public-final-cta__actions"><x-public.button :href="route('public.contact')" variant="primary">Talk to Lodgix</x-public.button>@if($pageKey !== 'security')<x-public.button :href="route($page['next'])" variant="secondary">{{ ['product' => 'Explore Operations', 'operations' => 'Explore POS', 'pos' => 'Explore Finance', 'finance' => 'View Pricing'][$pageKey] ?? 'Explore Product' }}</x-public.button>@endif</div>
+                <h2>{{ $pageCta['heading'] }}</h2>
+                <p>{{ $pageCta['description'] }}</p>
+                <div class="public-final-cta__actions"><x-public.button :href="$pageCta['href']" variant="primary">{{ $pageCta['label'] }}</x-public.button>@if($pageKey !== 'security')<x-public.button :href="route($page['next'])" variant="secondary">{{ ['product' => 'Explore Operations', 'operations' => 'Explore POS', 'pos' => 'Explore Finance', 'finance' => 'View Pricing'][$pageKey] ?? 'Explore Product' }}</x-public.button>@endif</div>
             @endif
         </div>
     </x-public.section>

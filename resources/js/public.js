@@ -125,3 +125,29 @@ if (!prefersReducedMotion.matches) {
         history.replaceState(null, '', link.getAttribute('href'));
     }));
 }
+
+document.querySelectorAll('[data-contact-form]').forEach((form) => {
+    form.addEventListener('submit', () => {
+        const submit = form.querySelector('[data-contact-submit]');
+        if (!submit || submit.disabled) return;
+
+        submit.disabled = true;
+        submit.setAttribute('aria-busy', 'true');
+        submit.dataset.originalText = submit.textContent.trim();
+        submit.textContent = 'Sending…';
+    });
+});
+
+const contactFeedback = document.querySelector('.public-form-feedback--success, .public-form-feedback--error');
+if (contactFeedback && contactFeedback.getAttribute('tabindex') === '-1') contactFeedback.focus();
+
+document.querySelectorAll('[data-newsletter-form]').forEach((form) => {
+    form.addEventListener('submit', () => {
+        const submit = form.querySelector('[data-newsletter-submit]');
+        if (!submit || submit.disabled) return;
+
+        submit.disabled = true;
+        submit.setAttribute('aria-busy', 'true');
+        submit.textContent = 'Subscribing…';
+    });
+});
