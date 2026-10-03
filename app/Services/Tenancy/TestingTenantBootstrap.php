@@ -3,7 +3,9 @@
 namespace App\Services\Tenancy;
 
 use App\Models\Organization;
+use App\Models\Plan;
 use App\Models\Property;
+use App\Models\Subscription;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -24,6 +26,19 @@ final class TestingTenantBootstrap
                 'name' => 'Automated Test Organization',
                 'slug' => 'automated-test-organization',
                 'status' => 'active',
+            ]);
+        }
+
+        // The compatibility migration runs before test fixtures create their
+        // first organization. Keep those isolated legacy fixtures on the same
+        // internal full-access plan without adding any production fallback.
+        $legacyPlan = Plan::query()->where('code', 'legacy_full_access')->first();
+        if ($legacyPlan && ! $organization->subscriptions()->exists()) {
+            Subscription::create([
+                'organization_id' => $organization->getKey(),
+                'plan_id' => $legacyPlan->getKey(),
+                'status' => 'active',
+                'starts_at' => now(),
             ]);
         }
 

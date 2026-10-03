@@ -13,6 +13,7 @@ use App\Http\Middleware\EnsurePlatformTwoFactor;
 use App\Http\Middleware\EnsurePlatformTwoFactorPending;
 use App\Http\Middleware\ResolvePlatformSupportContext;
 use App\Http\Middleware\PlatformSupportReadOnly;
+use App\Http\Middleware\EnsureFeatureEntitlement;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -54,6 +55,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'platform.2fa.pending' => EnsurePlatformTwoFactorPending::class,
             'platform.support.context' => ResolvePlatformSupportContext::class,
             'platform.support.readonly' => PlatformSupportReadOnly::class,
+            'feature' => EnsureFeatureEntitlement::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

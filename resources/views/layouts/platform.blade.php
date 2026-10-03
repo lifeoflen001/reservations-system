@@ -26,6 +26,9 @@
             <a class="{{ request()->routeIs('platform.organizations*') ? 'is-active' : '' }}" href="{{ route('platform.organizations') }}">Organizations</a>
             <a class="{{ request()->routeIs('platform.properties*') ? 'is-active' : '' }}" href="{{ route('platform.properties') }}">Properties</a>
             <a class="{{ request()->routeIs('platform.subscriptions*') ? 'is-active' : '' }}" href="{{ route('platform.subscriptions') }}">Subscriptions</a>
+            <div class="platform-nav__label">Commercial</div>
+            <a class="{{ request()->routeIs('platform.plans*') ? 'is-active' : '' }}" href="{{ route('platform.plans') }}">Plans</a>
+            <a class="{{ request()->routeIs('platform.features') ? 'is-active' : '' }}" href="{{ route('platform.features') }}">Features</a>
             <div class="platform-nav__label">Operations</div>
             <a class="{{ request()->routeIs('platform.support*') ? 'is-active' : '' }}" href="{{ route('platform.support') }}">Support access</a>
             <a class="{{ request()->routeIs('platform.health') ? 'is-active' : '' }}" href="{{ route('platform.health') }}">System health</a>

@@ -3,14 +3,17 @@
 namespace App\Http\Controllers;
 
 use App\Models\Currency;
+use App\Models\Organization;
 use App\Models\OrganizationMembership;
 use App\Models\Property;
 use App\Models\PropertyMembership;
 use App\Services\Tenancy\TenantContext;
 use App\Services\Tenancy\MembershipAccessService;
+use App\Services\UsageLimitService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -36,25 +39,31 @@ class PropertyManagementController extends Controller
         ]);
     }
 
-    public function store(Request $request, TenantContext $context, MembershipAccessService $access): RedirectResponse
+    public function store(Request $request, TenantContext $context, MembershipAccessService $access, UsageLimitService $limits): RedirectResponse
     {
         $organization = $context->requireOrganization();
         $data = $this->validated($request);
-        $property = Property::create($this->normalized($data) + [
-            'organization_id' => $organization->getKey(),
-            'status' => 'active',
-            'default_language' => 'en',
-        ]);
+        $property = DB::transaction(function () use ($data, $organization, $request, $access, $limits): Property {
+            $organization = Organization::query()->lockForUpdate()->findOrFail($organization->getKey());
+            $limits->assertCanConsume($organization, 'properties');
+            $property = Property::create($this->normalized($data) + [
+                'organization_id' => $organization->getKey(),
+                'status' => 'active',
+                'default_language' => 'en',
+            ]);
 
-        $membership = OrganizationMembership::query()->firstOrCreate(
-            ['organization_id' => $organization->getKey(), 'user_id' => $request->user()->getKey()],
-            ['role_id' => $request->user()->role_id, 'status' => 'active', 'joined_at' => now()],
-        );
-        PropertyMembership::query()->firstOrCreate(
-            ['membership_id' => $membership->getKey(), 'property_id' => $property->getKey()],
-            ['status' => 'active', 'access_level' => 'owner'],
-        );
-        $access->audit($organization, $request->user(), 'property.created', null, $property, ['property_code' => $property->property_code]);
+            $membership = OrganizationMembership::query()->firstOrCreate(
+                ['organization_id' => $organization->getKey(), 'user_id' => $request->user()->getKey()],
+                ['role_id' => $request->user()->role_id, 'status' => 'active', 'joined_at' => now()],
+            );
+            PropertyMembership::query()->firstOrCreate(
+                ['membership_id' => $membership->getKey(), 'property_id' => $property->getKey()],
+                ['status' => 'active', 'access_level' => 'owner'],
+            );
+            $access->audit($organization, $request->user(), 'property.created', null, $property, ['property_code' => $property->property_code]);
+
+            return $property;
+        });
 
         $context->setOrganization($organization);
 

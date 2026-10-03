@@ -7,6 +7,7 @@ use App\Models\PlatformSupportSession;
 use App\Services\Platform\PlatformAuditService;
 use App\Services\Platform\PlatformSupportContext;
 use App\Services\Platform\PlatformSupportQueryService;
+use App\Services\EntitlementService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -17,8 +18,13 @@ class PlatformSupportWorkspaceController extends Controller
         return $this->view('dashboard', ['data' => $queries->dashboard()]);
     }
 
-    public function module(PlatformSupportSession $platformSupportSession, string $module, Request $request, PlatformSupportQueryService $queries): View
+    public function module(PlatformSupportSession $platformSupportSession, string $module, Request $request, PlatformSupportQueryService $queries, EntitlementService $entitlements): View
     {
+        $feature = ['pos' => 'pos', 'finance' => 'finance', 'reports' => 'reports', 'room-planning' => 'room_planning'][$module] ?? null;
+        if ($feature && ! $entitlements->hasFeature($platformSupportSession->organization, $feature)) {
+            abort(403, $entitlements->explainFeatureDenial($platformSupportSession->organization, $feature));
+        }
+
         $data = match ($module) {
             'reservations' => ['rows' => $queries->reservations($request->string('q')->toString()), 'search' => $request->string('q')->toString()],
             'clients' => ['rows' => $queries->clients($request->string('q')->toString()), 'search' => $request->string('q')->toString()],
@@ -55,6 +61,10 @@ class PlatformSupportWorkspaceController extends Controller
 
     private function view(string $view, array $data): View
     {
-        return view('platform.support.workspace.'.$view, array_merge($data, ['session' => app(PlatformSupportContext::class)->current()]));
+        $session = app(PlatformSupportContext::class)->current();
+        return view('platform.support.workspace.'.$view, array_merge($data, [
+            'session' => $session,
+            'entitlements' => app(EntitlementService::class)->snapshot($session->organization),
+        ]));
     }
 }

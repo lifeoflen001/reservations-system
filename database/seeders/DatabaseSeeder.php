@@ -5,7 +5,9 @@ namespace Database\Seeders;
 use App\Models\Currency;
 use App\Models\Installation;
 use App\Models\Organization;
+use App\Models\Plan;
 use App\Models\Property;
+use App\Models\Subscription;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\SystemSettingsService;
@@ -46,6 +48,16 @@ class DatabaseSeeder extends Seeder
                 'name' => config('hotel.defaults.property_name'), 'default_language' => 'en',
                 'check_in_time' => config('hotel.defaults.check_in_time'), 'check_out_time' => config('hotel.defaults.check_out_time'),
                 'timezone' => config('hotel.defaults.timezone'), 'base_currency_id' => $currency->id,
+            ]);
+        }
+
+        $legacyPlan = Plan::query()->where('code', 'legacy_full_access')->first();
+        if ($legacyPlan && ! $organization->subscriptions()->exists()) {
+            Subscription::create([
+                'organization_id' => $organization->getKey(),
+                'plan_id' => $legacyPlan->getKey(),
+                'status' => 'active',
+                'starts_at' => now(),
             ]);
         }
 

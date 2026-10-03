@@ -38,6 +38,9 @@
 @endphp
 @php
     $edition = app(\App\Services\SystemSettingsService::class)->get('edition', 'Pro (Development)');
+    $entitlementService = app(\App\Services\EntitlementService::class);
+    $currentOrganization = app(\App\Services\Tenancy\TenantContext::class)->currentOrganization();
+    $hasFeature = static fn (string $feature): bool => $currentOrganization !== null && $entitlementService->hasFeature($currentOrganization, $feature);
 @endphp
 
 <aside class="sidebar" data-sidebar aria-label="Primary navigation">
@@ -49,7 +52,7 @@
     <nav class="sidebar__nav">
         @foreach ($groups as $group => $items)
             @php
-                $visibleItems = collect($items)->filter(function ($item) {
+                $visibleItems = collect($items)->filter(function ($item) use ($hasFeature) {
                     return match ($item['label']) {
                         'Dashboard' => Gate::allows('dashboard.view'),
                         'Reservations' => Gate::allows('viewAny', Reservation::class),
@@ -59,13 +62,13 @@
                         'Tasks' => Gate::allows('viewAny', \App\Models\Task::class),
                         'Housekeeping' => Gate::allows('viewAny', HousekeepingTask::class),
                         'Maintenance' => Gate::allows('viewAny', MaintenanceTask::class),
-                        'POS' => auth()->user()->hasPermission('pos.access') || auth()->user()->hasPermission('pos.sell'),
+                        'POS' => $hasFeature('pos') && (auth()->user()->hasPermission('pos.access') || auth()->user()->hasPermission('pos.sell')),
                         'Announcements' => auth()->user()->hasPermission('announcements.view') || auth()->user()->hasPermission('announcements.manage'),
                         'Enquiries' => auth()->user()->hasPermission('contact_enquiries.view') || auth()->user()->hasPermission('contact_enquiries.manage'),
                         'Staff' => Gate::allows('viewAny', User::class),
                         'Payments' => auth()->user()->hasPermission('payments.view') || auth()->user()->hasPermission('payments.manage'),
-                        'Finance' => auth()->user()->hasPermission('finance.view'),
-                        'Reports' => auth()->user()->hasPermission('reports.view') || auth()->user()->hasPermission('reports.manage'),
+                        'Finance' => $hasFeature('finance') && auth()->user()->hasPermission('finance.view'),
+                        'Reports' => $hasFeature('reports') && (auth()->user()->hasPermission('reports.view') || auth()->user()->hasPermission('reports.manage')),
                         'Website' => auth()->user()->hasPermission('website.view'),
                         'Settings' => auth()->user()->hasPermission('settings.view') || auth()->user()->hasPermission('settings.manage'),
                         default => false,

@@ -40,6 +40,13 @@ class Organization extends Model
         return $this->hasMany(Subscription::class);
     }
 
+    public function currentSubscription(): ?Subscription
+    {
+        return $this->relationLoaded('subscriptions')
+            ? $this->subscriptions->sortByDesc('id')->first()
+            : $this->subscriptions()->latest('id')->first();
+    }
+
     public function auditLogs(): HasMany
     {
         return $this->hasMany(OrganizationAuditLog::class);

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\Tenancy\MembershipAccessService;
+use App\Services\EntitlementService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -34,5 +35,14 @@ class OrganizationSettingsController extends Controller
         ]);
 
         return back()->with('success', 'Organization settings updated.');
+    }
+
+    public function subscription(Request $request, MembershipAccessService $access, EntitlementService $entitlements): View
+    {
+        $organization = $access->currentOrganizationFor($request->user());
+        return view('settings.subscription', [
+            'organization' => $organization,
+            'entitlements' => $entitlements->snapshot($organization),
+        ]);
     }
 }

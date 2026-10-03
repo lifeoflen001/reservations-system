@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\EntitlementService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use InvalidArgumentException;
@@ -44,6 +45,9 @@ class Subscription extends Model
             if (! in_array($subscription->status, self::STATUSES, true)) {
                 throw new InvalidArgumentException('Unsupported subscription status.');
             }
+        });
+        static::saved(function (self $subscription): void {
+            app(EntitlementService::class)->forgetForOrganization($subscription->organization_id);
         });
     }
 }

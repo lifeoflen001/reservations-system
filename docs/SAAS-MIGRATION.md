@@ -425,3 +425,6 @@ controls, and perform an explicit staging security review. See
 for the route map, security model, limitations and validation checklist.
 
 End of the SAAS-06 migration notes.
+## SAAS-08 entitlement compatibility
+
+The entitlement catalog is additive. Existing organizations without an explicit plan are assigned the private `legacy_full_access` system plan by migration so existing staff do not lose module access. This plan is not public and has no monetary pricing. Commercial plan changes are platform-admin-only and audited; customer permissions remain separate from commercial feature entitlements.

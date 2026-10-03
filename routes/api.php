@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Route;
 Route::get('/health', HealthController::class)->name('health');
 Route::get('/openapi.yaml', ApiDocumentationController::class)->name('openapi');
 
-Route::middleware([AuthenticateApiToken::class, 'throttle:api'])->prefix('v1')->name('api.v1.')->group(function (): void {
+Route::middleware([AuthenticateApiToken::class, 'feature:api_access', 'throttle:api'])->prefix('v1')->name('api.v1.')->group(function (): void {
     Route::get('/rooms', [ApiController::class, 'rooms'])->name('rooms.index');
     Route::get('/availability', [ApiController::class, 'availability'])->name('availability');
     Route::get('/reservations/{reservation}', [ApiController::class, 'reservation'])->name('reservations.show');
@@ -21,6 +21,7 @@ Route::middleware([AuthenticateApiToken::class, 'throttle:api'])->prefix('v1')->
     Route::post('/payments/{payment}/confirm', [ApiController::class, 'confirmPayment'])->name('payments.confirm');
     Route::post('/payments/{payment}/void', [ApiController::class, 'voidPayment'])->name('payments.void');
     Route::post('/payments/{payment}/refund', [ApiController::class, 'refundPayment'])->name('payments.refund');
+    Route::middleware('feature:pos')->group(function (): void {
     Route::get('/pos/outlets', [ApiController::class, 'posOutlets'])->name('pos.outlets');
     Route::get('/pos/products', [ApiController::class, 'posProducts'])->name('pos.products');
     Route::get('/pos/orders', [ApiController::class, 'posOrders'])->name('pos.orders.index');
@@ -29,9 +30,12 @@ Route::middleware([AuthenticateApiToken::class, 'throttle:api'])->prefix('v1')->
     Route::post('/pos/orders/{order}/void', [ApiController::class, 'voidPosOrder'])->name('pos.orders.void');
     Route::post('/pos/orders/{order}/refund', [ApiController::class, 'refundPosOrder'])->name('pos.orders.refund');
     Route::get('/pos/reports', [ApiController::class, 'posReport'])->name('pos.reports');
+    });
+    Route::middleware('feature:finance')->group(function (): void {
     Route::get('/finance/accounts', [ApiController::class, 'financeAccounts'])->name('finance.accounts');
     Route::get('/finance/transactions', [ApiController::class, 'financeTransactions'])->name('finance.transactions');
     Route::get('/finance/reports', [ApiController::class, 'financeReport'])->name('finance.reports');
+    });
     Route::get('/invoices/{invoice}', [ApiController::class, 'invoice'])->name('invoices.show');
     Route::get('/reports', [ApiController::class, 'hotelReport'])->name('reports.show');
     Route::get('/staff', [ApiController::class, 'staff'])->name('staff.index');

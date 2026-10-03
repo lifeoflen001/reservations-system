@@ -9,6 +9,7 @@ use App\Models\Property;
 use App\Models\PropertyMembership;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\UsageLimitService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -17,7 +18,7 @@ use Illuminate\Validation\ValidationException;
 
 final class MembershipAccessService
 {
-    public function __construct(private readonly TenantContext $context) {}
+    public function __construct(private readonly TenantContext $context, private readonly UsageLimitService $limits) {}
 
     public function currentOrganizationFor(User $actor): Organization
     {
@@ -132,6 +133,10 @@ final class MembershipAccessService
         $role = $roleId === null ? null : Role::query()->whereKey($roleId)->where('is_active', true)->first();
         if ($roleId !== null && ! $role) {
             throw ValidationException::withMessages(['role_id' => 'Select an active organization role.']);
+        }
+
+        if ($status === 'active' && $membership->status !== 'active') {
+            $this->limits->assertCanConsume($organization, 'users');
         }
 
         $allowedProperties = Property::query()
