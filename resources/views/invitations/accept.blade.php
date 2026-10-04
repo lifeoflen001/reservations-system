@@ -1,0 +1,2 @@
+@extends('layouts.guest')
+@section('content')<main class="onboarding-shell"><div class="onboarding-card"><x-app-logo class="auth-form-logo" /><h1>Join {{ $invitation->organization->name }}</h1><p>You have been invited as {{ $invitation->role?->label ?: 'a team member' }}. Accept to access the assigned hotel properties.</p><form method="POST" action="{{ route('invitations.accept', ['token' => $token]) }}">@csrf<button class="ui-button ui-button--primary" type="submit">Accept invitation</button></form></div></main>@endsection

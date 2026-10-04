@@ -1,24 +1,28 @@
 <?php
 
-use App\Http\Controllers\Announcements\AnnouncementController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\TwoFactorController;
+use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\Auth\VerificationController;
+use App\Http\Controllers\OnboardingController;
+use App\Http\Controllers\OrganizationInvitationController;
 use App\Http\Controllers\Clients\ClientController;
-use App\Http\Controllers\ContactEnquiryController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\HousekeepingController;
 use App\Http\Controllers\MaintenanceController;
-use App\Http\Controllers\NewsletterAdminController;
-use App\Http\Controllers\NewsletterSubscriptionController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OperationalDataTransferController;
 use App\Http\Controllers\Payments\InvoiceController;
 use App\Http\Controllers\Payments\PaymentController;
 use App\Http\Controllers\PosController;
-use App\Http\Controllers\PublicContactController;
 use App\Http\Controllers\PublicMetadataController;
+use App\Http\Controllers\PublicContactController;
+use App\Http\Controllers\ContactEnquiryController;
+use App\Http\Controllers\NewsletterAdminController;
+use App\Http\Controllers\NewsletterSubscriptionController;
+use App\Http\Controllers\WebsiteController;
 use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\Reservations\ReservationController;
 use App\Http\Controllers\RoomPlanningController;
@@ -26,10 +30,20 @@ use App\Http\Controllers\Rooms\RoomController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\SetupController;
+use App\Http\Controllers\TaskController;
+use App\Http\Controllers\TenantContextController;
+use App\Http\Controllers\PropertyManagementController;
+use App\Http\Controllers\OrganizationSettingsController;
+use App\Http\Controllers\OrganizationMemberController;
+use App\Http\Controllers\OrganizationAuditController;
 use App\Http\Controllers\Staff\ProfileController;
 use App\Http\Controllers\Staff\StaffController;
-use App\Http\Controllers\TaskController;
 use App\Http\Controllers\WebhookController;
+use App\Http\Controllers\Announcements\AnnouncementController;
+use App\Http\Controllers\Platform\PlatformAuthController;
+use App\Http\Controllers\Platform\PlatformController;
+use App\Http\Controllers\Platform\PlatformTwoFactorController;
+use App\Http\Controllers\Platform\PlatformSupportWorkspaceController;
 use App\Http\Controllers\Webhooks\PaymentGatewayWebhookController;
 use App\Http\Middleware\ConfiguredSessionSecurity;
 use App\Http\Middleware\EnsureActiveUser;
@@ -53,6 +67,12 @@ Route::get('/newsletter/confirm/{token}', [NewsletterSubscriptionController::cla
 Route::get('/newsletter/unsubscribe/{token}', [NewsletterSubscriptionController::class, 'unsubscribe'])->name('newsletter.unsubscribe');
 Route::get('/sitemap.xml', [PublicMetadataController::class, 'sitemap'])->name('sitemap');
 Route::get('/robots.txt', [PublicMetadataController::class, 'robots'])->name('robots');
+Route::get('/invitations/{token}', [OrganizationInvitationController::class, 'show'])->name('invitations.show');
+
+Route::middleware(['guest', EnsureInstallationComplete::class])->group(function (): void {
+    Route::get('/register', [RegisterController::class, 'create'])->middleware('throttle:register')->name('register');
+    Route::post('/register', [RegisterController::class, 'store'])->middleware('throttle:register')->name('register.store');
+});
 
 Route::middleware(EnsureInstallationIncomplete::class)->prefix('setup')->name('setup.')->group(function () {
     Route::get('/', [SetupController::class, 'index'])->name('index');
@@ -62,6 +82,59 @@ Route::middleware(EnsureInstallationIncomplete::class)->prefix('setup')->name('s
 Route::get('/setup/finish', [SetupController::class, 'finish'])->name('setup.finish');
 Route::post('/webhooks/payments/{provider}', PaymentGatewayWebhookController::class)->name('webhooks.payments');
 Route::post('/webhooks/{provider}/{type}', [WebhookController::class, 'inbound'])->whereIn('type', ['whatsapp', 'channels'])->name('webhooks.inbound');
+
+Route::prefix('platform')->name('platform.')->group(function (): void {
+    Route::middleware('guest:platform')->group(function (): void {
+        Route::get('/login', [PlatformAuthController::class, 'create'])->name('login');
+        Route::post('/login', [PlatformAuthController::class, 'store'])->middleware('throttle:platform-login')->name('login.store');
+    });
+
+    Route::middleware('platform.2fa.pending')->group(function (): void {
+        Route::get('/two-factor/enroll', [PlatformTwoFactorController::class, 'enroll'])->name('2fa.enroll');
+        Route::post('/two-factor/enroll', [PlatformTwoFactorController::class, 'confirmEnrollment'])->name('2fa.enroll.confirm');
+        Route::get('/two-factor/challenge', [PlatformTwoFactorController::class, 'challenge'])->name('2fa.challenge');
+        Route::post('/two-factor/challenge', [PlatformTwoFactorController::class, 'verifyChallenge'])->name('2fa.challenge.verify');
+    });
+
+    Route::middleware(['platform.auth', 'platform.active', 'platform.2fa'])->group(function (): void {
+        Route::post('/logout', [PlatformAuthController::class, 'destroy'])->name('logout');
+        Route::get('/', [PlatformController::class, 'dashboard'])->middleware('platform.permission:platform.dashboard.view')->name('dashboard');
+        Route::get('/organizations', [PlatformController::class, 'organizations'])->middleware('platform.permission:platform.organizations.view')->name('organizations');
+        Route::get('/organizations/{organization}', [PlatformController::class, 'organization'])->middleware('platform.permission:platform.organizations.view')->name('organizations.show');
+        Route::get('/properties', [PlatformController::class, 'properties'])->middleware('platform.permission:platform.properties.view')->name('properties');
+        Route::get('/properties/{property}', [PlatformController::class, 'property'])->middleware('platform.permission:platform.properties.view')->name('properties.show');
+        Route::get('/subscriptions', [PlatformController::class, 'subscriptions'])->middleware('platform.permission:platform.subscriptions.view')->name('subscriptions');
+        Route::get('/subscriptions/{subscription}', [PlatformController::class, 'subscription'])->middleware('platform.permission:platform.subscriptions.view')->name('subscriptions.show');
+        Route::patch('/organizations/{organization}/subscription/plan', [PlatformController::class, 'assignPlan'])->middleware('platform.permission:platform.subscriptions.assign_plan')->name('organizations.subscription.plan');
+        Route::get('/plans', [PlatformController::class, 'plans'])->middleware('platform.permission:platform.plans.view')->name('plans');
+        Route::get('/plans/create', [PlatformController::class, 'createPlan'])->middleware('platform.permission:platform.plans.manage')->name('plans.create');
+        Route::post('/plans', [PlatformController::class, 'storePlan'])->middleware('platform.permission:platform.plans.manage')->name('plans.store');
+        Route::get('/plans/{plan}', [PlatformController::class, 'plan'])->middleware('platform.permission:platform.plans.view')->name('plans.show');
+        Route::get('/plans/{plan}/edit', [PlatformController::class, 'editPlan'])->middleware('platform.permission:platform.plans.manage')->name('plans.edit');
+        Route::patch('/plans/{plan}', [PlatformController::class, 'updatePlan'])->middleware('platform.permission:platform.plans.manage')->name('plans.update');
+        Route::get('/features', [PlatformController::class, 'features'])->middleware('platform.permission:platform.features.view')->name('features');
+        Route::get('/support', [PlatformController::class, 'support'])->middleware('platform.permission:platform.support.view')->name('support');
+        Route::post('/support', [PlatformController::class, 'startSupport'])->middleware('platform.permission:platform.support.start')->name('support.start');
+        Route::post('/support/end', [PlatformController::class, 'endSupport'])->middleware('platform.permission:platform.support.start')->name('support.end');
+        Route::post('/support/{platformSupportSession}/enter', [PlatformController::class, 'enterSupport'])->middleware('platform.permission:platform.support.start')->name('support.enter');
+        Route::prefix('/support/{platformSupportSession}/workspace')->middleware(['platform.permission:platform.support.start', 'platform.support.context', 'platform.support.readonly'])->group(function (): void {
+            Route::get('/', [PlatformSupportWorkspaceController::class, 'dashboard'])->name('support.workspace');
+            Route::get('/search', [PlatformSupportWorkspaceController::class, 'search'])->name('support.workspace.search');
+            Route::get('/{module}', [PlatformSupportWorkspaceController::class, 'module'])->whereIn('module', ['reservations', 'clients', 'rooms', 'room-planning', 'tasks', 'housekeeping', 'maintenance', 'pos', 'finance', 'reports', 'settings'])->name('support.workspace.module');
+            Route::get('/{module}/{id}', [PlatformSupportWorkspaceController::class, 'detail'])->whereIn('module', ['reservations', 'clients'])->whereNumber('id')->name('support.workspace.detail');
+        });
+        Route::get('/health', [PlatformController::class, 'health'])->middleware('platform.permission:platform.health.view')->name('health');
+        Route::get('/audit-logs', [PlatformController::class, 'audit'])->middleware('platform.permission:platform.audit.view')->name('audit');
+        Route::get('/administrators', [PlatformController::class, 'administrators'])->middleware('platform.permission:platform.administrators.manage')->name('administrators');
+        Route::post('/administrators', [PlatformController::class, 'storeAdministrator'])->middleware('platform.permission:platform.administrators.manage')->name('administrators.store');
+        Route::patch('/administrators/{platformAdministrator}/status', [PlatformController::class, 'updateAdministratorStatus'])->middleware('platform.permission:platform.administrators.manage')->name('administrators.status');
+        Route::get('/profile', [PlatformController::class, 'profile'])->name('profile');
+        Route::put('/profile/password', [PlatformController::class, 'updatePassword'])->name('profile.password');
+        Route::get('/two-factor/recovery-codes', [PlatformTwoFactorController::class, 'recoveryCodes'])->name('2fa.recovery');
+        Route::post('/profile/two-factor/recovery-codes', [PlatformTwoFactorController::class, 'regenerate'])->name('profile.2fa.recovery-codes');
+        Route::post('/profile/two-factor/reset', [PlatformTwoFactorController::class, 'reset'])->name('profile.2fa.reset');
+    });
+});
 
 Route::middleware(['guest', EnsureInstallationComplete::class])->group(function () {
     Route::get('/login', [LoginController::class, 'create'])->name('login');
@@ -76,15 +149,65 @@ Route::middleware([EnsureInstallationComplete::class, 'throttle:6,1'])->group(fu
     Route::post('/two-factor-challenge', [TwoFactorController::class, 'store'])->name('two-factor.login.store');
 });
 
-Route::middleware(['auth', EnsureActiveUser::class, EnsureInstallationComplete::class, ConfiguredSessionSecurity::class, EnsurePasswordChanged::class])->group(function () {
-    Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');
+Route::middleware(['auth', EnsureActiveUser::class, EnsureInstallationComplete::class, 'throttle:6,1'])->group(function (): void {
+    Route::get('/email/verify', [VerificationController::class, 'notice'])->name('verification.notice');
+    Route::get('/email/verify/{id}/{hash}', [VerificationController::class, 'verify'])->middleware('signed')->name('verification.verify');
+    Route::post('/email/verification-notification', [VerificationController::class, 'resend'])->name('verification.send');
+    Route::get('/post-auth', [LoginController::class, 'postAuth'])->name('post-auth');
+});
+
+Route::middleware(['auth', EnsureActiveUser::class, EnsureInstallationComplete::class, 'customer.verified'])->prefix('onboarding')->name('onboarding.')->group(function (): void {
+    Route::get('/', [OnboardingController::class, 'start'])->name('start');
+    Route::get('/organization', [OnboardingController::class, 'organization'])->name('organization');
+    Route::post('/organization', [OnboardingController::class, 'storeOrganization'])->name('organization.store');
+    Route::get('/plan', [OnboardingController::class, 'plan'])->name('plan');
+    Route::post('/plan', [OnboardingController::class, 'storePlan'])->name('plan.store');
+    Route::get('/property', [OnboardingController::class, 'property'])->name('property');
+    Route::post('/property', [OnboardingController::class, 'storeProperty'])->name('property.store');
+    Route::get('/hotel', [OnboardingController::class, 'hotel'])->name('hotel');
+    Route::post('/finish', [OnboardingController::class, 'finish'])->name('finish');
+});
+
+Route::middleware(['auth', EnsureActiveUser::class, EnsureInstallationComplete::class, 'customer.verified'])->group(function (): void {
+    Route::post('/invitations/{token}/accept', [OrganizationInvitationController::class, 'accept'])->name('invitations.accept');
+});
+
+Route::post('/logout', [LoginController::class, 'destroy'])->middleware(['auth', EnsureActiveUser::class, EnsureInstallationComplete::class])->name('logout');
+
+Route::middleware(['auth', EnsureActiveUser::class, EnsureInstallationComplete::class, ConfiguredSessionSecurity::class, EnsurePasswordChanged::class, 'customer.verified', 'tenant.context'])->group(function () {
+    Route::post('/context/property', [TenantContextController::class, 'property'])->name('context.property');
+    Route::post('/context/organization', [TenantContextController::class, 'organization'])->name('context.organization');
     Route::get('/management/contact-enquiries', [ContactEnquiryController::class, 'index'])->middleware('can:contact_enquiries.view')->name('contact-enquiries.index');
     Route::get('/management/contact-enquiries/{contactEnquiry}', [ContactEnquiryController::class, 'show'])->middleware('can:contact_enquiries.view')->name('contact-enquiries.show');
     Route::patch('/management/contact-enquiries/{contactEnquiry}/status', [ContactEnquiryController::class, 'updateStatus'])->middleware('can:contact_enquiries.manage')->name('contact-enquiries.status');
     Route::get('/management/newsletter', [NewsletterAdminController::class, 'index'])->middleware('can:newsletter.view')->name('newsletter.index');
+    Route::get('/management/newsletter/export', [NewsletterAdminController::class, 'export'])->middleware('can:newsletter.export')->name('newsletter.export');
     Route::patch('/management/newsletter/{newsletterSubscriber}/status', [NewsletterAdminController::class, 'updateStatus'])->middleware('can:newsletter.manage')->name('newsletter.status');
     Route::delete('/management/newsletter/{newsletterSubscriber}', [NewsletterAdminController::class, 'destroy'])->middleware('can:newsletter.manage')->name('newsletter.destroy');
-    Route::get('/management/newsletter/export', [NewsletterAdminController::class, 'export'])->middleware('can:newsletter.export')->name('newsletter.export');
+    Route::prefix('admin/website')->name('website.')->group(function () {
+        Route::get('/', [WebsiteController::class, 'dashboard'])->middleware('can:website.view')->name('dashboard');
+        Route::get('/pages', [WebsiteController::class, 'pages'])->middleware('can:website.pages.manage')->name('pages.index');
+        Route::get('/pages/{websitePage}/edit', [WebsiteController::class, 'edit'])->middleware('can:website.pages.manage')->name('pages.edit');
+        Route::patch('/pages/{websitePage}', [WebsiteController::class, 'update'])->middleware('can:website.pages.manage')->name('pages.update');
+        Route::post('/pages/{websitePage}/publish', [WebsiteController::class, 'publish'])->middleware('can:website.pages.publish')->name('pages.publish');
+        Route::get('/pages/{websitePage}/preview', [WebsiteController::class, 'preview'])->middleware('can:website.pages.manage')->name('pages.preview');
+        Route::get('/pages/{websitePage}/revisions', [WebsiteController::class, 'revisions'])->middleware('can:website.pages.manage')->name('pages.revisions');
+        Route::post('/pages/{websitePage}/revisions/{websiteRevision}/restore', [WebsiteController::class, 'restoreRevision'])->middleware('can:website.pages.manage')->name('pages.revisions.restore');
+        Route::post('/pages/{websitePage}/sections/{websiteSection}/{direction}', [WebsiteController::class, 'moveSection'])->whereIn('direction', ['up', 'down'])->middleware('can:website.pages.manage')->name('pages.sections.move');
+        Route::get('/media', [WebsiteController::class, 'media'])->middleware('can:website.media.manage')->name('media');
+        Route::post('/media', [WebsiteController::class, 'uploadMedia'])->middleware('can:website.media.manage')->name('media.upload');
+        Route::delete('/media/{websiteMedia}', [WebsiteController::class, 'archiveMedia'])->middleware('can:website.media.manage')->name('media.archive');
+        Route::get('/navigation', [WebsiteController::class, 'navigation'])->middleware('can:website.navigation.manage')->name('navigation');
+        Route::patch('/navigation', [WebsiteController::class, 'updateNavigation'])->middleware('can:website.navigation.manage')->name('navigation.update');
+        Route::get('/pricing', [WebsiteController::class, 'pricing'])->middleware('can:website.pricing.manage')->name('pricing');
+        Route::patch('/pricing/{websitePricingPlan}', [WebsiteController::class, 'updatePricing'])->middleware('can:website.pricing.manage')->name('pricing.update');
+        Route::get('/seo', [WebsiteController::class, 'seo'])->middleware('can:website.seo.manage')->name('seo');
+        Route::get('/settings', [WebsiteController::class, 'settings'])->middleware('can:website.settings.manage')->name('settings');
+        Route::patch('/settings', [WebsiteController::class, 'updateSettings'])->middleware('can:website.settings.manage')->name('settings.update');
+        Route::get('/enquiries', [ContactEnquiryController::class, 'index'])->middleware('can:website.enquiries.view')->name('enquiries');
+        Route::get('/enquiries/{contactEnquiry}', [ContactEnquiryController::class, 'show'])->middleware('can:website.enquiries.view')->name('enquiries.show');
+        Route::patch('/enquiries/{contactEnquiry}/status', [ContactEnquiryController::class, 'updateStatus'])->middleware('can:website.enquiries.manage')->name('enquiries.status');
+    });
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
     Route::get('/search', [SearchController::class, 'index'])->name('search');
 
@@ -98,9 +221,9 @@ Route::middleware(['auth', EnsureActiveUser::class, EnsureInstallationComplete::
     Route::post('/reservations/{reservation}/cancel', [ReservationController::class, 'cancel'])->name('reservations.cancel');
     Route::post('/reservations/{reservation}/no-show', [ReservationController::class, 'noShow'])->name('reservations.no-show');
     Route::resource('reservations', ReservationController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']);
-    Route::get('/room-planning/data', [RoomPlanningController::class, 'data'])->name('room-planning.data');
-    Route::get('/room-planning/available-rooms', [RoomPlanningController::class, 'availableRooms'])->name('room-planning.available-rooms');
-    Route::get('/room-planning', [RoomPlanningController::class, 'index'])->name('room-planning.index');
+    Route::get('/room-planning/data', [RoomPlanningController::class, 'data'])->middleware('feature:room_planning')->name('room-planning.data');
+    Route::get('/room-planning/available-rooms', [RoomPlanningController::class, 'availableRooms'])->middleware('feature:room_planning')->name('room-planning.available-rooms');
+    Route::get('/room-planning', [RoomPlanningController::class, 'index'])->middleware('feature:room_planning')->name('room-planning.index');
     Route::resource('clients', ClientController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']);
     Route::resource('tasks', TaskController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update']);
     Route::post('/tasks/{task}/complete', [TaskController::class, 'complete'])->name('tasks.complete');
@@ -162,60 +285,79 @@ Route::middleware(['auth', EnsureActiveUser::class, EnsureInstallationComplete::
     Route::post('/payments/{payment}/void', [PaymentController::class, 'void'])->name('payments.void');
     Route::post('/payments/{payment}/refund', [PaymentController::class, 'refund'])->name('payments.refund');
     Route::resource('payments', PaymentController::class)->only(['index', 'store', 'update', 'destroy']);
-    Route::get('/finance/overview', [FinanceController::class, 'overview'])->name('finance.overview');
-    Route::get('/finance/transactions', [FinanceController::class, 'transactions'])->name('finance.transactions');
-    Route::get('/finance/expenses', [FinanceController::class, 'expenses'])->name('finance.expenses');
-    Route::post('/finance/expenses', [FinanceController::class, 'expenseStore'])->name('finance.expenses.store');
-    Route::post('/finance/expenses/{expense}/{action}', [FinanceController::class, 'expenseAction'])->whereIn('action', ['submit', 'approve', 'reject', 'pay', 'reverse'])->name('finance.expenses.action');
-    Route::get('/finance/expenses/{expense}/attachment', [FinanceController::class, 'attachment'])->name('finance.expenses.attachment');
-    Route::get('/finance/accounts', [FinanceController::class, 'accounts'])->name('finance.accounts');
-    Route::post('/finance/accounts', [FinanceController::class, 'accountStore'])->name('finance.accounts.store');
-    Route::get('/finance/transfers', [FinanceController::class, 'transfers'])->name('finance.transfers');
-    Route::post('/finance/transfers', [FinanceController::class, 'transferStore'])->name('finance.transfers.store');
-    Route::get('/finance/reports', [FinanceController::class, 'reports'])->name('finance.reports');
-    Route::get('/finance/exports/{report}', [FinanceController::class, 'export'])->name('finance.exports');
-    Route::get('/finance/petty-cash', [FinanceController::class, 'pettyCash'])->name('finance.petty-cash');
-    Route::post('/finance/petty-cash/close', [FinanceController::class, 'cashCloseStore'])->name('finance.petty-cash.close');
-    Route::get('/finance/reconciliation', [FinanceController::class, 'reconciliation'])->name('finance.reconciliation');
-    Route::post('/finance/reconciliation', [FinanceController::class, 'reconciliationStore'])->name('finance.reconciliation.store');
+    Route::get('/finance/overview', [FinanceController::class, 'overview'])->middleware('feature:finance')->name('finance.overview');
+    Route::get('/finance/transactions', [FinanceController::class, 'transactions'])->middleware('feature:finance')->name('finance.transactions');
+    Route::get('/finance/expenses', [FinanceController::class, 'expenses'])->middleware('feature:finance')->name('finance.expenses');
+    Route::post('/finance/expenses', [FinanceController::class, 'expenseStore'])->middleware('feature:finance')->name('finance.expenses.store');
+    Route::post('/finance/expenses/{expense}/{action}', [FinanceController::class, 'expenseAction'])->whereIn('action', ['submit', 'approve', 'reject', 'pay', 'reverse'])->middleware('feature:finance')->name('finance.expenses.action');
+    Route::get('/finance/expenses/{expense}/attachment', [FinanceController::class, 'attachment'])->middleware('feature:finance')->name('finance.expenses.attachment');
+    Route::get('/finance/accounts', [FinanceController::class, 'accounts'])->middleware('feature:finance')->name('finance.accounts');
+    Route::post('/finance/accounts', [FinanceController::class, 'accountStore'])->middleware('feature:finance')->name('finance.accounts.store');
+    Route::get('/finance/transfers', [FinanceController::class, 'transfers'])->middleware('feature:finance')->name('finance.transfers');
+    Route::post('/finance/transfers', [FinanceController::class, 'transferStore'])->middleware('feature:finance')->name('finance.transfers.store');
+    Route::get('/finance/reports', [FinanceController::class, 'reports'])->middleware('feature:finance')->name('finance.reports');
+    Route::get('/finance/exports/{report}', [FinanceController::class, 'export'])->middleware('feature:finance')->name('finance.exports');
+    Route::get('/finance/petty-cash', [FinanceController::class, 'pettyCash'])->middleware('feature:finance')->name('finance.petty-cash');
+    Route::post('/finance/petty-cash/close', [FinanceController::class, 'cashCloseStore'])->middleware('feature:finance')->name('finance.petty-cash.close');
+    Route::get('/finance/reconciliation', [FinanceController::class, 'reconciliation'])->middleware('feature:finance')->name('finance.reconciliation');
+    Route::post('/finance/reconciliation', [FinanceController::class, 'reconciliationStore'])->middleware('feature:finance')->name('finance.reconciliation.store');
     Route::get('/invoices/{invoice}', [InvoiceController::class, 'show'])->name('invoices.show');
     Route::get('/invoices/{invoice}/print', [InvoiceController::class, 'print'])->name('invoices.print');
     Route::get('/invoices/{invoice}/download', [InvoiceController::class, 'download'])->name('invoices.download');
-    Route::get('/reports', [ReportsController::class, 'index'])->name('reports.index');
-    Route::get('/reports/export', [ReportsController::class, 'export'])->name('reports.export');
-    Route::get('/pos/terminal', [PosController::class, 'terminal'])->name('pos.terminal');
-    Route::get('/pos/products/search', [PosController::class, 'productSearch'])->name('pos.products.search');
-    Route::get('/pos/guests/search', [PosController::class, 'guestSearch'])->name('pos.guests.search');
-    Route::post('/pos/checkout', [PosController::class, 'checkout'])->name('pos.checkout');
-    Route::get('/pos/orders', [PosController::class, 'orders'])->name('pos.orders');
-    Route::get('/pos/orders/{order}', [PosController::class, 'showOrder'])->name('pos.orders.show');
-    Route::post('/pos/orders/{order}/void', [PosController::class, 'void'])->name('pos.orders.void');
-    Route::post('/pos/orders/{order}/refund', [PosController::class, 'refund'])->name('pos.orders.refund');
-    Route::get('/pos/receipts/{order}', [PosController::class, 'receipt'])->name('pos.receipts.show');
-    Route::get('/pos/receipts/{order}/download', [PosController::class, 'receiptDownload'])->name('pos.receipts.download');
-    Route::get('/pos/products', [PosController::class, 'products'])->name('pos.products');
-    Route::post('/pos/products', [PosController::class, 'productStore'])->name('pos.products.store');
-    Route::put('/pos/products/{product}', [PosController::class, 'productUpdate'])->name('pos.products.update');
-    Route::delete('/pos/products/{product}', [PosController::class, 'productDestroy'])->name('pos.products.destroy');
-    Route::get('/pos/catalog', [PosController::class, 'catalog'])->name('pos.catalog');
-    Route::post('/pos/categories', [PosController::class, 'categoryStore'])->name('pos.categories.store');
-    Route::put('/pos/categories/{category}', [PosController::class, 'categoryUpdate'])->name('pos.categories.update');
-    Route::delete('/pos/categories/{category}', [PosController::class, 'categoryDestroy'])->name('pos.categories.destroy');
-    Route::post('/pos/outlets', [PosController::class, 'outletStore'])->name('pos.outlets.store');
-    Route::put('/pos/outlets/{outlet}', [PosController::class, 'outletUpdate'])->name('pos.outlets.update');
-    Route::delete('/pos/outlets/{outlet}', [PosController::class, 'outletDestroy'])->name('pos.outlets.destroy');
-    Route::get('/pos/shifts', [PosController::class, 'shifts'])->name('pos.shifts');
-    Route::post('/pos/shifts', [PosController::class, 'shiftOpen'])->name('pos.shifts.open');
-    Route::post('/pos/shifts/{shift}/close', [PosController::class, 'shiftClose'])->name('pos.shifts.close');
-    Route::get('/pos/reports', [PosController::class, 'reports'])->name('pos.reports');
+    Route::get('/reports', [ReportsController::class, 'index'])->middleware('feature:reports')->name('reports.index');
+    Route::get('/reports/export', [ReportsController::class, 'export'])->middleware('feature:reports')->name('reports.export');
+    Route::get('/pos/terminal', [PosController::class, 'terminal'])->middleware('feature:pos')->name('pos.terminal');
+    Route::get('/pos/products/search', [PosController::class, 'productSearch'])->middleware('feature:pos')->name('pos.products.search');
+    Route::get('/pos/guests/search', [PosController::class, 'guestSearch'])->middleware('feature:pos')->name('pos.guests.search');
+    Route::post('/pos/checkout', [PosController::class, 'checkout'])->middleware('feature:pos')->name('pos.checkout');
+    Route::get('/pos/orders', [PosController::class, 'orders'])->middleware('feature:pos')->name('pos.orders');
+    Route::get('/pos/orders/{order}', [PosController::class, 'showOrder'])->middleware('feature:pos')->name('pos.orders.show');
+    Route::post('/pos/orders/{order}/void', [PosController::class, 'void'])->middleware('feature:pos')->name('pos.orders.void');
+    Route::post('/pos/orders/{order}/refund', [PosController::class, 'refund'])->middleware('feature:pos')->name('pos.orders.refund');
+    Route::get('/pos/receipts/{order}', [PosController::class, 'receipt'])->middleware('feature:pos')->name('pos.receipts.show');
+    Route::get('/pos/receipts/{order}/download', [PosController::class, 'receiptDownload'])->middleware('feature:pos')->name('pos.receipts.download');
+    Route::get('/pos/products', [PosController::class, 'products'])->middleware('feature:pos')->name('pos.products');
+    Route::post('/pos/products', [PosController::class, 'productStore'])->middleware('feature:pos')->name('pos.products.store');
+    Route::put('/pos/products/{product}', [PosController::class, 'productUpdate'])->middleware('feature:pos')->name('pos.products.update');
+    Route::delete('/pos/products/{product}', [PosController::class, 'productDestroy'])->middleware('feature:pos')->name('pos.products.destroy');
+    Route::get('/pos/catalog', [PosController::class, 'catalog'])->middleware('feature:pos')->name('pos.catalog');
+    Route::post('/pos/categories', [PosController::class, 'categoryStore'])->middleware('feature:pos')->name('pos.categories.store');
+    Route::put('/pos/categories/{category}', [PosController::class, 'categoryUpdate'])->middleware('feature:pos')->name('pos.categories.update');
+    Route::delete('/pos/categories/{category}', [PosController::class, 'categoryDestroy'])->middleware('feature:pos')->name('pos.categories.destroy');
+    Route::post('/pos/outlets', [PosController::class, 'outletStore'])->middleware('feature:pos')->name('pos.outlets.store');
+    Route::put('/pos/outlets/{outlet}', [PosController::class, 'outletUpdate'])->middleware('feature:pos')->name('pos.outlets.update');
+    Route::delete('/pos/outlets/{outlet}', [PosController::class, 'outletDestroy'])->middleware('feature:pos')->name('pos.outlets.destroy');
+    Route::get('/pos/shifts', [PosController::class, 'shifts'])->middleware('feature:pos')->name('pos.shifts');
+    Route::post('/pos/shifts', [PosController::class, 'shiftOpen'])->middleware('feature:pos')->name('pos.shifts.open');
+    Route::post('/pos/shifts/{shift}/close', [PosController::class, 'shiftClose'])->middleware('feature:pos')->name('pos.shifts.close');
+    Route::get('/pos/reports', [PosController::class, 'reports'])->middleware('feature:pos')->name('pos.reports');
     Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
+    Route::get('/settings/properties', [PropertyManagementController::class, 'index'])->middleware('can:properties.view')->name('settings.properties.index');
+    Route::post('/settings/properties', [PropertyManagementController::class, 'store'])->middleware('can:properties.create')->name('settings.properties.store');
+    Route::get('/settings/properties/{property}/edit', [PropertyManagementController::class, 'edit'])->middleware('can:properties.update')->name('settings.properties.edit');
+    Route::put('/settings/properties/{property}', [PropertyManagementController::class, 'update'])->middleware('can:properties.update')->name('settings.properties.update');
+    Route::get('/settings/properties/{property}/access', [PropertyManagementController::class, 'access'])->middleware('can:members.view')->name('settings.properties.access');
+    Route::put('/settings/properties/{property}/access', [PropertyManagementController::class, 'updateAccess'])->middleware('can:members.manage')->name('settings.properties.access.update');
+    Route::get('/settings/organization', [OrganizationSettingsController::class, 'index'])->middleware('can:organization.view')->name('settings.organization.index');
+    Route::put('/settings/organization', [OrganizationSettingsController::class, 'update'])->middleware('can:organization.update')->name('settings.organization.update');
+    Route::get('/settings/subscription', [OrganizationSettingsController::class, 'subscription'])->middleware('can:organization.view')->name('settings.subscription');
+    Route::get('/settings/members', [OrganizationMemberController::class, 'index'])->middleware('can:members.view')->name('settings.members.index');
+    Route::get('/settings/invitations', [OrganizationInvitationController::class, 'index'])->middleware('can:members.view')->name('settings.invitations.index');
+    Route::post('/settings/invitations', [OrganizationInvitationController::class, 'store'])->middleware('can:members.manage')->name('settings.invitations.store');
+    Route::post('/settings/invitations/{invitation}/resend', [OrganizationInvitationController::class, 'resend'])->middleware('can:members.manage')->name('settings.invitations.resend');
+    Route::post('/settings/invitations/{invitation}/revoke', [OrganizationInvitationController::class, 'revoke'])->middleware('can:members.manage')->name('settings.invitations.revoke');
+    Route::get('/settings/members/{membership}/edit', [OrganizationMemberController::class, 'edit'])->middleware('can:members.manage')->name('settings.members.edit');
+    Route::put('/settings/members/{membership}', [OrganizationMemberController::class, 'update'])->middleware('can:members.manage')->name('settings.members.update');
+    Route::post('/settings/members/{membership}/owner', [OrganizationMemberController::class, 'grantOwner'])->middleware('can:members.manage')->name('settings.members.owner.grant');
+    Route::delete('/settings/members/{membership}/owner', [OrganizationMemberController::class, 'removeOwner'])->middleware('can:members.manage')->name('settings.members.owner.remove');
+    Route::get('/settings/audit', [OrganizationAuditController::class, 'index'])->middleware('can:audit.view')->name('settings.audit.index');
     Route::get('/settings/database/backup', [SettingsController::class, 'downloadDatabaseBackup'])->name('settings.database.backup');
     Route::get('/settings/database/backups/{filename}', [SettingsController::class, 'downloadExistingDatabaseBackup'])->where('filename', '[A-Za-z0-9._-]+')->name('settings.database.backups.download');
     Route::post('/settings/integrations/email', [SettingsController::class, 'updateEmail'])->name('settings.integrations.email');
     Route::post('/settings/integrations/email/test', [SettingsController::class, 'testEmail'])->name('settings.integrations.email.test');
     Route::post('/settings/integrations/whatsapp', [SettingsController::class, 'updateWhatsApp'])->name('settings.integrations.whatsapp');
-    Route::post('/settings/integrations/api-tokens', [SettingsController::class, 'storeApiToken'])->name('settings.integrations.api-tokens.store');
-    Route::post('/settings/integrations/api-tokens/{token}/revoke', [SettingsController::class, 'revokeApiToken'])->name('settings.integrations.api-tokens.revoke');
+    Route::post('/settings/integrations/api-tokens', [SettingsController::class, 'storeApiToken'])->middleware('feature:api_access')->name('settings.integrations.api-tokens.store');
+    Route::post('/settings/integrations/api-tokens/{token}/revoke', [SettingsController::class, 'revokeApiToken'])->middleware('feature:api_access')->name('settings.integrations.api-tokens.revoke');
     Route::post('/settings/integrations/webhooks', [SettingsController::class, 'storeWebhook'])->name('settings.integrations.webhooks.store');
     Route::put('/settings/general', [SettingsController::class, 'updateGeneral'])->name('settings.general.update');
     Route::put('/settings/security', [SettingsController::class, 'updateSecurity'])->name('settings.security.update');

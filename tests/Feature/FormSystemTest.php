@@ -37,7 +37,7 @@ class FormSystemTest extends TestCase
             ->assertDontSee('name="address"', false);
     }
 
-    public function test_unauthorized_web_requests_render_the_access_warning_modal(): void
+    public function test_unauthorized_web_requests_render_the_standalone_access_page(): void
     {
         $this->seed(DatabaseSeeder::class);
         $housekeeper = Role::query()->where('name', 'housekeeper')->firstOrFail();
@@ -47,8 +47,9 @@ class FormSystemTest extends TestCase
         $this->actingAs($user)->get(route('reservations.create'))
             ->assertStatus(403)
             ->assertSee('Access restricted', false)
-            ->assertSee('You have no access to perform this task.', false)
-            ->assertSee('data-modal-auto-open', false)
+            ->assertSee('Your account does not have permission to open this page.', false)
+            ->assertSee('Status 403', false)
+            ->assertSee('Return home', false)
             ->assertDontSee('This action is unauthorized.', false);
     }
 }

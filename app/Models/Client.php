@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\AssignsTenantOwnership;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Client extends Model
 {
+    use AssignsTenantOwnership;
     protected $fillable = [
         'first_name', 'middle_name', 'last_name', 'email', 'phone', 'alternate_phone', 'country', 'city',
         'postal_code', 'nationality', 'date_of_birth', 'gender', 'document_type', 'document_number',
@@ -24,6 +26,7 @@ class Client extends Model
 
     public function creator(): BelongsTo { return $this->belongsTo(User::class, 'created_by'); }
     public function updater(): BelongsTo { return $this->belongsTo(User::class, 'updated_by'); }
+    public function organization(): BelongsTo { return $this->belongsTo(Organization::class); }
     public function totalSpent(): float { return app(\App\Services\FinancialService::class)->clientTotalSpent($this); }
 
     public function getFullNameAttribute(): string

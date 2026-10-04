@@ -1,15 +1,31 @@
+@php($pricingCms = app(\App\Services\PublicWebsiteContentService::class)->page('pricing'))
+@php($pricingHero = $pricingCms['sections']['hero'] ?? [])
+@php($pricingPlans = app(\App\Services\PublicWebsiteContentService::class)->pricingPlans())
 @extends('layouts.public', [
-    'title' => 'Lodgix Pricing — Hotel Management System Plans',
-    'description' => 'Explore Lodgix plan options for hotel operations, POS, finance, reporting and integrations. Pricing is discussed based on each property’s requirements.',
+    'title' => $pricingCms['page']->seo_title ?? 'Lodgix Pricing — Hotel Management System Plans',
+    'description' => $pricingCms['page']->seo_description ?? 'Explore Lodgix plan options for hotel operations, POS, finance, reporting and integrations. Pricing is discussed based on each property’s requirements.',
     'canonical' => route('public.pricing'),
 ])
 
 @section('content')
 <div class="public-page public-page--pricing">
-    <x-public.page-hero eyebrow="Pricing for independent hotels and lodges" heading="Flexible plans built around your property." description="Pricing is tailored to your property size, required modules and implementation needs." layout="centered" class="public-page-hero--compact" />
+    <x-public.page-hero :eyebrow="$pricingHero['eyebrow'] ?? 'Pricing for independent hotels and lodges'" :heading="$pricingHero['heading'] ?? 'Flexible plans built around your property.'" description="Pricing is tailored to your property size, required modules and implementation needs." layout="centered" class="public-page-hero--compact" />
 
     <x-public.section class="public-pricing-section">
         <x-public.section-heading align="center" eyebrow="Find the right fit" heading="Explore a starting point." description="Tell us about your property and the workflows you want to bring together." />
+        @if($pricingPlans)
+        <div class="public-pricing-grid">
+            @foreach($pricingPlans as $plan)
+            <article class="public-card public-pricing-card {{ $plan['is_highlighted'] ? 'public-pricing-card--highlighted' : '' }}">
+                <p class="public-pricing-card__eyebrow">{{ $plan['name'] }}</p>
+                <h3>{{ $plan['short_description'] }}</h3>
+                <p class="public-pricing-card__price">{{ $plan['price_display'] }} @if($plan['billing_label'])<span>{{ $plan['billing_label'] }}</span>@endif</p>
+                <ul>@foreach($plan['features'] as $feature)<li>{{ $feature }}</li>@endforeach</ul>
+                <x-public.button :href="$plan['cta_url'] ?: route('public.contact', ['enquiry_type' => 'pricing'])" variant="secondary">{{ $plan['cta_label'] }}</x-public.button>
+            </article>
+            @endforeach
+        </div>
+        @else
         <div class="public-pricing-grid">
             <article class="public-card public-pricing-card">
                 <p class="public-pricing-card__eyebrow">Starter</p>
@@ -52,6 +68,7 @@
                 <x-public.button :href="route('public.contact', ['enquiry_type' => 'pricing'])" variant="secondary">Request pricing</x-public.button>
             </article>
         </div>
+        @endif
         <p class="public-pricing-note">We’ll confirm the right scope and pricing with you based on your property’s needs.</p>
     </x-public.section>
 

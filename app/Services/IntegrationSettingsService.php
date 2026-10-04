@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\IntegrationSetting;
+use App\Services\Tenancy\TenantCacheKey;
 use Illuminate\Support\Facades\Cache;
 
 class IntegrationSettingsService
@@ -11,7 +12,7 @@ class IntegrationSettingsService
 
     public function get(string $key): ?IntegrationSetting
     {
-        return Cache::rememberForever(self::CACHE_KEY.'.'.$key, fn () => IntegrationSetting::query()->where('key', $key)->first());
+        return Cache::rememberForever(TenantCacheKey::make(self::CACHE_KEY).'.'.$key, fn () => IntegrationSetting::query()->where('key', $key)->first());
     }
 
     public function save(string $key, array $values, ?int $actorId = null): IntegrationSetting
@@ -26,7 +27,7 @@ class IntegrationSettingsService
 
     public function forget(string $key): void
     {
-        Cache::forget(self::CACHE_KEY.'.'.$key);
+        Cache::forget(TenantCacheKey::make(self::CACHE_KEY).'.'.$key);
     }
 
     public function isConfigured(string $key): bool

@@ -3,21 +3,39 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Models\Concerns\ScopesTenantOwnership;
+use App\Services\Tenancy\TenantContext;
 use Database\Factories\UserFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable, TwoFactorAuthenticatable;
+    use HasFactory, Notifiable, TwoFactorAuthenticatable, ScopesTenantOwnership;
+
+    protected static function applyTenantScope(Builder $builder, TenantContext $context): void
+    {
+        if ($context->scopePropertyId() === null) {
+            return;
+        }
+
+        // Staff are operationally visible through their property-owned
+        // department. Users without a department remain platform identities.
+        $builder->where(function (Builder $query) use ($context): void {
+            $query->whereNull('department_id')
+                ->orWhereHas('department', fn (Builder $department): Builder => $department->where('property_id', $context->scopePropertyId()));
+        });
+    }
 
     /**
      * The attributes that are mass assignable.
@@ -48,6 +66,7 @@ class User extends Authenticatable
         'two_factor_secret',
         'two_factor_recovery_codes',
         'two_factor_confirmed_at',
+        'email_verification_required', 'registration_terms_accepted_at', 'registration_terms_version', 'registration_source',
     ];
 
     /**
@@ -77,6 +96,8 @@ class User extends Authenticatable
             'must_change_password' => 'boolean',
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
+            'email_verification_required' => 'boolean',
+            'registration_terms_accepted_at' => 'datetime',
         ];
     }
 
@@ -93,6 +114,25 @@ class User extends Authenticatable
     public function role(): BelongsTo
     {
         return $this->belongsTo(Role::class);
+    }
+
+    public function organizationMemberships(): HasMany
+    {
+        return $this->hasMany(OrganizationMembership::class);
+    }
+
+    public function memberships(): HasMany
+    {
+        return $this->organizationMemberships();
+    }
+
+    public function organizations(): BelongsToMany
+    {
+        return $this->belongsToMany(Organization::class, 'organization_memberships')
+            ->wherePivot('status', 'active')
+            ->where('organizations.status', 'active')
+            ->withPivot(['role_id', 'status', 'joined_at', 'invited_by'])
+            ->withTimestamps();
     }
 
     /**

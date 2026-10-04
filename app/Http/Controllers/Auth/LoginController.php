@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Services\LoginHistoryService;
+use App\Services\Tenancy\TenantContext;
+use App\Services\OnboardingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -14,10 +16,10 @@ class LoginController extends Controller
 {
     public function create(): View|RedirectResponse
     {
-        return Auth::check() ? redirect()->route('dashboard') : view('auth.login');
+        return Auth::check() ? redirect()->route('post-auth') : view('auth.login');
     }
 
-    public function store(LoginRequest $request, LoginHistoryService $loginHistory): RedirectResponse
+    public function store(LoginRequest $request, LoginHistoryService $loginHistory, TenantContext $tenantContext): RedirectResponse
     {
         $user = $request->authenticate();
 
@@ -30,6 +32,7 @@ class LoginController extends Controller
 
         Auth::login($user, $request->boolean('remember'));
         $request->session()->regenerate();
+        $tenantContext->resolveFor($user);
         $user->forceFill(['last_login_at' => now(), 'last_login_ip' => $request->ip()])->save();
         $loginHistory->record($user, $request);
 
@@ -37,12 +40,24 @@ class LoginController extends Controller
             return redirect()->route('password.change')->with('warning', 'Please change your password before continuing.');
         }
 
+        if ($user->email_verification_required && ! $user->hasVerifiedEmail()) return redirect()->route('verification.notice');
+        if (app(OnboardingService::class)->stateFor($user)) return redirect()->route('onboarding.start');
         return redirect()->intended(route('dashboard'))->with('success', 'Welcome back.');
     }
 
-    public function destroy(Request $request, LoginHistoryService $loginHistory): RedirectResponse
+    public function postAuth(Request $request, OnboardingService $onboarding, TenantContext $tenantContext): RedirectResponse
+    {
+        $user = $request->user();
+        if ($user->email_verification_required && ! $user->hasVerifiedEmail()) return redirect()->route('verification.notice');
+        if ($onboarding->stateFor($user)) return redirect()->route('onboarding.start');
+        $tenantContext->resolveFor($user);
+        return redirect()->route('dashboard');
+    }
+
+    public function destroy(Request $request, LoginHistoryService $loginHistory, TenantContext $tenantContext): RedirectResponse
     {
         $loginHistory->logoutCurrent($request);
+        $tenantContext->clear();
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();

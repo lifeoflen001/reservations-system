@@ -5,6 +5,7 @@ namespace App\Http\Requests\Reservations;
 use App\Enums\ReservationStatus;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use App\Support\TenantValidation;
 
 class StoreReservationRequest extends FormRequest
 {
@@ -13,8 +14,8 @@ class StoreReservationRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'client_id' => ['required', 'integer', 'exists:clients,id'],
-            'room_id' => ['required', 'integer', 'exists:rooms,id'],
+            'client_id' => ['required', 'integer', TenantValidation::organizationExists('clients')],
+            'room_id' => ['required', 'integer', TenantValidation::propertyExists('rooms')],
             'reservation_source_id' => ['nullable', 'integer', 'exists:reservation_sources,id'],
             'check_in' => ['required', 'date'],
             'check_out' => ['required', 'date', 'after:check_in'],

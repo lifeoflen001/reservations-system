@@ -5,6 +5,7 @@ namespace App\Http\Requests\Payments;
 use App\Enums\PaymentStatus;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use App\Support\TenantValidation;
 
 class StorePaymentRequest extends FormRequest
 {
@@ -13,7 +14,7 @@ class StorePaymentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'reservation_id' => ['required', 'integer', 'exists:reservations,id'],
+            'reservation_id' => ['required', 'integer', TenantValidation::propertyExists('reservations')],
             'amount' => ['required', 'numeric', 'gt:0', 'decimal:0,2'],
             'method' => ['required', 'string', 'exists:payment_methods,code'],
             'reference' => ['nullable', 'string', 'max:100', 'unique:payments,reference'],

@@ -7,7 +7,7 @@
   "deploy": {
     "startCommand": "php artisan serve --host=0.0.0.0 --port=$PORT",
     "preDeployCommand": [
-      "php artisan migrate --force && php artisan db:seed --class=RbacSeeder --force"
+      "php artisan migrate --force && php artisan saas:backfill-operational-ownership && php artisan db:seed --class=RbacSeeder --force"
     ],
     "healthcheckPath": "/up",
     "healthcheckTimeout": 100,

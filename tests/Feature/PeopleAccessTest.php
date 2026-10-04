@@ -7,6 +7,8 @@ use App\Jobs\SendHotelEmail;
 use App\Models\IntegrationSetting;
 use App\Models\Role;
 use App\Models\User;
+use App\Models\Property;
+use App\Services\Tenancy\TenantContext;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -21,6 +23,8 @@ class PeopleAccessTest extends TestCase
     {
         parent::setUp();
         $this->seed(DatabaseSeeder::class);
+        $property = Property::firstOrFail();
+        app(TenantContext::class)->activate((int) $property->organization_id, (int) $property->id);
     }
 
     public function test_clients_can_be_searched_created_archived_and_duplicate_warning_is_shown(): void

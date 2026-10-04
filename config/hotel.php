@@ -15,8 +15,8 @@ return [
         'product_name' => env('HOTEL_PUBLIC_PRODUCT_NAME', 'Lodgix'),
         'short_name' => env('HOTEL_PUBLIC_SHORT_NAME', 'Lodgix'),
         'tagline' => env('HOTEL_BRAND_TAGLINE', 'Hotel Management System'),
-        'logo_light' => env('HOTEL_PUBLIC_LOGO_LIGHT', 'assets/images/landing/lodgix-wordmark.webp'),
-        'logo_dark' => env('HOTEL_PUBLIC_LOGO_DARK', 'assets/images/landing/lodgix-wordmark.webp'),
+        'logo_light' => env('HOTEL_PUBLIC_LOGO_LIGHT', 'assets/branding/lodgix.png'),
+        'logo_dark' => env('HOTEL_PUBLIC_LOGO_DARK', 'assets/branding/lodgix.png'),
         'mark' => env('HOTEL_PUBLIC_MARK', 'assets/branding/lodgix-mark.png'),
         'favicon' => env('HOTEL_PUBLIC_FAVICON', 'favicon.ico'),
         'apple_touch_icon' => env('HOTEL_PUBLIC_APPLE_TOUCH_ICON', 'apple-touch-icon.png'),
@@ -29,8 +29,6 @@ return [
     ],
 
     'newsletter' => [
-        // Keep the subscriber table ready for double opt-in without making
-        // email delivery a prerequisite for the footer form to work.
         'double_opt_in' => filter_var(env('NEWSLETTER_DOUBLE_OPT_IN', false), FILTER_VALIDATE_BOOL),
         'confirmation_ttl_days' => (int) env('NEWSLETTER_CONFIRMATION_TTL_DAYS', 3),
     ],
@@ -68,6 +66,21 @@ return [
         'check_in_time' => '14:00',
         'check_out_time' => '11:00',
         'timezone' => env('APP_TIMEZONE', 'Africa/Dar_es_Salaam'),
+    ],
+
+    'tenancy' => [
+        // SAAS-03 provides the context and server-side validation. Switching
+        // stays disabled in the normal UI until operational data is scoped.
+        'context_switching' => filter_var(env('HOTEL_TENANT_CONTEXT_SWITCHING', false), FILTER_VALIDATE_BOOL),
+        // SAAS-06 controlled staging release. Keep this independently
+        // switchable so production can hold the UX back without changing the
+        // underlying tenant isolation model.
+        'multi_property_ui' => filter_var(env('HOTEL_MULTI_PROPERTY_UI', true), FILTER_VALIDATE_BOOL),
+    ],
+
+    'onboarding' => [
+        'invitation_days' => (int) env('LODGIX_INVITATION_DAYS', 7),
+        'terms_version' => env('LODGIX_TERMS_VERSION', 'current'),
     ],
 
     'reservation_code_prefix' => env('HOTEL_RESERVATION_CODE_PREFIX', 'WSX'),
@@ -108,6 +121,9 @@ return [
         'notifications.view', 'notifications.manage',
         'contact_enquiries.view', 'contact_enquiries.manage',
         'newsletter.view', 'newsletter.manage', 'newsletter.export',
+        'website.view', 'website.pages.manage', 'website.pages.publish', 'website.media.manage',
+        'website.navigation.manage', 'website.pricing.manage', 'website.seo.manage',
+        'website.enquiries.view', 'website.enquiries.manage', 'website.settings.manage',
         'announcements.view', 'announcements.create', 'announcements.update', 'announcements.publish',
         'announcements.archive', 'announcements.statistics', 'announcements.manage',
         'announcements.manage_categories', 'announcements.manage_audience', 'announcements.send_email',
@@ -115,8 +131,18 @@ return [
         'pos.access', 'pos.sell', 'pos.view_orders', 'pos.view_all_orders', 'pos.charge_room', 'pos.discount', 'pos.void', 'pos.refund',
         'pos.products.view', 'pos.products.manage', 'pos.categories.manage', 'pos.outlets.manage', 'pos.shifts.open', 'pos.shifts.close',
         'pos.shifts.view_all', 'pos.reports.view', 'pos.receipts.view', 'pos.manage',
+        'properties.view', 'properties.create', 'properties.update', 'properties.manage_access',
     ],
 
     // Only explicitly verified application-owned names may be retired.
     'retired_permissions' => [],
+
+    'api_token_scopes' => [
+        'rooms:read', 'availability:read',
+        'reservations:read', 'reservations:write',
+        'clients:read',
+        'payments:read', 'payments:write', 'payments:confirm', 'payments:manage',
+        'pos:read', 'pos:write', 'pos:manage',
+        'finance:read', 'invoices:read', 'reports:read', 'staff:read',
+    ],
 ];

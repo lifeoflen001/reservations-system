@@ -17,6 +17,7 @@ class SearchTest extends TestCase
     {
         $this->seed(DatabaseSeeder::class);
         $admin = User::firstOrFail();
+        $this->actingAs($admin);
         $client = Client::create(['first_name' => 'Searchable', 'last_name' => 'Guest', 'email' => 'searchable@example.com', 'is_active' => true]);
         $room = Room::query()->firstOrFail();
 

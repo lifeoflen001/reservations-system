@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\WebhookDelivery;
+use App\Services\Tenancy\TenantContext;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -26,9 +27,13 @@ class DeliverWebhook implements ShouldQueue
     public function handle(): void
     {
         $delivery = WebhookDelivery::query()->with('endpoint')->findOrFail($this->deliveryId);
+        $context = app(TenantContext::class);
+        if ($delivery->endpoint?->organization_id && $delivery->endpoint?->property_id) {
+            $context->activate((int) $delivery->endpoint->organization_id, (int) $delivery->endpoint->property_id);
+        }
         $started = microtime(true);
-        $delivery->update(['status' => 'sending', 'attempts' => $delivery->attempts + 1]);
         try {
+            $delivery->update(['status' => 'sending', 'attempts' => $delivery->attempts + 1]);
             $response = Http::timeout(10)->withHeaders(['Content-Type' => 'application/json', 'X-PMS-Signature' => $delivery->signature, 'X-PMS-Timestamp' => (string) $this->timestamp, 'X-PMS-Event' => $delivery->event])->post($delivery->endpoint->url, json_decode($this->body, true, 512, JSON_THROW_ON_ERROR));
             if (! $response->successful()) {
                 throw new \RuntimeException('Webhook endpoint returned HTTP '.$response->status().'.');
@@ -38,6 +43,8 @@ class DeliverWebhook implements ShouldQueue
         } catch (Throwable $exception) {
             $delivery->update(['status' => 'failed', 'http_status' => isset($response) ? $response->status() : null, 'duration_ms' => (int) ((microtime(true) - $started) * 1000), 'error_summary' => mb_substr($exception->getMessage(), 0, 500)]);
             throw $exception;
+        } finally {
+            $context->release();
         }
     }
 

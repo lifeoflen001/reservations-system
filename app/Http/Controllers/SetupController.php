@@ -6,18 +6,23 @@ use App\Http\Requests\Setup\StoreSetupRequest;
 use App\Models\Currency;
 use App\Models\Installation;
 use App\Models\Language;
+use App\Models\Organization;
 use App\Models\Property;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\InstallationState;
 use App\Services\PropertySettingsService;
 use App\Services\SystemSettingsService;
+use App\Services\SaasDefaultTenantBackfillService;
+use App\Services\OperationalTenantBackfillService;
+use App\Services\Tenancy\TenantContext;
 use Database\Seeders\RbacSeeder;
 use Database\Seeders\ReferenceDataSeeder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class SetupController extends Controller
@@ -73,6 +78,9 @@ class SetupController extends Controller
             $this->system->update(['theme' => 'light', 'edition' => 'Pro (Development)', 'last_update_check' => null], $admin->id);
         });
 
+        app(SaasDefaultTenantBackfillService::class)->run();
+        app(OperationalTenantBackfillService::class)->run();
+
         $this->properties->clearCache();
 
         $request->session()->forget(['setup.step', 'setup.data']);
@@ -93,6 +101,29 @@ class SetupController extends Controller
 
     private function seedReferenceData(): void
     {
+        $currency = Currency::firstOrCreate(['code' => 'USD'], [
+            'name' => 'US Dollar', 'symbol' => '$', 'decimal_places' => 2, 'is_active' => true,
+        ]);
+        $organization = Organization::firstOrCreate(['slug' => 'lodgix-default-organization'], [
+            'uuid' => (string) Str::uuid(), 'name' => config('hotel.defaults.property_name', 'Lodgix Organization'),
+            'status' => 'active', 'subscription_status' => 'active',
+        ]);
+        if (! Property::query()->exists()) {
+            Property::create([
+                'organization_id' => $organization->id,
+                'name' => config('hotel.defaults.property_name'),
+                'default_language' => 'en',
+                'check_in_time' => config('hotel.defaults.check_in_time'),
+                'check_out_time' => config('hotel.defaults.check_out_time'),
+                'timezone' => config('hotel.defaults.timezone'),
+                'base_currency_id' => $currency->id,
+            ]);
+        }
+        app(SaasDefaultTenantBackfillService::class)->run();
+        $property = Property::query()->orderBy('id')->first();
+        if ($property?->organization_id) {
+            app(TenantContext::class)->activate((int) $property->organization_id, (int) $property->id);
+        }
         app(ReferenceDataSeeder::class)->run();
         app(RbacSeeder::class)->run();
     }

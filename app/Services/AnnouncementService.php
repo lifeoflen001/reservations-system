@@ -4,12 +4,14 @@ namespace App\Services;
 
 use App\Models\Announcement;
 use App\Models\AnnouncementRecipient;
+use App\Models\Property;
 use App\Models\User;
 use App\Notifications\HotelDatabaseNotification;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use App\Services\Tenancy\TenantContext;
 
 class AnnouncementService
 {
@@ -60,15 +62,27 @@ class AnnouncementService
     public function processDue(): int
     {
         $changed = 0;
-        Announcement::query()->whereIn('status', ['scheduled', 'active'])->whereNotNull('end_at')->where('end_at', '<', now())->each(function (Announcement $announcement) use (&$changed): void {
-            $announcement->update(['status' => 'expired']);
-            $changed++;
+        $context = app(TenantContext::class);
+
+        // Scheduled processing is a platform worker concern, so explicitly
+        // iterate active properties instead of relying on a browser context.
+        Property::query()->where('status', 'active')->whereNotNull('organization_id')->orderBy('id')->each(function (Property $property) use (&$changed, $context): void {
+            $context->activate((int) $property->organization_id, (int) $property->id);
+            try {
+                Announcement::query()->whereIn('status', ['scheduled', 'active'])->whereNotNull('end_at')->where('end_at', '<', now())->each(function (Announcement $announcement) use (&$changed): void {
+                    $announcement->update(['status' => 'expired']);
+                    $changed++;
+                });
+                Announcement::query()->where('status', 'scheduled')->where('start_at', '<=', now())->each(function (Announcement $announcement) use (&$changed): void {
+                    $announcement->update(['status' => 'active']);
+                    $this->snapshotAndNotify($announcement, $announcement->publisher ?: $announcement->creator ?: User::query()->firstOrFail());
+                    $changed++;
+                });
+            } finally {
+                $context->release();
+            }
         });
-        Announcement::query()->where('status', 'scheduled')->where('start_at', '<=', now())->each(function (Announcement $announcement) use (&$changed): void {
-            $announcement->update(['status' => 'active']);
-            $this->snapshotAndNotify($announcement, $announcement->publisher ?: $announcement->creator ?: User::query()->firstOrFail());
-            $changed++;
-        });
+
         return $changed;
     }
 

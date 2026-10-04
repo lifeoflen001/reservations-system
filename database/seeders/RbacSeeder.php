@@ -11,6 +11,7 @@ class RbacSeeder extends Seeder
     public function run(): void
     {
         $this->call(FinanceReferenceSeeder::class);
+        $this->call(WebsiteSeeder::class);
         $permissions = collect(config('hotel.permissions', []))->mapWithKeys(fn (string $name) => [
             $name => Permission::firstOrCreate(['name' => $name], ['label' => str($name)->replace('.', ' ')->headline()]),
         ]);

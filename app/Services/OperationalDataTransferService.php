@@ -19,6 +19,7 @@ use App\Models\RoomCategory;
 use App\Models\RoomType;
 use App\Models\Task;
 use App\Models\User;
+use App\Services\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -101,6 +102,11 @@ class OperationalDataTransferService
 
     public function import(string $resource, UploadedFile $file, User $actor): int
     {
+        // Imports may be invoked from a controller or a trusted worker. In
+        // both cases the target property must already be explicit; CSV data
+        // never gets to choose its ownership scope.
+        app(TenantContext::class)->requireProperty();
+
         if (strtolower($file->getClientOriginalExtension()) !== 'csv') throw ValidationException::withMessages(['file' => 'Please upload a CSV file.']);
         if (($file->getSize() ?: 0) > 10 * 1024 * 1024) throw ValidationException::withMessages(['file' => 'CSV files must be 10 MB or smaller.']);
 

@@ -7,6 +7,7 @@ use App\Exceptions\ProviderNotConfiguredException;
 use App\Jobs\SendHotelEmail;
 use App\Models\ChannelConnection;
 use App\Models\IntegrationSetting;
+use App\Models\Property;
 use App\Models\User;
 use App\Notifications\HotelDatabaseNotification;
 use App\Services\ApiTokenService;
@@ -14,6 +15,7 @@ use App\Services\ExternalReservationService;
 use App\Services\HotelEmailService;
 use App\Services\SafeTemplateRenderer;
 use App\Services\WebhookSignatureService;
+use App\Services\Tenancy\TenantContext;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -24,9 +26,16 @@ class Phase09IntegrationsTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->seed(DatabaseSeeder::class);
+        $property = Property::firstOrFail();
+        app(TenantContext::class)->activate((int) $property->organization_id, (int) $property->id);
+    }
+
     public function test_api_tokens_are_hashed_scoped_and_revocable(): void
     {
-        $this->seed(DatabaseSeeder::class);
         $admin = User::firstOrFail();
         [$token, $plain] = app(ApiTokenService::class)->issue($admin, 'Rooms integration', ['rooms:read']);
         $this->assertNotSame($plain, $token->token_hash);
@@ -40,7 +49,6 @@ class Phase09IntegrationsTest extends TestCase
 
     public function test_email_queue_is_recorded_without_leaking_secrets(): void
     {
-        $this->seed(DatabaseSeeder::class);
         $admin = User::firstOrFail();
         Queue::fake();
         IntegrationSetting::create(['key' => 'email', 'provider' => 'smtp', 'status' => 'configured', 'mode' => 'smtp', 'is_enabled' => true, 'settings' => ['host' => 'smtp.example.test', 'from_email' => 'frontdesk@example.test', 'from_name' => 'HotelDesk'], 'secrets' => ['password' => 'do-not-log-this']]);
@@ -55,7 +63,6 @@ class Phase09IntegrationsTest extends TestCase
 
     public function test_signed_inbound_webhook_is_idempotent_and_notifications_are_scoped(): void
     {
-        $this->seed(DatabaseSeeder::class);
         $admin = User::firstOrFail();
         $raw = json_encode(['event' => 'message', 'id' => 'evt-1']);
         $secret = 'webhook-secret-12345';
@@ -75,7 +82,6 @@ class Phase09IntegrationsTest extends TestCase
 
     public function test_channel_external_reservation_import_is_idempotent_and_adapters_are_safe_by_default(): void
     {
-        $this->seed(DatabaseSeeder::class);
         $connection = ChannelConnection::create(['provider' => 'booking-com', 'name' => 'Demo channel', 'status' => 'not_configured', 'is_active' => false]);
         $first = app(ExternalReservationService::class)->record($connection, 'external-1', ['guest' => 'Example']);
         $second = app(ExternalReservationService::class)->record($connection, 'external-1', ['guest' => 'Updated']);

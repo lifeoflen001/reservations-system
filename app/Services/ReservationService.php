@@ -8,6 +8,7 @@ use App\Events\ReservationCreated;
 use App\Events\ReservationUpdated;
 use App\Models\Reservation;
 use App\Models\Room;
+use App\Models\Client;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -25,7 +26,14 @@ class ReservationService
         $reservation = DB::transaction(function () use ($attributes, $actorId) {
             $checkIn = Carbon::parse($attributes['check_in']);
             $checkOut = Carbon::parse($attributes['check_out']);
-            $room = Room::query()->lockForUpdate()->findOrFail($attributes['room_id']);
+            $room = Room::query()->withoutGlobalScope('tenant-ownership')->lockForUpdate()->findOrFail($attributes['room_id']);
+            $ownership = app(TenantOwnershipConsistencyService::class);
+            $ownership->assertCurrentProperty($room->property_id, 'The selected room belongs to another property.');
+            $client = Client::query()->withoutGlobalScope('tenant-ownership')->findOrFail($attributes['client_id']);
+            $ownership->assertCurrentOrganization($client->organization_id, 'The selected guest belongs to another organization.');
+            if ($room->property?->organization_id !== null && $client->organization_id !== null && (int) $room->property->organization_id !== (int) $client->organization_id) {
+                throw new \InvalidArgumentException('The selected guest and room belong to different organizations.');
+            }
             $this->availability->assertCapacity($room, (int) $attributes['adults'], (int) ($attributes['children'] ?? 0));
             $this->availability->assertAvailable($room, $checkIn, $checkOut);
             $rate = (float) $attributes['nightly_rate'];
@@ -62,12 +70,20 @@ class ReservationService
     public function update(Reservation $existing, array $attributes, ?int $actorId = null): Reservation
     {
         [$reservation, $room, $status, $statusChanged] = DB::transaction(function () use ($existing, $attributes, $actorId) {
-            $reservation = Reservation::query()->lockForUpdate()->findOrFail($existing->id);
+            $reservation = Reservation::query()->withoutGlobalScope('tenant-ownership')->lockForUpdate()->findOrFail($existing->id);
             $checkIn = Carbon::parse($attributes['check_in']);
             $checkOut = Carbon::parse($attributes['check_out']);
             $roomIds = collect([$reservation->room_id, (int) $attributes['room_id']])->unique()->sort()->values();
-            $rooms = $roomIds->mapWithKeys(fn (int $id) => [$id => Room::query()->lockForUpdate()->findOrFail($id)]);
+            $rooms = $roomIds->mapWithKeys(fn (int $id) => [$id => Room::query()->withoutGlobalScope('tenant-ownership')->lockForUpdate()->findOrFail($id)]);
             $room = $rooms[(int) $attributes['room_id']];
+            $ownership = app(TenantOwnershipConsistencyService::class);
+            $ownership->assertSameProperty($reservation->property_id, $room->property_id, 'The reservation and room must belong to the same property.');
+            $ownership->assertCurrentProperty($reservation->property_id, 'The reservation belongs to another property.');
+            $client = Client::query()->withoutGlobalScope('tenant-ownership')->findOrFail($attributes['client_id']);
+            $ownership->assertCurrentOrganization($client->organization_id, 'The selected guest belongs to another organization.');
+            if ($room->property?->organization_id !== null && $client->organization_id !== null && (int) $room->property->organization_id !== (int) $client->organization_id) {
+                throw new \InvalidArgumentException('The selected guest and room belong to different organizations.');
+            }
             $this->availability->assertCapacity($room, (int) $attributes['adults'], (int) ($attributes['children'] ?? 0));
             $this->availability->assertAvailable($room, $checkIn, $checkOut, $reservation->id);
             $nights = $checkIn->copy()->startOfDay()->diffInDays($checkOut->copy()->startOfDay());

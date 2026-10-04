@@ -6,6 +6,7 @@ use App\Enums\TaskPriority;
 use App\Enums\TaskStatus;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use App\Support\TenantValidation;
 
 class StoreHousekeepingTaskRequest extends FormRequest
 {
@@ -13,7 +14,7 @@ class StoreHousekeepingTaskRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'room_id' => ['required', 'integer', 'exists:rooms,id'],
+            'room_id' => ['required', 'integer', TenantValidation::propertyExists('rooms')],
             'assignee_id' => ['nullable', 'integer', 'exists:users,id'],
             'task_type' => ['required', Rule::in(['cleaning', 'inspection', 'linen_change', 'turndown', 'deep_cleaning'])],
             'priority' => ['required', Rule::enum(TaskPriority::class)],

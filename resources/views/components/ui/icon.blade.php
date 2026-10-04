@@ -4,6 +4,7 @@
     @switch($name)
         @case('building') <path d="M4 21h16M6 21V5a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v16M9 8h1m4 0h1M9 12h1m4 0h1M9 16h1m4 0h1M10 21v-3h4v3" /> @break
         @case('menu') <path d="M4 6h16M4 12h16M4 18h16" /> @break
+        @case('more-horizontal') <circle cx="5" cy="12" r="1" fill="currentColor" stroke="none" /><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" /><circle cx="19" cy="12" r="1" fill="currentColor" stroke="none" /> @break
         @case('search') <circle cx="11" cy="11" r="6.5" /><path d="m16 16 4 4" /> @break
         @case('calendar') <rect x="3.5" y="5" width="17" height="15" rx="1.5" /><path d="M7 3v4M17 3v4M3.5 9h17M8 13h.01M12 13h.01M16 13h.01M8 16h.01M12 16h.01" /> @break
         @case('moon') <path d="M20 15.2A8.5 8.5 0 0 1 8.8 4 8.5 8.5 0 1 0 20 15.2Z" /> @break
@@ -47,9 +48,13 @@
         @case('check') <path d="m5 12 4 4L19 6" /> @break
         @case('check-square') <rect x="4" y="4" width="16" height="16" rx="2" /><path d="m8 12 2.5 2.5L16 9" /> @break
         @case('arrow-right') <path d="M5 12h14m-6-6 6 6-6 6" /> @break
+        @case('arrow-left') <path d="M19 12H5m6 6-6-6 6-6" /> @break
+        @case('arrow-up') <path d="m6 10 6-6 6 6M12 4v16" /> @break
+        @case('arrow-down') <path d="m6 14 6 6 6-6M12 20V4" /> @break
         @case('info') <circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 8h.01" /> @break
         @case('alert') <path d="m12 3 9 17H3L12 3Z" /><path d="M12 9v4M12 16h.01" /> @break
         @case('camera') <path d="M4 7h3l1.5-2h7L17 7h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z" /><circle cx="12" cy="13" r="3.5" /> @break
+        @case('image') <rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="8.5" cy="9" r="1.5" /><path d="m3 17 5-5 4 4 3-3 6 6" /> @break
         @case('upload') <path d="M12 16V4m0 0L7 9m5-5 5 5M4 20h16" /> @break
         @default <circle cx="12" cy="12" r="8" />
     @endswitch

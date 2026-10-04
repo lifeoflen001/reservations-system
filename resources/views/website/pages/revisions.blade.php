@@ -1,0 +1,7 @@
+@extends('layouts.app')
+@section('content')
+<x-page-header title="{{ $page->name }} revisions" subtitle="Previous published snapshots are retained for safe recovery."><a class="ui-button ui-button--secondary" href="{{ route('website.pages.edit', $page) }}">Back to editor</a></x-page-header>
+@include('website.partials.nav')
+<section class="ui-card"><header class="ui-card__header"><div><h2>Published snapshots</h2><p>Restore a snapshot as a new draft, then review it before publishing.</p></div></header><x-data.table caption="Page revisions"><thead><tr><th>Version</th><th>Created</th><th>Created by</th><th>Snapshot</th><th>Action</th></tr></thead><tbody>@forelse($page->revisions as $revision)<tr><td>v{{ $revision->version }}</td><td>{{ $revision->created_at?->format('Y-m-d H:i') }}</td><td>{{ $revision->creator?->display_name ?? 'System' }}</td><td>{{ count($revision->snapshot['sections'] ?? []) }} sections captured</td><td><form method="POST" action="{{ route('website.pages.revisions.restore', [$page, $revision]) }}" data-confirm="Restore this revision as a draft?">@csrf<button class="ui-button ui-button--secondary ui-button--small" type="submit"><x-ui.icon name="history" size="14" /> Restore draft</button></form></td></tr>@empty<tr><td colspan="5"><div class="empty-state"><strong>No revisions yet.</strong><span>Publishing a page will create a recovery snapshot.</span></div></td></tr>@endforelse</tbody></x-data.table></section>
+@include('website.partials.close')
+@endsection

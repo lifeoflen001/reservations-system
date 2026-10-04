@@ -5,8 +5,10 @@ namespace App\Services;
 use App\Models\Currency;
 use App\Models\Language;
 use App\Models\Property;
+use App\Services\Tenancy\TenantContext;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
+use LogicException;
 
 class PropertySettingsService
 {
@@ -20,7 +22,14 @@ class PropertySettingsService
             return null;
         }
 
-        return Cache::rememberForever(self::CACHE_KEY, fn () => Property::query()->with('baseCurrency')->first());
+        $property = app(TenantContext::class)->currentProperty();
+        if (! $property) {
+            return null;
+        }
+
+        return Cache::rememberForever($this->propertyCacheKey($property), function () use ($property): ?Property {
+            return Property::query()->with(['baseCurrency', 'organization'])->find($property->getKey());
+        });
     }
 
     public function value(string $key, mixed $default = null): mixed
@@ -85,18 +94,28 @@ class PropertySettingsService
 
     public function update(array $values, ?int $actorId = null): Property
     {
-        $property = Property::query()->first() ?? new Property;
+        $property = $this->current();
+        if (! $property) {
+            if (Schema::hasTable('properties') && Property::query()->count() === 0) {
+                $property = new Property;
+            } else {
+                throw new LogicException('An active property context is required to update property settings.');
+            }
+        }
         $property->fill($values);
         $property->updated_by = $actorId;
         $property->save();
-        $this->clearCache();
+        $this->clearCache($property);
 
         return $property->load('baseCurrency');
     }
 
-    public function clearCache(): void
+    public function clearCache(?Property $property = null): void
     {
-        Cache::forget(self::CACHE_KEY);
+        $property ??= app(TenantContext::class)->currentProperty();
+        if ($property) {
+            Cache::forget($this->propertyCacheKey($property));
+        }
         Cache::forget(self::CURRENCIES_CACHE_KEY);
         Cache::forget(self::LANGUAGES_CACHE_KEY);
     }
@@ -109,5 +128,14 @@ class PropertySettingsService
     public function languages()
     {
         return Cache::rememberForever(self::LANGUAGES_CACHE_KEY, fn () => Language::query()->where('is_active', true)->orderBy('name')->get());
+    }
+
+    private function propertyCacheKey(Property $property): string
+    {
+        $organization = $property->relationLoaded('organization') ? $property->organization : $property->organization()->first();
+        $organizationKey = $organization?->uuid ?: 'org-'.$property->organization_id;
+        $propertyKey = $property->uuid ?: 'property-'.$property->getKey();
+
+        return self::CACHE_KEY.':'.$organizationKey.':'.$propertyKey;
     }
 }

@@ -1,6 +1,10 @@
 @extends('layouts.app')
 
 @section('content')
+@php
+    $activeProperty = app(\App\Services\Tenancy\TenantContext::class)->currentProperty();
+@endphp
+@if($activeProperty)<div class="tenant-page-context"><x-ui.icon name="building" size="15" /><span>Operating property</span><strong>{{ $activeProperty->name }}</strong></div>@endif
     @php
         $chartItems = $chart['items'];
         $plotLeft = 44;

@@ -31,6 +31,8 @@ class PaginationTest extends TestCase
 
     public function test_clients_table_renders_rows_filter_and_preserves_current_filters(): void
     {
+        $this->actingAs(User::query()->where('username', 'admin')->firstOrFail());
+
         foreach (range(1, 11) as $number) {
             Client::create([
                 'first_name' => 'Guest',

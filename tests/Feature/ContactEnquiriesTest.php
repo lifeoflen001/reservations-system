@@ -134,6 +134,49 @@ class ContactEnquiriesTest extends TestCase
         $this->assertDatabaseHas('contact_enquiries', ['id' => $enquiry->id, 'status' => 'closed']);
     }
 
+    public function test_public_submission_is_visible_in_the_website_cms_inbox(): void
+    {
+        Queue::fake();
+        config()->set('hotel.contact.email', null);
+        $admin = $this->userWithPermissions(['website.enquiries.view']);
+
+        $this->post(route('public.contact.submit'), $this->validPayload([
+            'name' => 'Website Inbox Guest',
+            'email' => 'website-inbox@example.test',
+        ]))->assertRedirect(route('public.contact'));
+
+        $enquiry = ContactEnquiry::query()->where('email', 'website-inbox@example.test')->firstOrFail();
+
+        $this->actingAs($admin)
+            ->get(route('website.enquiries'))
+            ->assertOk()
+            ->assertSee('Website Inbox Guest')
+            ->assertSee($enquiry->email);
+    }
+
+    public function test_public_submission_stays_in_website_inbox_without_creating_an_in_app_notification(): void
+    {
+        config()->set('hotel.contact.email', null);
+        $admin = $this->userWithPermissions(['website.enquiries.view', 'notifications.view']);
+
+        $this->post(route('public.contact.submit'), $this->validPayload([
+            'name' => 'Notification Guest',
+            'email' => 'notification@example.test',
+        ]))->assertRedirect(route('public.contact'));
+
+        $this->assertDatabaseHas('contact_enquiries', [
+            'email' => 'notification@example.test',
+            'status' => 'new',
+        ]);
+        $this->assertSame(0, $admin->fresh()->unreadNotifications()->count());
+
+        $this->actingAs($admin)
+            ->get(route('website.enquiries'))
+            ->assertOk()
+            ->assertSee('Notification Guest')
+            ->assertSee('notification@example.test');
+    }
+
     public function test_users_without_enquiry_permission_cannot_access_the_management_inbox(): void
     {
         $user = $this->userWithPermissions([]);

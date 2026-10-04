@@ -14,13 +14,16 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use InvalidArgumentException;
 
 class TaskService
 {
     public function create(array $data, int $actorId): Task
     {
         return DB::transaction(function () use ($data, $actorId): Task {
-            $task = Task::create($this->contextFromReservation($data) + collect($data)->except(['assignee_ids', 'tags', 'subtasks'])->merge(['task_number' => 'TASK-'.Str::uuid(), 'created_by' => $actorId])->all());
+            $context = $this->contextFromReservation($data);
+            $this->assertOwnership($data, $context);
+            $task = Task::create($context + collect($data)->except(['assignee_ids', 'tags', 'subtasks'])->merge(['task_number' => 'TASK-'.Str::uuid(), 'created_by' => $actorId])->all());
             $task->update(['task_number' => 'TSK-'.str_pad((string) $task->id, 6, '0', STR_PAD_LEFT)]);
             $this->syncRelations($task, $data, $actorId);
             $this->activity($task, $actorId, 'Task created');
@@ -32,7 +35,9 @@ class TaskService
     public function update(Task $task, array $data, int $actorId): Task
     {
         return DB::transaction(function () use ($task, $data, $actorId): Task {
-            $task->update($this->contextFromReservation($data) + collect($data)->except(['assignee_ids', 'tags', 'subtasks'])->all());
+            $context = $this->contextFromReservation($data);
+            $this->assertOwnership($data, $context, $task);
+            $task->update($context + collect($data)->except(['assignee_ids', 'tags', 'subtasks'])->all());
             $this->syncRelations($task, $data, $actorId);
             $this->activity($task, $actorId, 'Task updated');
             if (array_key_exists('assignee_ids', $data)) $this->notifyAssignees($task, $actorId, 'Task assignment updated', 'Your task assignments have been updated for '.$task->task_number.'.');
@@ -140,6 +145,38 @@ class TaskService
             if ($reservation) return ['room_id' => $data['room_id'] ?? $reservation->room_id, 'client_id' => $data['client_id'] ?? $reservation->client_id];
         }
         return [];
+    }
+
+    private function assertOwnership(array $data, array $context = [], ?Task $existing = null): void
+    {
+        $ownership = app(TenantOwnershipConsistencyService::class);
+        $ownership->assertCurrentProperty($existing?->property_id, 'The task belongs to another property.');
+
+        $propertyIds = collect([$existing?->property_id]);
+        foreach (['room_id' => 'rooms', 'reservation_id' => 'reservations', 'housekeeping_task_id' => 'housekeeping_tasks', 'maintenance_task_id' => 'maintenance_tasks'] as $field => $table) {
+            $id = $data[$field] ?? $context[$field] ?? $existing?->{$field};
+            if (! $id) continue;
+
+            $propertyId = DB::table($table)->where('id', $id)->value('property_id');
+            // Legacy imports and pre-tenant maintenance flows may still reference
+            // nullable ownership rows. Once a tenant property is resolved, an
+            // unowned reference must be rejected instead of being attached to it.
+            if ($propertyId === null) {
+                if ($ownership->currentPropertyId() !== null) throw new InvalidArgumentException('The selected task reference is not assigned to a property.');
+                continue;
+            }
+            $propertyIds->push((int) $propertyId);
+        }
+
+        $propertyIds = $propertyIds->filter()->unique()->values();
+        if ($propertyIds->count() > 1) throw new InvalidArgumentException('Task references must belong to the same property.');
+        if ($propertyIds->isNotEmpty()) $ownership->assertCurrentProperty((int) $propertyIds->first(), 'The task reference belongs to another property.');
+
+        $clientId = $data['client_id'] ?? $context['client_id'] ?? $existing?->client_id;
+        if ($clientId) {
+            $organizationId = DB::table('clients')->where('id', $clientId)->value('organization_id');
+            $ownership->assertCurrentOrganization($organizationId ? (int) $organizationId : null, 'The task guest belongs to another organization.');
+        }
     }
 
     private function syncRelations(Task $task, array $data, int $actorId): void

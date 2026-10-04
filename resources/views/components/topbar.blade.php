@@ -6,6 +6,7 @@
 
 <header class="topbar">
     <button class="topbar__menu" type="button" data-sidebar-toggle aria-label="Toggle navigation" data-tooltip="Toggle navigation"><x-ui.icon name="menu" size="20" /></button>
+    <x-tenant-switcher />
     <form class="global-search" action="{{ route('search') }}" method="GET" role="search" data-global-search>
         <button type="submit" class="global-search__submit" aria-label="Search" data-tooltip="Search"><x-ui.icon name="search" size="19" /></button>
         <input type="search" name="q" value="{{ request()->routeIs('search') ? request('q') : '' }}" placeholder="Search anywhere..." aria-label="Search anywhere" data-global-search-input>
@@ -27,8 +28,12 @@
             <x-ui.icon name="fullscreen-exit" size="19" data-fullscreen-exit hidden />
         </button>
         @if(auth()->user()->hasPermission('notifications.view'))
-        @php($unreadCount = auth()->user()->unreadNotifications()->count())
-        @php($unreadNotifications = auth()->user()->unreadNotifications()->latest()->limit(5)->get())
+        @php($tenantContext = app(\App\Services\Tenancy\TenantContext::class))
+        @php($tenantOrganizationId = $tenantContext->organizationId())
+        @php($tenantPropertyId = $tenantContext->propertyId())
+        @php($notificationQuery = auth()->user()->unreadNotifications()->when($tenantOrganizationId !== null, function ($query) use ($tenantOrganizationId, $tenantPropertyId) { return $query->where('organization_id', $tenantOrganizationId)->where(function ($scope) use ($tenantPropertyId) { $scope->whereNull('property_id'); if ($tenantPropertyId !== null) { $scope->orWhere('property_id', $tenantPropertyId); } }); }, function ($query) { return \App\Models\Organization::query()->exists() ? $query->whereRaw('1 = 0') : $query; }))
+        @php($unreadCount = (clone $notificationQuery)->count())
+        @php($unreadNotifications = $notificationQuery->latest()->limit(5)->get())
         <div class="dropdown notifications-dropdown" data-dropdown>
             <button type="button" class="topbar__icon notification-toggle" data-dropdown-toggle aria-expanded="false" aria-label="Notifications" data-tooltip="Notifications"><x-ui.icon name="bell" size="19" />@if($unreadCount > 0)<span class="notification-count">{{ $unreadCount > 99 ? '99+' : $unreadCount }}</span>@endif</button>
             <div class="dropdown__menu dropdown__menu--notifications" data-dropdown-menu hidden><div class="notification-menu__heading"><div class="notification-menu__title"><span class="notification-menu__title-icon"><x-ui.icon name="bell" size="16" /></span><div><strong>Notifications</strong>@if($unreadCount > 0)<span>{{ $unreadCount }} unread</span>@else<span>All caught up</span>@endif</div></div><div class="notification-menu__actions">@if($unreadCount > 0)<form method="POST" action="{{ route('notifications.read-all') }}">@csrf<button class="notification-menu__action" type="submit">Mark all read</button></form>@endif<a class="notification-menu__action" href="{{ route('notifications.index') }}">View all</a></div></div><div class="notification-menu__list">@forelse($unreadNotifications as $notification)<a class="notification-menu__item" href="{{ route('notifications.index') }}"><span class="notification-menu__indicator" aria-hidden="true"></span><span class="notification-menu__copy"><strong>{{ $notification->data['title'] ?? 'Notification' }}</strong><time datetime="{{ $notification->created_at?->toIso8601String() }}">{{ $notification->created_at->diffForHumans() }}</time></span><span class="notification-menu__arrow"><x-ui.icon name="chevron-right" size="15" /></span></a>@empty<div class="notification-menu__empty"><span class="notification-menu__empty-icon"><x-ui.icon name="check" size="16" /></span><strong>You're all caught up</strong><small>No new notifications right now.</small></div>@endforelse</div><a class="notification-menu__footer" href="{{ route('notifications.index') }}">Open notification center <x-ui.icon name="arrow-right" size="14" /></a></div>

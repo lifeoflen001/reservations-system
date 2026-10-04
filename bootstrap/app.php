@@ -5,6 +5,16 @@ use App\Http\Middleware\EnsureInstallationComplete;
 use App\Http\Middleware\EnsureInstallationIncomplete;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\UsePropertySettings;
+use App\Http\Middleware\ResolveTenantContext;
+use App\Http\Middleware\EnsurePlatformAuthenticated;
+use App\Http\Middleware\EnsureActivePlatformAdministrator;
+use App\Http\Middleware\EnsurePlatformPermission;
+use App\Http\Middleware\EnsurePlatformTwoFactor;
+use App\Http\Middleware\EnsurePlatformTwoFactorPending;
+use App\Http\Middleware\ResolvePlatformSupportContext;
+use App\Http\Middleware\PlatformSupportReadOnly;
+use App\Http\Middleware\EnsureFeatureEntitlement;
+use App\Http\Middleware\EnsureCustomerEmailVerified;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -38,6 +48,16 @@ return Application::configure(basePath: dirname(__DIR__))
             'installation.complete' => EnsureInstallationComplete::class,
             'installation.incomplete' => EnsureInstallationIncomplete::class,
             'configured.session' => ConfiguredSessionSecurity::class,
+            'tenant.context' => ResolveTenantContext::class,
+            'platform.auth' => EnsurePlatformAuthenticated::class,
+            'platform.active' => EnsureActivePlatformAdministrator::class,
+            'platform.permission' => EnsurePlatformPermission::class,
+            'platform.2fa' => EnsurePlatformTwoFactor::class,
+            'platform.2fa.pending' => EnsurePlatformTwoFactorPending::class,
+            'platform.support.context' => ResolvePlatformSupportContext::class,
+            'platform.support.readonly' => PlatformSupportReadOnly::class,
+            'feature' => EnsureFeatureEntitlement::class,
+            'customer.verified' => EnsureCustomerEmailVerified::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

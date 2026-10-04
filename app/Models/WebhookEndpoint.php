@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\AssignsTenantOwnership;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class WebhookEndpoint extends Model
 {
+    use AssignsTenantOwnership;
+
     protected $fillable = ['name', 'url', 'signing_secret', 'events', 'is_active', 'created_by', 'updated_by', 'last_success_at', 'last_failure_at', 'last_error'];
 
     protected $hidden = ['signing_secret'];

@@ -3,11 +3,13 @@
 namespace App\Models;
 
 use App\Enums\RoomBlockType;
+use App\Models\Concerns\AssignsTenantOwnership;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class RoomBlock extends Model
 {
+    use AssignsTenantOwnership;
     protected $fillable = ['room_id', 'created_by', 'type', 'reason', 'starts_at', 'ends_at', 'is_active'];
 
     protected function casts(): array
@@ -17,4 +19,5 @@ class RoomBlock extends Model
 
     public function room(): BelongsTo { return $this->belongsTo(Room::class); }
     public function creator(): BelongsTo { return $this->belongsTo(User::class, 'created_by'); }
+    public function property(): BelongsTo { return $this->belongsTo(Property::class); }
 }

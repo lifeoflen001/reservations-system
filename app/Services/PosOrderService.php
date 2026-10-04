@@ -18,30 +18,36 @@ use InvalidArgumentException;
 
 class PosOrderService
 {
-    public function __construct(private readonly FinanceService $finance) {}
+    public function __construct(
+        private readonly FinanceService $finance,
+        private readonly TenantOwnershipConsistencyService $ownership,
+    ) {}
 
     public function checkout(array $data, User $actor): PosOrder
     {
         return DB::transaction(function () use ($data, $actor): PosOrder {
             if (! empty($data['idempotency_key']) && ($existing = PosOrder::query()->where('idempotency_key', $data['idempotency_key'])->lockForUpdate()->first())) {
+                $this->ownership->assertCurrentProperty($existing->property_id, 'This idempotency key belongs to another property.');
                 return $existing->load(['items', 'payments', 'roomCharge', 'outlet']);
             }
 
             $outletId = (int) $data['outlet_id'];
-            $outlet = DB::table('pos_outlets')->where('id', $outletId)->where('is_active', true)->lockForUpdate()->first();
+            $outlet = DB::table('pos_outlets')->where('id', $outletId)->where('property_id', $this->ownership->currentPropertyId())->where('is_active', true)->lockForUpdate()->first();
             if (! $outlet) throw new InvalidArgumentException('The selected outlet is no longer active.');
+            $this->ownership->assertCurrentProperty($outlet->property_id, 'The selected outlet belongs to another property.');
 
             $shift = null;
             if (! empty($data['shift_id'])) {
                 $shift = PosShift::query()->whereKey($data['shift_id'])->lockForUpdate()->first();
                 if (! $shift || $shift->status !== 'open' || ($shift->cashier_id !== $actor->getKey() && ! $actor->hasPermission('pos.shifts.view_all'))) throw new InvalidArgumentException('The selected shift is not available.');
                 if ($shift->outlet_id !== $outletId) throw new InvalidArgumentException('The shift does not belong to this outlet.');
+                $this->ownership->assertSameProperty($outlet->property_id, $shift->property_id, 'The shift and outlet must belong to the same property.');
             } elseif (config('hotel.pos.require_shift')) {
                 $shift = PosShift::query()->where('outlet_id', $outletId)->where('cashier_id', $actor->getKey())->where('status', 'open')->lockForUpdate()->first();
                 if (! $shift) throw new InvalidArgumentException('Open a cashier shift before completing a sale.');
             }
 
-            $items = $this->calculateItems($data['items'] ?? [], $outletId);
+            $items = $this->calculateItems($data['items'] ?? [], $outletId, (int) $outlet->property_id);
             if ($items['lines']->isEmpty()) throw new InvalidArgumentException('Add at least one active product to the order.');
             $discount = $this->calculateDiscount($items['subtotal'], $data, $actor);
             $tax = $items['tax'];
@@ -51,8 +57,12 @@ class PosOrderService
             if (! empty($data['reservation_id'])) {
                 $reservation = Reservation::query()->with('client')->whereKey($data['reservation_id'])->lockForUpdate()->first();
                 if (! $reservation || $reservation->status !== ReservationStatus::CheckedIn) throw new InvalidArgumentException('This room is no longer checked in.');
+                $this->ownership->assertSameProperty((int) $outlet->property_id, $reservation->property_id, 'The reservation and outlet must belong to the same property.');
                 if (! empty($data['room_id']) && (int) $data['room_id'] !== $reservation->room_id) throw new InvalidArgumentException('The selected room does not match the reservation.');
                 if (! empty($data['client_id']) && (int) $data['client_id'] !== $reservation->client_id) throw new InvalidArgumentException('The selected guest does not match the reservation.');
+            } elseif (! empty($data['room_id'])) {
+                $roomPropertyId = DB::table('rooms')->where('id', (int) $data['room_id'])->where('property_id', $this->ownership->currentPropertyId())->value('property_id');
+                $this->ownership->assertSameProperty((int) $outlet->property_id, $roomPropertyId, 'The room and outlet must belong to the same property.');
             }
 
             $payments = $this->normalizePayments($data['payments'] ?? [], $total, $reservation, $actor);
@@ -109,13 +119,13 @@ class PosOrderService
         });
     }
 
-    private function calculateItems(array $rawItems, int $outletId): array
+    private function calculateItems(array $rawItems, int $outletId, int $propertyId): array
     {
         $lines = collect(); $subtotal = 0.0; $tax = 0.0;
         foreach ($rawItems as $raw) {
             $productId = (int) ($raw['product_id'] ?? 0); $quantity = round((float) ($raw['quantity'] ?? 0), 3);
             if ($productId <= 0 || $quantity <= 0) continue;
-            $product = PosProduct::query()->whereKey($productId)->where('is_active', true)->where(fn ($query) => $query->whereNull('outlet_id')->orWhere('outlet_id', $outletId))->lockForUpdate()->first();
+            $product = PosProduct::query()->whereKey($productId)->where('property_id', $propertyId)->where('is_active', true)->where(fn ($query) => $query->whereNull('outlet_id')->orWhere('outlet_id', $outletId))->lockForUpdate()->first();
             if (! $product) throw new InvalidArgumentException('One of the selected products is no longer available.');
             if ($product->track_stock && (float) $product->stock_quantity < $quantity) throw new InvalidArgumentException('Insufficient stock for '.$product->name.'.');
             $base = round((float) $product->selling_price * $quantity, 2);

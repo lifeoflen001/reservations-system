@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\ChannelConnection;
 use App\Models\IntegrationLog;
 use App\Services\NullBookingChannelProvider;
+use App\Services\Tenancy\TenantContext;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -28,6 +29,10 @@ class SyncBookingChannel implements ShouldQueue
     public function handle(): void
     {
         $connection = ChannelConnection::findOrFail($this->connectionId);
+        $context = app(TenantContext::class);
+        if ($connection->property_id && $connection->property?->organization_id) {
+            $context->activate((int) $connection->property?->organization_id, (int) $connection->property_id);
+        }
         $log = IntegrationLog::create(['integration' => 'booking_channel', 'action' => 'sync', 'entity_type' => ChannelConnection::class, 'entity_id' => $connection->id, 'direction' => $this->direction, 'status' => 'started', 'attempts' => $this->attempts()]);
         try {
             app(NullBookingChannelProvider::class)->testConnection();
@@ -36,6 +41,8 @@ class SyncBookingChannel implements ShouldQueue
             $log->update(['status' => 'failed', 'completed_at' => now(), 'error_summary' => mb_substr($exception->getMessage(), 0, 1000)]);
             $connection->update(['last_error' => mb_substr($exception->getMessage(), 0, 1000)]);
             throw $exception;
+        } finally {
+            $context->release();
         }
     }
 }

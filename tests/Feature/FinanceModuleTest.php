@@ -31,6 +31,7 @@ class FinanceModuleTest extends TestCase
     {
         $this->seed(DatabaseSeeder::class);
         $admin = \App\Models\User::where('username', 'admin')->firstOrFail();
+        $this->actingAs($admin);
         $client = Client::create(['first_name' => 'Finance', 'last_name' => 'Guest']);
         $floor = Floor::create(['name' => 'Finance Floor']);
         $category = RoomCategory::create(['name' => 'Finance Category']);
@@ -75,6 +76,7 @@ class FinanceModuleTest extends TestCase
     {
         $this->seed(DatabaseSeeder::class);
         $admin = \App\Models\User::where('username', 'admin')->firstOrFail();
+        $this->actingAs($admin);
         $account = FinancialAccount::where('code', 'bank')->firstOrFail();
         $periodStart = now()->startOfMonth();
         $periodEnd = $periodStart->copy()->endOfMonth();
@@ -120,6 +122,7 @@ class FinanceModuleTest extends TestCase
     {
         $this->seed(DatabaseSeeder::class);
         $admin = \App\Models\User::where('username', 'admin')->firstOrFail();
+        $this->actingAs($admin);
         $account = FinancialAccount::where('code', 'cash')->firstOrFail();
         $expense = app(FinanceService::class)->createExpense(['account_id' => $account->id, 'amount' => 12.50, 'expense_date' => now(), 'description' => 'Approval test'], $admin->id);
         $this->assertSame('pending_approval', $expense->status);

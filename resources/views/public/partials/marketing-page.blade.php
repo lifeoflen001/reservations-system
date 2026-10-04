@@ -65,7 +65,7 @@ $pages = [
 ],
 ],
 ];
-$page = $pages[$pageKey];
+$page = app(\App\Services\PublicWebsiteContentService::class)->mergeMarketingPage($pageKey, $pages[$pageKey]);
 $pageTitle = $page['title'];
 $pageDescription = $page['description'];
 $pageCtas = [
