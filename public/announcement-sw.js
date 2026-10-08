@@ -1,7 +1,7 @@
 self.addEventListener('push', (event) => {
     let payload = {};
     try { payload = event.data ? event.data.json() : {}; } catch (error) { payload = {}; }
-    const title = payload.title || 'New Lodgic announcement';
+    const title = payload.title || 'New Lodgix announcement';
     const options = {
         body: payload.body || 'You have a new announcement.',
         icon: '/assets/branding/lodgix-mark.png',

@@ -826,7 +826,7 @@ body.modal-open { overflow: hidden; }
 /* Shared Lodgix branding */ 
 .sidebar__brand .app-logo__wordmark { max-width: 100%; }
 
-/* Finance workspace polish: reuse the Lodgic primitives with clearer hierarchy. */
+/* Finance workspace polish: reuse the Lodgix primitives with clearer hierarchy. */
 .finance-app-body .form-control:invalid { border-color: var(--input-border); box-shadow: none; }
 .finance-app-body .form-control[aria-invalid="true"] { border-color: var(--danger); box-shadow: 0 0 0 2px rgb(217 83 79 / 10%); }
 .finance-app-body .app-shell, .finance-app-body .app-main, .finance-app-body .finance-overview-grid, .finance-app-body .finance-kpi-grid { min-width: 0; overflow: visible; }
@@ -1330,7 +1330,7 @@ body.modal-open { overflow: hidden; }
 @media (max-width: 900px) { .pos-terminal__workspace { grid-template-columns: 1fr; }.pos-order-panel { position: static; }.pos-terminal__cashier { justify-items: start; } }
 @media (max-width: 600px) { .pos-terminal__toolbar { grid-template-columns: 1fr; }.pos-terminal__shift { justify-content: start; }.pos-product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }.pos-product-card { min-height: 118px; padding: 10px; }.pos-order-detail-grid, .pos-report-grid { grid-template-columns: 1fr; }.pos-receipt { padding: 18px; }.pos-receipt header { flex-direction: column; }.pos-receipt__number { justify-items: start; }.pos-receipt__meta { grid-template-columns: 1fr; }.pos-payment-methods { grid-template-columns: 1fr 1fr; } }
 
-/* POS polish: keep POS forms and controls aligned with the shared Lodgic system. */
+/* POS polish: keep POS forms and controls aligned with the shared Lodgix system. */
 .pos-compact-form { display: block !important; }
 .pos-compact-form .settings-form-grid { gap: 12px 14px; }
 .pos-compact-form .modal-form-footer { margin: 18px -22px -22px; }

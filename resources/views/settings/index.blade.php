@@ -87,7 +87,7 @@
                 </details>
             </x-ui.card>
         @elseif($section === 'license')
-            <x-ui.card title="License" icon="shield"><div class="settings-hero"><x-ui.icon name="shield" size="28" /><div><h2>{{ $edition }}</h2><p>One Lodgic license covers the application and its configured integrations.</p></div></div><div class="settings-info-grid"><div><small>Edition</small><strong>{{ $edition }}</strong></div><div><small>License status</small><strong>Development</strong></div><div><small>Product version</small><strong>v{{ $version }}</strong></div></div></x-ui.card>
+            <x-ui.card title="License" icon="shield"><div class="settings-hero"><x-ui.icon name="shield" size="28" /><div><h2>{{ $edition }}</h2><p>One Lodgix license covers the application and its configured integrations.</p></div></div><div class="settings-info-grid"><div><small>Edition</small><strong>{{ $edition }}</strong></div><div><small>License status</small><strong>Development</strong></div><div><small>Product version</small><strong>v{{ $version }}</strong></div></div></x-ui.card>
         @elseif($section === 'updates')
             <x-ui.card title="Updates" icon="download">
                 <form id="settings-updates-form" method="POST" action="{{ route('settings.updates.update') }}" data-draft-form data-draft-key="settings-updates">

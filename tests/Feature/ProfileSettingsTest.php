@@ -95,7 +95,7 @@ class ProfileSettingsTest extends TestCase
         $admin = User::firstOrFail();
 
         $this->actingAs($admin)->put(route('profile.update'), [
-            'first_name' => 'Lodgic',
+            'first_name' => 'Lodgix',
             'last_name' => 'Administrator',
             'username' => 'hotel-admin',
         ])->assertRedirect()->assertSessionHasNoErrors();
@@ -104,7 +104,7 @@ class ProfileSettingsTest extends TestCase
         User::factory()->create(['username' => 'admin']);
 
         $this->actingAs($admin)->put(route('profile.update'), [
-            'first_name' => 'Lodgic',
+            'first_name' => 'Lodgix',
             'last_name' => 'Administrator',
             'username' => 'admin',
         ])->assertRedirect()->assertSessionHasErrors('username');
@@ -122,7 +122,7 @@ class ProfileSettingsTest extends TestCase
             'email' => 'new-admin@example.test',
         ])->assertRedirect()->assertSessionHasNoErrors();
 
-        $this->assertSame('admin@lodgic.test', $admin->fresh()->email);
+        $this->assertSame('admin@lodgix.test', $admin->fresh()->email);
         $this->assertDatabaseHas('email_change_verifications', [
             'user_id' => $admin->id,
             'email' => 'new-admin@example.test',
@@ -159,7 +159,7 @@ class ProfileSettingsTest extends TestCase
             ->assertRedirect()
             ->assertSessionHasErrors('code');
 
-        $this->assertSame('admin@lodgic.test', $admin->fresh()->email);
+        $this->assertSame('admin@lodgix.test', $admin->fresh()->email);
         $this->assertDatabaseHas('email_change_verifications', [
             'user_id' => $admin->id,
             'attempts' => 1,

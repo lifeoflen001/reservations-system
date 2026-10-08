@@ -82,7 +82,7 @@ class DatabaseSeeder extends Seeder
             $superAdministratorRole = Role::where('name', 'super_administrator')->firstOrFail();
 
             $administrator = User::query()
-                ->where(fn ($query) => $query->where('email', 'admin@lodgic.test')->orWhere('username', 'admin'))
+                ->where(fn ($query) => $query->where('email', 'admin@lodgix.test')->orWhere('username', 'admin'))
                 ->first();
 
             // Keep the existing password on normal reseeds. A one-time Railway bootstrap
@@ -90,8 +90,8 @@ class DatabaseSeeder extends Seeder
             // was never seeded correctly.
             if (! $administrator) {
                 $administrator = User::create([
-                    'name' => 'Lodgic Administrator',
-                    'email' => 'admin@lodgic.test',
+                    'name' => 'Lodgix Administrator',
+                    'email' => 'admin@lodgix.test',
                     'username' => 'admin',
                     'role_id' => $superAdministratorRole->getKey(),
                     'is_active' => true,

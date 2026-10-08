@@ -7,7 +7,7 @@
                 <x-app-logo class="auth-form-logo" />
                 <div class="login-heading">
                     <h1 id="reset-password-title">Create a new password</h1>
-                    <p>Choose a strong password to secure your Lodgic account.</p>
+                    <p>Choose a strong password to secure your Lodgix account.</p>
                 </div>
 
                 @if ($errors->any())
@@ -29,7 +29,7 @@
             <div class="promo-content">
                 <span class="promo-kicker">{{ config('hotel.brand.name') }} Protected access</span>
                 <h2>A fresh password for every hotel operation.</h2>
-                <p>Your new password will be protected using Lodgic’s configured security rules.</p>
+                <p>Your new password will be protected using Lodgix’s configured security rules.</p>
                 <div class="promo-features">
                     <article class="promo-feature"><x-ui.icon name="shield" size="22" /><h3>Protected</h3><p>Your password is stored securely and never displayed.</p></article>
                     <article class="promo-feature"><x-ui.icon name="key" size="22" /><h3>Private</h3><p>Only you can use the reset link sent to your email.</p></article>

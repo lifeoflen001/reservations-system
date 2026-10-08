@@ -36,7 +36,7 @@ return [
     // Product metadata is kept separate from the framework/runtime versions so
     // the About and Updates screens can describe the packaged desktop build.
     'product' => [
-        'name' => env('HOTEL_PRODUCT_NAME', 'Lodgic'),
+        'name' => env('HOTEL_PRODUCT_NAME', 'Lodgix'),
         'version' => env('HOTEL_PRODUCT_VERSION', '0.1.1'),
         'edition' => env('HOTEL_PRODUCT_EDITION', 'Envato'),
         'electron' => env('HOTEL_ELECTRON_VERSION', '43.1.0'),
@@ -45,8 +45,8 @@ return [
         'platform' => env('HOTEL_PLATFORM', PHP_OS_FAMILY === 'Windows' ? 'win32-x64' : strtolower(PHP_OS).'-'.php_uname('m')),
         'packaged' => filter_var(env('HOTEL_PACKAGED', true), FILTER_VALIDATE_BOOL),
         'data_directory' => env('HOTEL_DATA_DIRECTORY'),
-        'update_server' => env('HOTEL_UPDATE_SERVER', 'Lodgic.app'),
-        'update_url' => env('HOTEL_UPDATE_URL', 'https://lodgic.app/updates/wsx-hotel-management-system'),
+        'update_server' => env('HOTEL_UPDATE_SERVER', 'Lodgix.app'),
+        'update_url' => env('HOTEL_UPDATE_URL', 'https://lodgix.app/updates/wsx-hotel-management-system'),
         'update_isolation' => env('HOTEL_UPDATE_ISOLATION', 'product-slug/edition/platform/architecture/release-channel'),
         'architecture' => env('HOTEL_ARCHITECTURE', PHP_INT_SIZE === 8 ? 'x64' : 'x86'),
     ],
@@ -61,7 +61,7 @@ return [
     ],
 
     'defaults' => [
-        'property_name' => env('HOTEL_PROPERTY_NAME', 'Lodgic Property'),
+        'property_name' => env('HOTEL_PROPERTY_NAME', 'Lodgix Property'),
         'language' => 'en',
         'check_in_time' => '14:00',
         'check_out_time' => '11:00',

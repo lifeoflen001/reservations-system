@@ -36,7 +36,7 @@ class DatabaseBackupService
     {
         File::ensureDirectoryExists($this->directory(), 0750, true);
 
-        $filename = 'lodgic-backup-'.now()->format('Ymd-His').'-'.Str::lower(Str::random(6)).'.sql';
+        $filename = 'lodgix-backup-'.now()->format('Ymd-His').'-'.Str::lower(Str::random(6)).'.sql';
         $path = $this->directory().DIRECTORY_SEPARATOR.$filename;
         $driver = DB::connection()->getDriverName();
 
@@ -90,7 +90,7 @@ class DatabaseBackupService
         $pdo = DB::connection()->getPdo();
         $tables = DB::select("SELECT name, sql FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name");
         $sql = [
-            '-- Lodgic SQLite database backup',
+            '-- Lodgix SQLite database backup',
             'PRAGMA foreign_keys=OFF;',
             'BEGIN TRANSACTION;',
         ];

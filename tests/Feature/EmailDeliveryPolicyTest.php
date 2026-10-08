@@ -43,7 +43,7 @@ class EmailDeliveryPolicyTest extends TestCase
         $log = app(HotelEmailService::class)->queue('staff_invitation', 'ava@example.com', [
             'user_name' => 'Ava Morgan',
             'username' => 'ava',
-            'property_name' => 'Lodgic Property',
+            'property_name' => 'Lodgix Property',
             'login_url' => 'https://hotel.example/login',
             'invitation_title' => 'Staff invitation',
         ]);

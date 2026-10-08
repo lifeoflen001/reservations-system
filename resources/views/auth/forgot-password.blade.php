@@ -33,7 +33,7 @@
                 <div class="promo-features">
                     <article class="promo-feature"><x-ui.icon name="shield" size="22" /><h3>Secure reset</h3><p>Reset links are single-use and expire automatically.</p></article>
                     <article class="promo-feature"><x-ui.icon name="key" size="22" /><h3>Strong access</h3><p>Create a new password that follows your hotel’s security policy.</p></article>
-                    <article class="promo-feature"><x-ui.icon name="arrow-right" size="22" /><h3>Quick return</h3><p>Use the link in your email to return to Lodgic.</p></article>
+                    <article class="promo-feature"><x-ui.icon name="arrow-right" size="22" /><h3>Quick return</h3><p>Use the link in your email to return to Lodgix.</p></article>
                 </div>
             </div>
         </aside>

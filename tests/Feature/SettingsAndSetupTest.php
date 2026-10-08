@@ -29,7 +29,7 @@ class SettingsAndSetupTest extends TestCase
     public function test_first_run_setup_completes_once_and_gates_reentry(): void
     {
         $this->get(route('login'))->assertRedirect(route('setup.index'));
-        $this->get(route('setup.index'))->assertOk()->assertSee('Lodgic setup');
+        $this->get(route('setup.index'))->assertOk()->assertSee('Lodgix setup');
         $this->post(route('setup.operating-mode'), ['operating_mode' => 'desktop'])->assertRedirect(route('setup.index'));
 
         $response = $this->post(route('setup.complete'), [

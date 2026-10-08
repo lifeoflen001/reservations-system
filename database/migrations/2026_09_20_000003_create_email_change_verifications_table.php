@@ -26,8 +26,8 @@ return new class extends Migration
             ['key' => 'email_change_verification'],
             [
                 'name' => 'Email change verification',
-                'subject' => 'Verify your Lodgic email change',
-                'body' => 'Hello {{ user_name }}, your Lodgic email verification code is {{ verification_code }}. It expires in {{ expires_in }}. If you did not request this change, you can safely ignore this message.',
+                'subject' => 'Verify your Lodgix email change',
+                'body' => 'Hello {{ user_name }}, your Lodgix email verification code is {{ verification_code }}. It expires in {{ expires_in }}. If you did not request this change, you can safely ignore this message.',
                 'channels' => json_encode(['email']),
                 'is_enabled' => true,
                 'created_at' => now(),

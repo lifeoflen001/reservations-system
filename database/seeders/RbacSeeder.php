@@ -32,7 +32,7 @@ class RbacSeeder extends Seeder
             'finance' => ['label' => 'Finance / Accounts', 'permissions' => ['dashboard.view', 'clients.view', 'reservations.view', 'payments.view', 'payments.create', 'payments.update', 'payments.void', 'payments.refund', 'payments.print', 'payments.export', 'invoices.view', 'invoices.print', 'invoices.download', 'reports.view', 'reports.export', 'finance.view', 'finance.accounts.view', 'finance.accounts.manage', 'finance.payments.view', 'finance.payments.create', 'finance.expenses.view', 'finance.expenses.create', 'finance.expenses.submit', 'finance.expenses.approve', 'finance.expenses.reject', 'finance.expenses.pay', 'finance.expenses.reverse', 'finance.transfers.create', 'finance.transfers.approve', 'finance.petty_cash.manage', 'finance.reconcile', 'finance.reports.view', 'finance.reports.export']],
         ];
         foreach ($templates as $name => $template) {
-            $role = Role::firstOrCreate(['name' => $name], ['label' => $template['label'], 'description' => 'Default Lodgic role template.', 'is_system' => true, 'is_active' => true]);
+            $role = Role::firstOrCreate(['name' => $name], ['label' => $template['label'], 'description' => 'Default Lodgix role template.', 'is_system' => true, 'is_active' => true]);
             $role->permissions()->syncWithoutDetaching($permissions->only($template['permissions'])->pluck('id'));
         }
 
