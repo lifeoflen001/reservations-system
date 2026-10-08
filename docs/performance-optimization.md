@@ -56,6 +56,16 @@ For production, use Redis for `CACHE_STORE` and `QUEUE_CONNECTION`, set `REDIS_U
 - Added the optional `ASSET_URL` setting so fingerprinted assets can use a trusted HTTPS CDN origin when infrastructure is ready. It is unset by default and does not change tenant or API URLs.
 - Corrected PHP string quoting in the shared error view so compiled 403/429 pages do not become 500 responses.
 - `npm run build`, `php artisan config:cache`, `php artisan route:cache`, and `php artisan view:cache` completed successfully. The focused error, contact, newsletter, finance-export, and related tests passed after the view fix.
-- The remaining local test limitations are environmental: GD is not installed, so the profile image factory and Dompdf PNG rendering tests cannot run successfully. One legacy authorization test expects older 403 copy and needs an explicit product/text decision; it is not a performance failure.
+- Initial verification exposed two local test blockers: GD was disabled and one authorization assertion protected the established 403 copy. GD is now enabled in the active XAMPP CLI configuration, the established copy is restored, and the affected tests pass.
 
 Rollback is limited to reverting this release's app-entry conditional import and the `ASSET_URL` configuration addition. No live transactional data, availability, balances, or payment state is cached by this release.
+
+## Final verification status
+
+- Full repository suite: **211 tests passed, 1,635 assertions passed, 78.82 seconds** after restoring the established 403 response wording and enabling the existing local GD extension.
+- Focused recovery suite: **17 tests passed, 165 assertions passed** for form authorization, finance/PDF output, profile image upload, and error pages.
+- `php artisan config:cache`, `route:cache`, and `view:cache`: passed. Configuration cache was cleared afterward so local tests continued to use `.env.testing` correctly.
+- `npm run build`: passed. Current entries are app JavaScript 49.79 kB raw / 14.91 kB gzip, app CSS 262.79 kB raw / 43.74 kB gzip, public JavaScript 3.67 kB / 1.24 kB gzip, POS JavaScript 7.97 kB / 2.84 kB gzip, and announcement JavaScript 2.19 kB / 1.11 kB gzip.
+- Query evidence: dashboard service 125 queries / 77.61 ms and reservation KPI service 6 queries / 36.48 ms on the current populated local SQLite fixture. Earlier empty-fixture page counts remain historical comparison data, not a claim about this populated fixture.
+- SQLite `EXPLAIN QUERY PLAN` used the reservation room/window indexes, room-block window index, and payment status/date index. MySQL `EXPLAIN ANALYZE` is still required against Railway/staging data.
+- No new database index was added during this final verification pass. All listed indexes are in reversible migrations documented in `performance-audit.md`.

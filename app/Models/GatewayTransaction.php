@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class GatewayTransaction extends Model
 {
     use AssignsTenantOwnership;
-    protected $fillable = ['provider', 'external_transaction_id', 'reservation_id', 'payment_id', 'amount', 'currency', 'status', 'reference', 'received_at', 'confirmed_at', 'failure_reason'];
+    protected $fillable = ['property_id', 'provider', 'external_transaction_id', 'reservation_id', 'payment_id', 'amount', 'currency', 'status', 'reference', 'received_at', 'confirmed_at', 'failure_reason'];
 
     protected function casts(): array
     {

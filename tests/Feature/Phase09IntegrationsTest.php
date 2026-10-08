@@ -7,6 +7,7 @@ use App\Exceptions\ProviderNotConfiguredException;
 use App\Jobs\SendHotelEmail;
 use App\Models\ChannelConnection;
 use App\Models\IntegrationSetting;
+use App\Models\Organization;
 use App\Models\Property;
 use App\Models\User;
 use App\Notifications\HotelDatabaseNotification;
@@ -78,6 +79,44 @@ class Phase09IntegrationsTest extends TestCase
         $notification = $admin->unreadNotifications()->first();
         $this->actingAs($admin)->post(route('notifications.read', $notification->id))->assertRedirect();
         $this->assertNotNull($notification->fresh()->read_at);
+    }
+
+    public function test_gateway_callbacks_resolve_the_signed_property_and_keep_event_ids_tenant_scoped(): void
+    {
+        $propertyA = Property::firstOrFail();
+        $propertyBOrganization = Organization::create(['uuid' => fake()->uuid(), 'name' => 'Gateway Isolation Org', 'slug' => 'gateway-isolation-org']);
+        $propertyB = Property::create([
+            'organization_id' => $propertyBOrganization->id,
+            'uuid' => fake()->uuid(),
+            'slug' => 'gateway-isolation-property',
+            'name' => 'Gateway Isolation Property',
+            'property_code' => 'GATEWAY-01',
+            'status' => 'active',
+        ]);
+
+        app(TenantContext::class)->activate((int) $propertyA->organization_id, (int) $propertyA->id);
+        IntegrationSetting::create([
+            'key' => 'gateway:demo', 'provider' => 'demo', 'status' => 'configured', 'is_enabled' => true,
+            'secrets' => ['signing_secret' => 'gateway-secret-a'],
+        ]);
+        app(TenantContext::class)->activate((int) $propertyBOrganization->id, (int) $propertyB->id);
+        IntegrationSetting::create([
+            'key' => 'gateway:demo', 'provider' => 'demo', 'status' => 'configured', 'is_enabled' => true,
+            'secrets' => ['signing_secret' => 'gateway-secret-b'],
+        ]);
+
+        $raw = json_encode(['id' => 'same-external-event', 'amount' => 0, 'currency' => 'USD', 'status' => 'received'], JSON_THROW_ON_ERROR);
+        $timestamp = (string) time();
+        $signature = app(WebhookSignatureService::class)->sign($raw, 'gateway-secret-b', (int) $timestamp);
+
+        $this->call('POST', '/webhooks/payments/demo', [], [], [], [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_X_GATEWAY_SIGNATURE' => $signature,
+            'HTTP_X_GATEWAY_TIMESTAMP' => $timestamp,
+        ], $raw)->assertOk()->assertJson(['accepted' => true]);
+
+        $this->assertDatabaseHas('gateway_transactions', ['property_id' => $propertyB->id, 'provider' => 'demo', 'external_transaction_id' => 'same-external-event']);
+        $this->assertDatabaseMissing('gateway_transactions', ['property_id' => $propertyA->id, 'external_transaction_id' => 'same-external-event']);
     }
 
     public function test_channel_external_reservation_import_is_idempotent_and_adapters_are_safe_by_default(): void

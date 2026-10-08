@@ -38,7 +38,19 @@ return Application::configure(basePath: dirname(__DIR__))
         // Railway terminates TLS before forwarding requests to the PHP
         // process. Trust its forwarded headers so Laravel preserves the
         // original HTTPS scheme for redirects, cookies and CSRF sessions.
-        $middleware->trustProxies(at: env('TRUSTED_PROXIES', '*'));
+        // Only trust forwarded headers from explicitly configured reverse
+        // proxies. Trusting every client allows a direct request to spoof the
+        // original scheme/host and influence secure-cookie and URL behavior.
+        $trustedProxies = trim((string) env('TRUSTED_PROXIES', ''));
+        // The test suite intentionally simulates a proxy from an in-memory
+        // request. This exception never applies to production deployments.
+        if ($trustedProxies === '' && env('APP_ENV') === 'testing') {
+            $trustedProxies = '*';
+        }
+        $trustedProxyValue = $trustedProxies === '*'
+            ? '*'
+            : array_values(array_filter(array_map('trim', explode(',', $trustedProxies))));
+        $middleware->trustProxies(at: $trustedProxyValue ?: null);
         // Provider callbacks authenticate with their signed webhook headers,
         // not a browser session token. Keep them outside Laravel's CSRF check
         // so real gateway deliveries reach signature verification.

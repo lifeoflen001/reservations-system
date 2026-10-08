@@ -36,3 +36,24 @@ DNS, CDN, TLS termination, HTTP protocol selection, and authoritative DNS health
 ## Platform control plane
 
 The separate Platform UI is not isolated from SaaS. Platform services and routes manage organizations, properties, plans, subscriptions, entitlements, customer administration, support sessions, and audits. It is therefore retained. A future removal would need a signed product decision, route/model/service dependency mapping, tenant migration, authorization review, and rollback plan.
+
+## Verified local versus deployment-ready
+
+Verified locally:
+
+- Laravel config, route, and view caches compile.
+- Hashed Vite manifest entries resolve through `ASSET_URL`, including the CSS/JS entries used by layouts.
+- Tenant and SaaS isolation tests pass.
+- Queue jobs are implemented in application code.
+- Health endpoints and static Apache cache/DEFLATE rules exist.
+
+Not enabled or not verifiable on this workstation:
+
+- Redis is not the local cache/session/queue driver.
+- No external CDN is provisioned.
+- `artisan serve` does not execute Apache Brotli/DEFLATE or immutable-header rules.
+- No MySQL staging connection was available for `EXPLAIN ANALYZE` or slow-query logs.
+- No multi-instance load balancer, shared object storage, or managed connection pool was changed.
+- Lighthouse CLI is not installed locally; no Lighthouse score or Core Web Vitals value is claimed.
+
+The exact production verification sequence is: provision a disposable Railway/staging environment, apply migrations, build versioned assets, set `ASSET_URL` only after CDN sync, run `config:cache`, `route:cache`, and `view:cache`, verify response headers and CDN paths, switch shared Redis only after connectivity tests, run one scheduler and supervised queue workers, then run authenticated Lighthouse and k6/Artillery tests against representative data. Keep reservation availability, payment balances, and tenant-specific responses out of shared CDN caches.
