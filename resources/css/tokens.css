@@ -10,6 +10,9 @@
     --surface-bg: #ffffff;
     --surface-secondary: #f8fafc;
     --surface-muted: #eef1f4;
+    --skeleton-base: #edf1f4;
+    --skeleton-highlight: #f8fafc;
+    --skeleton-border: #edf0f3;
     --sidebar-bg: #ffffff;
     --topbar-bg: #ffffff;
 
@@ -56,9 +59,16 @@
     --space-4: 16px;
     --space-5: 20px;
     --space-6: 24px;
-    --sidebar-width: 252px;
-    --sidebar-collapsed-width: 70px;
+    --sidebar-width: 248px;
+    --sidebar-collapsed-width: 64px;
     --topbar-height: 72px;
+    --control-height: 40px;
+    --control-height-compact: 36px;
+    --textarea-min-height: 84px;
+    --form-field-gap: 6px;
+    --form-row-gap: 14px;
+    --form-column-gap: 16px;
+    --modal-body-padding: 20px;
 }
 
 [data-theme='dark'] {
@@ -68,6 +78,9 @@
     --surface-bg: #171b20;
     --surface-secondary: #1d2229;
     --surface-muted: #222933;
+    --skeleton-base: #20262e;
+    --skeleton-highlight: #2a323b;
+    --skeleton-border: #242b34;
     --sidebar-bg: #111419;
     --topbar-bg: #111419;
     --text-primary: #f2f4f7;

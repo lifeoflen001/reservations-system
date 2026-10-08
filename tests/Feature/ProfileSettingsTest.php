@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Jobs\SendHotelEmail;
 use App\Models\User;
+use App\Models\UserPreference;
+use App\Services\SystemSettingsService;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -72,6 +74,19 @@ class ProfileSettingsTest extends TestCase
             ->assertOk()
             ->assertJson(['theme' => 'light']);
         $this->assertSame('light', $admin->preferences()->firstOrFail()->theme);
+    }
+
+    public function test_system_profile_theme_preference_takes_precedence_over_the_global_theme(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+        $admin = User::firstOrFail();
+
+        app(SystemSettingsService::class)->set('theme', 'dark');
+        UserPreference::updateOrCreate(['user_id' => $admin->id], ['theme' => 'system']);
+
+        $this->actingAs($admin)->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('const themePreference = "system"; document.documentElement.dataset.themePreference = themePreference;', false);
     }
 
     public function test_user_can_change_username_from_profile_and_duplicate_usernames_are_rejected(): void

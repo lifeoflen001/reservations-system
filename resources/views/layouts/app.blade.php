@@ -13,7 +13,8 @@
     <title>{{ $title ?? config('hotel.brand.name') }}</title>
     @php($profileTheme = auth()->user()?->preferences?->theme)
     @php($configuredTheme = app(\App\Services\SystemSettingsService::class)->get('theme', 'system'))
-    @php($themePreference = $profileTheme && $profileTheme !== 'system' ? $profileTheme : $configuredTheme)
+    @php($validThemes = ['light', 'dark', 'system'])
+    @php($themePreference = in_array($profileTheme, $validThemes, true) ? $profileTheme : (in_array($configuredTheme, $validThemes, true) ? $configuredTheme : 'system'))
     <script>const themePreference = @json($themePreference); document.documentElement.dataset.themePreference = themePreference; document.documentElement.dataset.theme = themePreference === 'system' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : themePreference;</script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>

@@ -7,38 +7,36 @@
     use App\Models\User;
 
     $groups = [
-        'Main' => [
+        'Overview' => [
             ['label' => 'Dashboard', 'route' => 'dashboard', 'icon' => 'grid'],
+        ],
+        'Front Desk' => [
             ['label' => 'Reservations', 'route' => 'reservations.*', 'icon' => 'calendar'],
+            ['label' => 'Rooms', 'route' => 'rooms.*', 'icon' => 'bed'],
             ['label' => 'Room Planning', 'route' => 'room-planning.*', 'icon' => 'calendar'],
+            ['label' => 'Clients', 'route' => 'clients.*', 'icon' => 'users'],
         ],
         'Operations' => [
-            ['label' => 'Clients', 'route' => 'clients.*', 'icon' => 'users'],
-            ['label' => 'Rooms', 'route' => 'rooms.*', 'icon' => 'bed'],
-            ['label' => 'Tasks', 'route' => 'tasks.*', 'icon' => 'check-square'],
             ['label' => 'Housekeeping', 'route' => 'housekeeping.*', 'icon' => 'broom'],
             ['label' => 'Maintenance', 'route' => 'maintenance.*', 'icon' => 'wrench'],
-            ['label' => 'POS', 'route' => 'pos.*', 'href' => 'pos.terminal', 'icon' => 'card'],
-        ],
-        'Management' => [
             ['label' => 'Announcements', 'route' => 'announcements.*', 'icon' => 'bell'],
-            ['label' => 'Enquiries', 'route' => 'contact-enquiries.*', 'icon' => 'document'],
-            ['label' => 'Newsletter', 'route' => 'newsletter.*', 'icon' => 'document'],
-            ['label' => 'Staff', 'route' => 'staff.*', 'icon' => 'users'],
+            ['label' => 'Tasks', 'route' => 'tasks.*', 'icon' => 'check-square'],
+        ],
+        'Finance' => [
             ['label' => 'Payments', 'route' => 'payments.*', 'icon' => 'card'],
             ['label' => 'Finance', 'route' => 'finance.*', 'href' => 'finance.overview', 'icon' => 'currency'],
-            ['label' => 'Reports', 'route' => 'reports.*', 'icon' => 'chart'],
+            ['label' => 'POS', 'route' => 'pos.*', 'href' => 'pos.terminal', 'icon' => 'card'],
         ],
-        'Website' => [
-            ['label' => 'Website', 'route' => 'website.*', 'href' => 'website.dashboard', 'icon' => 'document'],
+        'Team' => [
+            ['label' => 'Staff', 'route' => 'staff.*', 'icon' => 'users'],
         ],
         'System' => [
             ['label' => 'Settings', 'route' => 'settings.*', 'icon' => 'settings'],
+            ['label' => 'Website', 'route' => 'website.*', 'href' => 'website.dashboard', 'icon' => 'document'],
         ],
     ];
 @endphp
 @php
-    $edition = app(\App\Services\SystemSettingsService::class)->get('edition', 'Pro (Development)');
     $entitlementService = app(\App\Services\EntitlementService::class);
     $currentOrganization = app(\App\Services\Tenancy\TenantContext::class)->currentOrganization();
     $hasFeature = static fn (string $feature): bool => $currentOrganization !== null && $entitlementService->hasFeature($currentOrganization, $feature);
@@ -65,12 +63,9 @@
                         'Maintenance' => Gate::allows('viewAny', MaintenanceTask::class),
                         'POS' => $hasFeature('pos') && (auth()->user()->hasPermission('pos.access') || auth()->user()->hasPermission('pos.sell')),
                         'Announcements' => auth()->user()->hasPermission('announcements.view') || auth()->user()->hasPermission('announcements.manage'),
-                        'Enquiries' => auth()->user()->hasPermission('contact_enquiries.view') || auth()->user()->hasPermission('contact_enquiries.manage'),
-                        'Newsletter' => auth()->user()->hasPermission('newsletter.view') || auth()->user()->hasPermission('newsletter.manage'),
                         'Staff' => Gate::allows('viewAny', User::class),
                         'Payments' => auth()->user()->hasPermission('payments.view') || auth()->user()->hasPermission('payments.manage'),
                         'Finance' => $hasFeature('finance') && auth()->user()->hasPermission('finance.view'),
-                        'Reports' => $hasFeature('reports') && (auth()->user()->hasPermission('reports.view') || auth()->user()->hasPermission('reports.manage')),
                         'Website' => auth()->user()->hasPermission('website.view'),
                         'Settings' => auth()->user()->hasPermission('settings.view') || auth()->user()->hasPermission('settings.manage'),
                         default => false,
@@ -94,7 +89,6 @@
     </nav>
 
     <div class="sidebar__footer">
-        <div class="edition-row"><span>Edition</span><x-ui.badge variant="brand">{{ $edition }}</x-ui.badge></div>
         <small>v{{ config('app.version', '43.1.0') }}</small>
     </div>
 </aside>

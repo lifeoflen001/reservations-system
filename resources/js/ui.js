@@ -136,9 +136,15 @@ const persistThemePreference = (theme) => {
     }).catch(() => {});
 };
 
+const updateThemeChrome = (theme) => {
+    root.style.colorScheme = theme;
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#0d1014' : '#ef7d22');
+};
+
 const setTheme = (theme, { persist = true } = {}) => {
     if (!['light', 'dark'].includes(theme)) theme = 'light';
     root.dataset.theme = theme;
+    updateThemeChrome(theme);
     if (persist) {
         root.dataset.themePreference = theme;
         persistThemePreference(theme);
@@ -229,7 +235,20 @@ const bindContextTooltips = () => {
 const bindPageLoading = () => {
     const pageSkeleton = document.querySelector('[data-app-page-skeleton]');
     if (!pageSkeleton) return;
-    const showPageSkeleton = () => {
+    const skeletonVariantFor = (pathname) => {
+        const path = pathname.replace(/\/+$/, '') || '/';
+        if (path === '/dashboard' || path === '/dashboard/index') return 'dashboard';
+        if (path.startsWith('/room-planning')) return 'planning';
+        if (path === '/staff/profile' || path.startsWith('/staff/profile/')) return 'profile';
+        if (path.startsWith('/reports') || path.startsWith('/finance')) return 'reports';
+        if (path === '/rooms' || path.startsWith('/rooms/')) return path.split('/').length > 2 ? 'detail' : 'rooms';
+        if (path.startsWith('/settings')) return 'settings';
+        if (path.startsWith('/reservations/') || path.startsWith('/clients/') || path.startsWith('/tasks/') || path.startsWith('/maintenance/') || path.startsWith('/housekeeping/') || path.startsWith('/payments/') || path.startsWith('/staff/')) return 'detail';
+        if (path === '/reservations' || path === '/clients' || path === '/tasks' || path === '/maintenance' || path === '/housekeeping' || path === '/payments' || path === '/staff' || path === '/notifications') return 'list';
+        return pageSkeleton.dataset.skeletonVariant || 'list';
+    };
+    const showPageSkeleton = (url = window.location.href) => {
+        pageSkeleton.dataset.skeletonVariant = skeletonVariantFor(new URL(url, window.location.href).pathname);
         pageSkeleton.hidden = false;
         pageSkeleton.setAttribute('aria-hidden', 'false');
         body.classList.add('is-page-loading');
@@ -260,7 +279,7 @@ const bindPageLoading = () => {
         const link = event.target.closest('a[href]');
         if (!link || isActionLink(link) || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || link.target === '_blank' || link.hasAttribute('download')) return;
         const url = new URL(link.href, window.location.href);
-        if ((url.origin === window.location.origin && url.pathname !== window.location.pathname) || (url.origin === window.location.origin && url.pathname === window.location.pathname && url.search !== window.location.search)) showPageSkeleton();
+        if ((url.origin === window.location.origin && url.pathname !== window.location.pathname) || (url.origin === window.location.origin && url.pathname === window.location.pathname && url.search !== window.location.search)) showPageSkeleton(url.href);
     });
 };
 
@@ -299,11 +318,46 @@ document.addEventListener('DOMContentLoaded', () => {
     // Keep date/time values in their server-friendly formats while presenting
     // one compact, PMS-styled control across reservations, tasks, payments,
     // housekeeping, maintenance, reports, and settings.
+    const resetPmsPanelPosition = (panel) => {
+        panel?.classList.remove('is-floating', 'is-open-up');
+        panel?.style.removeProperty('top');
+        panel?.style.removeProperty('left');
+        panel?.style.removeProperty('width');
+    };
+    const positionPmsPanel = (wrapper, panel, preferredWidth = null) => {
+        if (!panel || panel.hidden || !wrapper.classList.contains('is-open')) return;
+        const rect = wrapper.getBoundingClientRect();
+        const viewportGap = 12;
+        const gap = 7;
+        const panelHeight = Math.min(panel.scrollHeight || 300, window.innerHeight - viewportGap * 2);
+        const openUp = rect.bottom + panelHeight + gap > window.innerHeight - viewportGap && rect.top - panelHeight - gap >= viewportGap;
+        const insideScrollableOverlay = Boolean(wrapper.closest('.modal__body')) || panel.dataset.pmsPortal === '1';
+        const width = Math.min(preferredWidth || Math.max(rect.width, 210), window.innerWidth - viewportGap * 2);
+
+        wrapper.classList.toggle('is-open-up', openUp);
+        if (!insideScrollableOverlay) {
+            resetPmsPanelPosition(panel);
+            wrapper.classList.toggle('is-open-up', openUp);
+            return;
+        }
+
+        panel.classList.add('is-floating');
+        panel.classList.toggle('is-open-up', openUp);
+        panel.style.width = `${width}px`;
+        panel.style.left = `${Math.max(viewportGap, Math.min(rect.left, window.innerWidth - width - viewportGap))}px`;
+        panel.style.top = `${openUp ? Math.max(viewportGap, rect.top - panelHeight - gap) : Math.min(window.innerHeight - panelHeight - viewportGap, rect.bottom + gap)}px`;
+    };
+    const repositionOpenPmsPanels = () => {
+        document.querySelectorAll('[data-pms-datetime].is-open').forEach((wrapper) => positionPmsPanel(wrapper, wrapper.__pmsPopover || wrapper.querySelector('[data-pms-datetime-popover]'), 300));
+        document.querySelectorAll('[data-pms-select-wrapper].is-open').forEach((wrapper) => positionPmsPanel(wrapper, wrapper.__pmsMenu || wrapper.querySelector('[data-pms-select-menu]')));
+    };
     const closeDatePickers = (except = null) => document.querySelectorAll('[data-pms-datetime]').forEach((picker) => {
         if (picker !== except) {
             picker.classList.remove('is-open');
             picker.querySelector('[data-pms-datetime-trigger]')?.setAttribute('aria-expanded', 'false');
-            picker.querySelector('[data-pms-datetime-popover]')?.setAttribute('hidden', '');
+            const popover = picker.__pmsPopover || picker.querySelector('[data-pms-datetime-popover]');
+            popover?.setAttribute('hidden', '');
+            resetPmsPanelPosition(popover);
         }
     });
     const dateParts = (value, type) => {
@@ -353,6 +407,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const timePicker = type !== 'date' ? `<label>Time<div class="pms-time-picker"><select data-pms-picker-hour aria-label="Hour">${Array.from({ length: 24 }, (_, hour) => `<option value="${String(hour).padStart(2, '0')}" ${String(hour).padStart(2, '0') === initialHour ? 'selected' : ''}>${String(hour).padStart(2, '0')}</option>`).join('')} </select><span>:</span><select data-pms-picker-minute aria-label="Minute">${Array.from({ length: 12 }, (_, minute) => { const value = String(minute * 5).padStart(2, '0'); return `<option value="${value}" ${value === initialMinute ? 'selected' : ''}>${value}</option>`; }).join('')}</select></div></label>` : '';
         popover.innerHTML = `<div class="pms-datetime__popover-heading"><strong>Choose ${type === 'time' ? 'time' : type === 'date' ? 'date' : 'date and time'}</strong><button type="button" class="icon-button" data-pms-datetime-close aria-label="Close picker"><span aria-hidden="true">×</span></button></div>${type !== 'time' ? `<div class="pms-calendar"><div class="pms-calendar__header"><button type="button" class="pms-calendar__nav" data-pms-calendar-prev aria-label="Previous month">‹</button><strong data-pms-calendar-month></strong><button type="button" class="pms-calendar__nav" data-pms-calendar-next aria-label="Next month">›</button></div><div class="pms-calendar__weekdays" aria-hidden="true"><span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span></div><div class="pms-calendar__grid" data-pms-calendar-grid></div><button type="button" class="pms-calendar__today" data-pms-calendar-today>Today</button></div>` : ''}<div class="pms-datetime__fields">${timePicker}</div><div class="pms-datetime__actions"><button type="button" class="ui-button ui-button--ghost ui-button--small" data-pms-datetime-clear>Clear</button><button type="button" class="ui-button ui-button--primary ui-button--small" data-pms-datetime-apply>Done</button></div>`;
         wrapper.append(popover);
+        if (wrapper.closest('.modal__body')) {
+            wrapper.__pmsPopover = popover;
+            popover.dataset.pmsPortal = '1';
+            document.body.append(popover);
+        }
 
         const label = trigger.querySelector('[data-pms-datetime-label]');
         let selectedDate = parts.date;
@@ -417,6 +476,7 @@ document.addEventListener('DOMContentLoaded', () => {
             wrapper.classList.add('is-open');
             trigger.setAttribute('aria-expanded', 'true');
             popover.hidden = false;
+            window.requestAnimationFrame(() => positionPmsPanel(wrapper, popover, 300));
             (popover.querySelector('.pms-calendar__day.is-selected') || hourField || minuteField)?.focus();
         };
         trigger.addEventListener('click', () => wrapper.classList.contains('is-open') ? close() : open());
@@ -446,7 +506,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     enhanceDateTimeInputs();
     document.addEventListener('click', (event) => {
-        if (!event.target.closest('[data-pms-datetime]')) closeDatePickers();
+        if (!event.target.closest('[data-pms-datetime]') && !event.target.closest('[data-pms-datetime-popover]')) closeDatePickers();
     });
     document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape' && event.target.closest('[data-pms-datetime]')) closeDatePickers();
@@ -456,7 +516,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (wrapper !== except) {
             wrapper.classList.remove('is-open');
             wrapper.querySelector('[data-pms-select-trigger]')?.setAttribute('aria-expanded', 'false');
-            wrapper.querySelector('[data-pms-select-menu]')?.setAttribute('hidden', '');
+            const menu = wrapper.__pmsMenu || wrapper.querySelector('[data-pms-select-menu]');
+            menu?.setAttribute('hidden', '');
+            resetPmsPanelPosition(menu);
         }
     });
     const enhancePmsSelects = () => document.querySelectorAll('[data-pms-select]').forEach((select) => {
@@ -486,6 +548,11 @@ document.addEventListener('DOMContentLoaded', () => {
         menu.setAttribute('role', 'listbox');
         menu.hidden = true;
         wrapper.append(menu);
+        if (wrapper.closest('.modal__body')) {
+            wrapper.__pmsMenu = menu;
+            menu.dataset.pmsPortal = '1';
+            document.body.append(menu);
+        }
         const label = trigger.querySelector('[data-pms-select-label]');
         const isSearchable = wrapper.dataset.pmsSearchable === 'true' || select.options.length > 8;
 
@@ -544,6 +611,7 @@ document.addEventListener('DOMContentLoaded', () => {
             wrapper.classList.add('is-open');
             trigger.setAttribute('aria-expanded', 'true');
             menu.hidden = false;
+            window.requestAnimationFrame(() => positionPmsPanel(wrapper, menu));
             (menu.querySelector('[data-pms-select-search]') || menu.querySelector('.pms-select__option.is-selected') || menu.querySelector('.pms-select__option'))?.focus();
         };
         trigger.addEventListener('click', (event) => { event.preventDefault(); wrapper.classList.contains('is-open') ? closePmsSelects() : open(); });
@@ -572,11 +640,13 @@ document.addEventListener('DOMContentLoaded', () => {
     enhancePmsSelects();
     document.body.classList.add('pms-controls-ready');
     document.addEventListener('click', (event) => {
-        if (!event.target.closest('[data-pms-select-wrapper]')) closePmsSelects();
+        if (!event.target.closest('[data-pms-select-wrapper]') && !event.target.closest('[data-pms-select-menu]')) closePmsSelects();
     });
     document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape' && event.target.closest('[data-pms-select-wrapper]')) closePmsSelects();
     });
+    window.addEventListener('resize', repositionOpenPmsPanels, { passive: true });
+    window.addEventListener('scroll', repositionOpenPmsPanels, { passive: true, capture: true });
 
     const avatarEditor = document.querySelector('[data-avatar-editor]');
     if (avatarEditor) {
@@ -850,6 +920,8 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             return;
         }
+        closeDatePickers();
+        closePmsSelects();
         modal.hidden = true;
         modal.classList.remove('is-open');
         syncModalScrollLock();
@@ -1346,7 +1418,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     document.querySelectorAll('[data-live-clock]').forEach((clock) => {
         const timezone = clock.dataset.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
-        const tick = () => { clock.textContent = new Intl.DateTimeFormat(undefined, { month: 'short', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: timezone }).format(new Date()); };
+        const tick = () => { clock.textContent = new Intl.DateTimeFormat(undefined, { month: 'short', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short', timeZone: timezone }).format(new Date()); };
         tick();
         window.setInterval(tick, 30000);
     });

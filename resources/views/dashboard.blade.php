@@ -4,7 +4,6 @@
 @php
     $activeProperty = app(\App\Services\Tenancy\TenantContext::class)->currentProperty();
 @endphp
-@if($activeProperty)<div class="tenant-page-context"><x-ui.icon name="building" size="15" /><span>Operating property</span><strong>{{ $activeProperty->name }}</strong></div>@endif
     @php
         $chartItems = $chart['items'];
         $plotLeft = 44;
@@ -34,8 +33,14 @@
         $donutStyle = $roomStops ? 'background: conic-gradient('.implode(', ', $roomStops).');' : 'background: var(--surface-secondary);';
     @endphp
 
-    <x-page-header title="Dashboard" subtitle="Live overview of today's hotel operations.">
-        <a class="ui-button ui-button--primary" href="{{ route('reservations.create') }}"><x-ui.icon name="plus" size="17" /> New reservation</a>
+    <x-page-header title="Dashboard" subtitle="Live overview of today's operations from your property.">
+        @if($activeProperty)
+            <div class="tenant-page-context tenant-page-context--header" aria-label="Active property">
+                <x-ui.icon name="building" size="15" />
+                <span>Property</span>
+                <strong>{{ $activeProperty->name }}</strong>
+            </div>
+        @endif
     </x-page-header>
 
     <div class="metric-grid {{ !$financialVisible ? 'metric-grid--operational' : '' }}">

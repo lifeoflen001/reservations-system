@@ -325,14 +325,14 @@ body.public-menu-open { overflow: hidden; }
 .public-contact-detail a { overflow-wrap: anywhere; color: var(--brand-primary); font-size: 14px; }
 .public-contact-next p { margin: 0; font-size: 13px; }
 .public-contact-form-shell { min-width: 0; scroll-margin-top: 90px; }
-.public-contact-form { display: grid; gap: 22px; }
-.public-contact-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 14px; }
-.public-form-field { display: grid; min-width: 0; align-content: start; gap: 7px; }
+.public-contact-form { display: grid; gap: 14px; }
+.public-contact-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--form-row-gap) var(--form-column-gap); }
+.public-form-field { display: grid; min-width: 0; align-content: start; gap: var(--form-field-gap); }
 .public-form-field--wide { grid-column: 1 / -1; }
-.public-form-field label { color: var(--text-secondary); font-size: 11px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+.public-form-field label { color: var(--text-secondary); font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
 .public-form-field label span { color: var(--text-secondary); font-weight: 500; }
-.public-form-field input, .public-form-field select, .public-form-field textarea { width: 100%; min-width: 0; min-height: 50px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: #fff; padding: 12px 13px; color: var(--text-primary); font: inherit; font-size: 14px; }
-.public-form-field textarea { min-height: 148px; resize: vertical; line-height: 1.55; }
+.public-form-field input, .public-form-field select, .public-form-field textarea { width: 100%; min-width: 0; min-height: var(--control-height); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: #fff; padding: 9px 12px; color: var(--text-primary); font: inherit; font-size: 13.5px; }
+.public-form-field textarea { min-height: var(--textarea-min-height); resize: vertical; line-height: 1.5; }
 .public-form-field input:focus-visible, .public-form-field select:focus-visible, .public-form-field textarea:focus-visible, .public-pricing-faq__list summary:focus-visible { outline: 3px solid rgb(230 126 47 / 28%); outline-offset: 2px; border-color: var(--brand-primary); }
 .public-form-field [aria-invalid="true"] { border-color: #b42318; }
 .public-form-field > small { color: var(--text-secondary); font-size: 11px; line-height: 1.5; }
@@ -604,9 +604,9 @@ body.public-menu-open { overflow: hidden; }
 .public-contact-next ol { display: grid; gap: 11px; margin: 5px 0 0; padding: 0; list-style: none; }
 .public-contact-next li { display: flex; align-items: flex-start; gap: 9px; color: var(--text-secondary); font-size: 12px; line-height: 1.45; }
 .public-contact-next li span { display: grid; width: 22px; height: 22px; flex: 0 0 auto; place-items: center; border-radius: 50%; background: #fff0e5; color: var(--brand-primary); font-size: 11px; font-weight: 800; }
-.public-contact-form { gap: 18px; }
-.public-contact-fields { gap: 18px 16px; }
-.public-form-field textarea { min-height: 140px; }
+    .public-contact-form { gap: 14px; }
+    .public-contact-fields { gap: var(--form-row-gap) var(--form-column-gap); }
+    .public-form-field textarea { min-height: var(--textarea-min-height); }
 .public-form-field select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23667085' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-position: right 13px center; background-repeat: no-repeat; padding-right: 38px; }
 .public-contact-form__footer { align-items: center; }
 .public-contact-form__footer p { font-size: 11px; }

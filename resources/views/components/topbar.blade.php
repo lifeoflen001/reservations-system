@@ -6,7 +6,6 @@
 
 <header class="topbar">
     <button class="topbar__menu" type="button" data-sidebar-toggle aria-label="Toggle navigation" data-tooltip="Toggle navigation"><x-ui.icon name="menu" size="20" /></button>
-    <x-tenant-switcher />
     <form class="global-search" action="{{ route('search') }}" method="GET" role="search" data-global-search>
         <button type="submit" class="global-search__submit" aria-label="Search" data-tooltip="Search"><x-ui.icon name="search" size="19" /></button>
         <input type="search" name="q" value="{{ request()->routeIs('search') ? request('q') : '' }}" placeholder="Search anywhere..." aria-label="Search anywhere" data-global-search-input>
@@ -14,7 +13,7 @@
     </form>
 
     <div class="topbar__actions">
-        <div class="topbar__date"><x-ui.icon name="calendar" size="18" /><span data-live-clock data-timezone="{{ config('app.timezone') }}">{{ now()->format('M d, Y h:i A') }}</span></div>
+        <div class="topbar__date" aria-label="Property local time in {{ config('app.timezone') }}"><span data-live-clock data-timezone="{{ config('app.timezone') }}">{{ now()->format('M d, Y h:i A T') }}</span></div>
         <button type="button" class="topbar__icon" data-theme-toggle aria-label="Toggle dark mode" data-tooltip="Toggle dark mode"><x-ui.icon name="moon" size="19" /></button>
         <div class="dropdown" data-dropdown>
             <div class="dropdown__menu dropdown__menu--language" data-dropdown-menu hidden>

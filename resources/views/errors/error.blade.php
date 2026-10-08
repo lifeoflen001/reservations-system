@@ -22,7 +22,7 @@
     try {
         $profileTheme = auth()->user()?->preferences?->theme;
         $configuredTheme = app(\App\Services\SystemSettingsService::class)->get('theme', 'system');
-        $themePreference = in_array($profileTheme, ['light', 'dark'], true)
+        $themePreference = in_array($profileTheme, ['light', 'dark', 'system'], true)
             ? $profileTheme
             : (in_array($configuredTheme, ['light', 'dark', 'system'], true) ? $configuredTheme : 'system');
     } catch (\Throwable) {
