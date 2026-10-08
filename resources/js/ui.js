@@ -63,15 +63,15 @@ const initConnectionMonitor = () => {
         }
 
         if (quality === 'slow') {
-            if (lastState !== 'slow') showStatus('slow', announceOnline ? 'Back online, but your connection is slow. Pages and saves may take longer.' : 'Your connection is slow. Pages and saves may take longer.');
+            if (lastState !== 'slow') showStatus('slow', announceOnline ? 'You are back online! Internet connection is fair. Pages may take longer to load.' : 'Your internet connection is slow. Pages may take longer to load.');
             return;
         }
-        if (lastState !== 'fair') showStatus('fair', announceOnline ? 'Back online. Connection quality is fair.' : 'Connection quality is fair. Pages may take longer to load.', true);
+        if (lastState !== 'fair') showStatus('fair', announceOnline ? 'Back online. Connection quality is fair.' : 'Your internet quality is fair. Pages may take longer to load.', true);
     };
 
     const probe = async ({ announceOnline = false } = {}) => {
         if (navigator.onLine === false) {
-            showStatus('offline', 'You are offline. Changes cannot be saved until your connection returns.');
+            showStatus('offline', 'You are offline. Changes will be saved when connection is restored.');
             initialProbeComplete = true;
             return;
         }
@@ -109,7 +109,7 @@ const initConnectionMonitor = () => {
         notifyFailure: (text = 'Network request failed. Check your connection and try again.') => showStatus('unstable', text),
     };
 
-    window.addEventListener('offline', () => showStatus('offline', 'You are offline. Changes cannot be saved until your connection returns.'));
+    window.addEventListener('offline', () => showStatus('offline', 'You are offline. Changes will be saved when connection is restored.'));
     window.addEventListener('online', () => {
         showStatus('online', 'Back online. Checking your connection…');
         window.setTimeout(() => probe({ announceOnline: true }), 250);
@@ -696,7 +696,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         const openCrop = (file) => {
             if (!file || !file.type.startsWith('image/') || file.size > 5 * 1024 * 1024 || !cropModal) {
-                if (status) status.textContent = 'Choose a JPG, PNG or WebP image up to 5 MB.';
+                if (status) status.textContent = 'Choose a JPG, PNG or WebP image, max 5 MB.';
                 return;
             }
             releaseObjectUrl();
@@ -760,13 +760,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     preview.append(camera);
                     syncProfileHero();
                 }
-                if (status) status.textContent = 'Cropped photo ready. Save picture to apply it.';
+                if (status) status.textContent = 'Cropped photo ready. Save picture to apply.';
                 closeModal(cropModal, { force: true });
                 image = null;
                 releaseObjectUrl();
             } catch (error) {
                 showCropError('The crop could not be prepared. Choose the photo again or upload the original image.');
-                console.error('Lodgix profile picture crop failed.', error);
+                console.error('Profile picture crop failed.', error);
             } finally {
                 cropApply.disabled = false;
             }

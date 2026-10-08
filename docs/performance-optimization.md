@@ -49,3 +49,13 @@ For production, use Redis for `CACHE_STORE` and `QUEUE_CONNECTION`, set `REDIS_U
 - Put versioned `/build` assets behind a CDN such as Cloudflare or Fastly. Enable Brotli (preferred) or gzip, HTTP/2 or HTTP/3, TLS 1.2+, and origin keep-alive.
 - Use a health-aware DNS provider with low operational friction and DNSSEC where appropriate. DNS/CDN changes are infrastructure work; Laravel cannot optimize authoritative DNS from application code.
 - Keep HTTPS termination, HSTS policy, backups, database connection limits, and storage latency under operational monitoring. Alert on queue depth, failed jobs, database CPU/IO, PHP-FPM saturation, and p95/p99 request latency.
+
+## 2026-10-08 incremental release
+
+- Split announcement-only JavaScript from the initial app bundle. The module loads only on pages containing announcement controls or browser-alert controls and remains compatible with both loading states.
+- Added the optional `ASSET_URL` setting so fingerprinted assets can use a trusted HTTPS CDN origin when infrastructure is ready. It is unset by default and does not change tenant or API URLs.
+- Corrected PHP string quoting in the shared error view so compiled 403/429 pages do not become 500 responses.
+- `npm run build`, `php artisan config:cache`, `php artisan route:cache`, and `php artisan view:cache` completed successfully. The focused error, contact, newsletter, finance-export, and related tests passed after the view fix.
+- The remaining local test limitations are environmental: GD is not installed, so the profile image factory and Dompdf PNG rendering tests cannot run successfully. One legacy authorization test expects older 403 copy and needs an explicit product/text decision; it is not a performance failure.
+
+Rollback is limited to reverting this release's app-entry conditional import and the `ASSET_URL` configuration addition. No live transactional data, availability, balances, or payment state is cached by this release.

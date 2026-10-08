@@ -2,11 +2,11 @@
     $status = isset($status) ? (int) $status : (isset($exception) && method_exists($exception, 'getStatusCode') ? (int) $exception->getStatusCode() : 500);
     $messages = [
         401 => ['eyebrow' => '401', 'title' => 'Sign in required.', 'copy' => 'You need to sign in to access this page.'],
-        403 => ['eyebrow' => '403', 'title' => 'Access restricted.', 'copy' => 'You don't have permission to access this page.'],
+        403 => ['eyebrow' => '403', 'title' => 'Access restricted.', 'copy' => "You don't have permission to access this page."],
         404 => ['eyebrow' => '404', 'title' => 'Page not found.', 'copy' => 'Page not Found. Check the address and try again.'],
         419 => ['eyebrow' => '419', 'title' => 'Session expired.', 'copy' => 'Session has expired. Refresh page and try again.'],
         429 => ['eyebrow' => '429', 'title' => 'A short pause.', 'copy' => 'System busy right now. Please try again later.'],
-        500 => ['eyebrow' => '500', 'title' => 'Something went wrong.', 'copy' => 'We couldn't complete that request. Please try again.'],
+        500 => ['eyebrow' => '500', 'title' => 'Something went wrong.', 'copy' => "We couldn't complete that request. Please try again."],
         503 => ['eyebrow' => '503', 'title' => 'We will be right back.', 'copy' => 'System is temporarily unavailable while we finish a system update.'],
     ];
     $message = $messages[$status] ?? ['eyebrow' => (string) $status, 'title' => 'Something went wrong.', 'copy' => 'We could not complete that request. Please try again or return home.'];

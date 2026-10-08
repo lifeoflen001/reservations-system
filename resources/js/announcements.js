@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', () => {
+const initAnnouncements = () => {
     const companyWide = document.querySelector('[data-company-wide-toggle]');
     const picker = document.querySelector('[data-department-picker]');
     const syncAudience = () => {
@@ -63,4 +63,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     });
-});
+};
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initAnnouncements, { once: true });
+} else {
+    initAnnouncements();
+}

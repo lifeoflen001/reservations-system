@@ -56,6 +56,11 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
+    // Optional origin for fingerprinted public assets. Leave unset to serve
+    // through the application origin; set it to a trusted HTTPS CDN origin
+    // when the deployment has one configured.
+    'asset_url' => env('ASSET_URL'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone
