@@ -25,7 +25,7 @@ class ForgotPasswordTest extends TestCase
             ->assertSee('Forgot your password?')
             ->assertSee('name="email"', false);
 
-        $this->post(route('password.email'), ['email' => 'admin@hoteldesk.test'])
+        $this->post(route('password.email'), ['email' => 'admin@lodgic.test'])
             ->assertRedirect()
             ->assertSessionHas('success');
 

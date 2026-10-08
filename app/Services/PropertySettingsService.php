@@ -41,7 +41,7 @@ class PropertySettingsService
 
     public function name(): string
     {
-        return (string) $this->value('name', config('hotel.brand.name', 'HotelDesk'));
+        return (string) $this->value('name', config('hotel.brand.name', 'Lodgic'));
     }
 
     public function email(): ?string

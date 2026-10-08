@@ -31,7 +31,7 @@ class HealthController extends Controller
 
             return 'ok';
         } catch (Throwable $exception) {
-            Log::warning('HotelDesk health check could not reach the database.', [
+            Log::warning('Lodgix health check could not reach the database.', [
                 'exception' => $exception,
             ]);
 

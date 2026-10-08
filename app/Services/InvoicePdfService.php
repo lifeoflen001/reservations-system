@@ -22,7 +22,7 @@ class InvoicePdfService
             return $dompdf->output();
         }
         $lines = [
-            $property?->name ?? 'HotelDesk',
+            $property?->name ?? 'Lodgic',
             'INVOICE '.$invoice->invoice_number,
             'Issue date: '.$invoice->issue_date?->format('m/d/Y'),
             'Status: '.$payment->status->label().'    Method: '.ucwords(str_replace('_', ' ', $payment->method)),

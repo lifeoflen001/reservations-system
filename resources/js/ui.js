@@ -92,19 +92,19 @@ const initConnectionMonitor = () => {
                 signal: controller.signal,
             });
             const payload = await response.json();
-            if (!response.ok || payload?.status !== 'ok') throw new Error('HotelDesk health check reported a degraded service.');
+            if (!response.ok || payload?.status !== 'ok') throw new Error('Lodgic health check reported a degraded service.');
             showQuality(qualityFor(performance.now() - startedAt), announceOnline);
         } catch (error) {
             if (error.name === 'AbortError') return;
             if (navigator.onLine === false) showStatus('offline', 'You are offline. Changes cannot be saved until your connection returns.');
-            else showStatus('unstable', 'Network connected, but HotelDesk is having trouble reaching the server. We will keep retrying.');
+            else showStatus('unstable', 'Network connected, but Lodgic is having trouble reaching the server. We will keep retrying.');
         } finally {
             window.clearTimeout(timeout);
             initialProbeComplete = true;
         }
     };
 
-    window.hotelDeskConnection = {
+    window.lodgicConnection = {
         check: probe,
         notifyFailure: (text = 'Network request failed. Check your connection and try again.') => showStatus('unstable', text),
     };
@@ -766,7 +766,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 releaseObjectUrl();
             } catch (error) {
                 showCropError('The crop could not be prepared. Choose the photo again or upload the original image.');
-                console.error('HotelDesk profile picture crop failed.', error);
+                console.error('Lodgic profile picture crop failed.', error);
             } finally {
                 cropApply.disabled = false;
             }
@@ -1305,7 +1305,7 @@ document.addEventListener('DOMContentLoaded', () => {
               } catch (error) {
                 if (error.name === 'AbortError') return;
                 showAvailabilityError('Room availability could not be loaded. Check the connection and try again.');
-                console.error('HotelDesk room availability request failed.', error);
+                console.error('Lodgic room availability request failed.', error);
               }
             }, 150);
         };

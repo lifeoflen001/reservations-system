@@ -100,7 +100,7 @@
                 </div><x-ui.badge :variant="$staff->hasEnabledTwoFactorAuthentication() ? 'success' : 'neutral'">{{ $staff->hasEnabledTwoFactorAuthentication() ? 'Enabled' : 'Not enabled' }}</x-ui.badge>
             </header>
             <div class="ui-card__body">
-                <p class="settings-lead">Protect your HotelDesk account with a time-based code from an authenticator app such as Google Authenticator, Microsoft Authenticator or 1Password.</p>@if ($recoveryCodes)<div class="two-factor-recovery two-factor-recovery--notice"><strong>Save these recovery codes now</strong>
+                <p class="settings-lead">Protect your Lodgic account with a time-based code from an authenticator app such as Google Authenticator, Microsoft Authenticator or 1Password.</p>@if ($recoveryCodes)<div class="two-factor-recovery two-factor-recovery--notice"><strong>Save these recovery codes now</strong>
                     <p>Each code can be used once if you lose access to your authenticator app. They will not be shown again after you leave this page.</p>
                     <div class="two-factor-recovery__codes">@foreach($recoveryCodes as $recoveryCode)<code>{{ $recoveryCode }}</code>@endforeach</div>
                 </div>@endif @if (is_null($staff->two_factor_secret))<div class="two-factor-empty"><span class="two-factor-empty__icon"><x-ui.icon name="shield" size="22" /></span>
@@ -175,13 +175,13 @@
                 </div>
             </header>
             <div class="ui-card__body">
-                <p class="settings-lead">Personalize your HotelDesk experience and choose how important operational updates reach you.</p>
+                <p class="settings-lead">Personalize your Lodgic experience and choose how important operational updates reach you.</p>
                 <form method="POST" action="{{ route('profile.preferences.update') }}" data-draft-form data-draft-key="profile-preferences">@csrf @method('PUT')
                     <div class="preference-block">
                         <div class="preference-block__heading"><span class="preference-block__icon"><x-ui.icon name="sun" size="18" /></span>
                             <div>
                                 <h3>Theme</h3>
-                                <p>Choose the appearance you prefer when using HotelDesk.</p>
+                                <p>Choose the appearance you prefer when using Lodgic.</p>
                             </div>
                         </div>
                         <div class="theme-choice-grid"><label class="theme-choice {{ $selectedTheme === 'light' ? 'is-selected' : '' }}"><input type="radio" name="theme" value="light" @checked($selectedTheme==='light' )><span class="theme-choice__preview theme-choice__preview--light"><i></i><i></i><i></i></span><span><strong>Light</strong><small>Bright and clear</small></span></label><label class="theme-choice {{ $selectedTheme === 'dark' ? 'is-selected' : '' }}"><input type="radio" name="theme" value="dark" @checked($selectedTheme==='dark' )><span class="theme-choice__preview theme-choice__preview--dark"><i></i><i></i><i></i></span><span><strong>Dark</strong><small>Low-light workspace</small></span></label><label class="theme-choice {{ $selectedTheme === 'system' ? 'is-selected' : '' }}"><input type="radio" name="theme" value="system" @checked($selectedTheme==='system' )><span class="theme-choice__preview theme-choice__preview--system"><i></i><i></i><i></i></span><span><strong>System</strong><small>Follow device setting</small></span></label></div>
@@ -193,7 +193,7 @@
                                 <p>Where should new notifications appear?</p>
                             </div>
                         </div>
-                        <div class="preference-choice-grid"><label class="preference-choice"><input type="checkbox" name="channels[]" value="in_app" @checked(in_array('in_app', $selectedChannels, true))><span><strong>In-app notifications</strong><small>Show alerts inside HotelDesk</small></span></label><label class="preference-choice"><input type="checkbox" name="channels[]" value="email" @checked(in_array('email', $selectedChannels, true))><span><strong>Email</strong><small>Send updates to your account email</small></span></label><label class="preference-choice"><input type="checkbox" name="channels[]" value="whatsapp" @checked(in_array('whatsapp', $selectedChannels, true))><span><strong>WhatsApp</strong><small>Send messages through WhatsApp</small></span></label></div>
+                        <div class="preference-choice-grid"><label class="preference-choice"><input type="checkbox" name="channels[]" value="in_app" @checked(in_array('in_app', $selectedChannels, true))><span><strong>In-app notifications</strong><small>Show alerts inside Lodgic</small></span></label><label class="preference-choice"><input type="checkbox" name="channels[]" value="email" @checked(in_array('email', $selectedChannels, true))><span><strong>Email</strong><small>Send updates to your account email</small></span></label><label class="preference-choice"><input type="checkbox" name="channels[]" value="whatsapp" @checked(in_array('whatsapp', $selectedChannels, true))><span><strong>WhatsApp</strong><small>Send messages through WhatsApp</small></span></label></div>
                     </div>
                     <div class="preference-block">
                         <div class="preference-block__heading"><span class="preference-block__icon"><x-ui.icon name="filter" size="18" /></span>

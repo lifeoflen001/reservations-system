@@ -51,7 +51,7 @@
                     </div></td>
                 </tr>
             @empty
-                <tr><td colspan="9"><div class="empty-state"><x-ui.icon name="users" size="28" /><strong>No staff accounts found.</strong><span>Create an account to give an employee access to HotelDesk.</span></div></td></tr>
+                <tr><td colspan="9"><div class="empty-state"><x-ui.icon name="users" size="28" /><strong>No staff accounts found.</strong><span>Create an account to give an employee access to Lodgic.</span></div></td></tr>
             @endforelse
             </tbody>
         </x-data.table>

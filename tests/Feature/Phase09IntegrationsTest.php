@@ -51,14 +51,14 @@ class Phase09IntegrationsTest extends TestCase
     {
         $admin = User::firstOrFail();
         Queue::fake();
-        IntegrationSetting::create(['key' => 'email', 'provider' => 'smtp', 'status' => 'configured', 'mode' => 'smtp', 'is_enabled' => true, 'settings' => ['host' => 'smtp.example.test', 'from_email' => 'frontdesk@example.test', 'from_name' => 'HotelDesk'], 'secrets' => ['password' => 'do-not-log-this']]);
-        $log = app(HotelEmailService::class)->queue('reservation_confirmation', 'guest@example.test', ['guest_name' => 'Guest', 'reservation_code' => 'WSX-0001', 'property_name' => 'HotelDesk']);
+        IntegrationSetting::create(['key' => 'email', 'provider' => 'smtp', 'status' => 'configured', 'mode' => 'smtp', 'is_enabled' => true, 'settings' => ['host' => 'smtp.example.test', 'from_email' => 'frontdesk@example.test', 'from_name' => 'Lodgic'], 'secrets' => ['password' => 'do-not-log-this']]);
+        $log = app(HotelEmailService::class)->queue('reservation_confirmation', 'guest@example.test', ['guest_name' => 'Guest', 'reservation_code' => 'WSX-0001', 'property_name' => 'Lodgic']);
         Queue::assertPushed(SendHotelEmail::class);
         $this->assertSame('queued', $log->status);
         $this->assertStringNotContainsString('do-not-log-this', json_encode($log->toArray()));
         $this->assertStringNotContainsString('do-not-log-this', (string) DB::table('integration_settings')->where('key', 'email')->value('secrets'));
         $this->actingAs($admin)->get(route('settings.index', ['section' => 'integrations']))->assertOk()->assertSee('Email / SMTP');
-        $this->assertSame('Hello Guest, your reservation WSX-0001 at HotelDesk is confirmed.', app(SafeTemplateRenderer::class)->render('Hello {{ guest_name }}, your reservation {{ reservation_code }} at {{ property_name }} is confirmed.', ['guest_name' => 'Guest', 'reservation_code' => 'WSX-0001', 'property_name' => 'HotelDesk']));
+        $this->assertSame('Hello Guest, your reservation WSX-0001 at Lodgic is confirmed.', app(SafeTemplateRenderer::class)->render('Hello {{ guest_name }}, your reservation {{ reservation_code }} at {{ property_name }} is confirmed.', ['guest_name' => 'Guest', 'reservation_code' => 'WSX-0001', 'property_name' => 'Lodgic']));
     }
 
     public function test_signed_inbound_webhook_is_idempotent_and_notifications_are_scoped(): void
